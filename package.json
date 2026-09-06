@@ -4,6 +4,7 @@
   "description": "TypeScript parser, AST, CLI, and multi-format music generator for TMD (Timebase Mark Down)",
   "author": "zonble",
   "license": "MIT",
+  "engines": { "node": ">=20" },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -18,7 +19,8 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build && npm test"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

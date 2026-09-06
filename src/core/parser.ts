@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+import { FilePathNormalizer, TextEncodingDetector } from "../utils/index.js";
 import {
   Accidental,
   Beat,
@@ -54,6 +56,13 @@ export interface Token {
   text: string;
   line: number;
   column: number;
+}
+
+export interface SourcePosition { offset: number; line: number; column: number; }
+export interface SourceRange { start: SourcePosition; length: number; endOffset: number; }
+export interface LexedToken { token: Token; text: string; range: SourceRange; }
+export class TMDParseError extends Error {
+  constructor(public readonly message: string, public readonly token: Token, public readonly text: string, public readonly range: SourceRange) { super(message); this.name = "TMDParseError"; }
 }
 
 export class Lexer {
@@ -118,6 +127,17 @@ export class Lexer {
       if (tok.type === "eof") break;
     }
     return tokens;
+  }
+
+  public tokenizeWithRanges(): LexedToken[] {
+    const tokens = this.tokenize(); let offset = 0;
+    return tokens.map(token => {
+      const index = token.text ? this.input.indexOf(token.text, offset) : this.input.length;
+      const start = index < 0 ? offset : index; offset = start + token.text.length;
+      const before = this.input.slice(0, start); const line = (before.match(/\n/g) || []).length + 1;
+      const column = start - Math.max(-1, before.lastIndexOf("\n"));
+      return { token, text: token.text, range: { start: { offset: start, line, column }, length: token.text.length, endOffset: start + token.text.length } };
+    });
   }
 
   private nextToken(): Token {
@@ -354,6 +374,18 @@ export class TmdParser {
     return parser.parseSheet();
   }
 
+  public static parseThrowing(input: string): Sheet { return this.parse(input); }
+  public static parseData(data: Uint8Array): Sheet {
+    const result = TextEncodingDetector.detectAndDecode(data);
+    if (!result) throw new Error("Could not decode TMD input");
+    return this.parse(result.content);
+  }
+  public static parseFile(filePathOrURL: string): Sheet {
+    const location = FilePathNormalizer.parseLocation(filePathOrURL);
+    return this.parseData(fs.readFileSync(location.filePath));
+  }
+  public static parseURL(fileURL: string): Sheet { return this.parseFile(fileURL); }
+
   private currentToken(): Token {
     return this.pos < this.tokens.length ? this.tokens[this.pos] : { type: "eof", text: "", line: 0, column: 0 };
   }
@@ -533,8 +565,9 @@ export class TmdParser {
         start = this.advance().value.degree;
       }
       this.match("pipe");
-    } else if ((this.current.type as string) === "identifier") {
-      executionTime = this.advance().value;
+    } else if (["identifier", "number", "positiveNumber", "double", "note"].includes(this.current.type as string)) {
+      const value = this.advance().value;
+      executionTime = typeof value === "object" ? String(value.degree) : String(value);
     }
 
     if (!this.match("openBrace")) {

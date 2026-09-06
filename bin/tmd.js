@@ -23,6 +23,8 @@ const {
   TMDLilyPondGenerator,
   TMDMusicXMLGenerator,
   TMDMIDIGenerator,
+  TMDWAVRenderer,
+  TmdSkill,
 } = tmd;
 
 const args = process.argv.slice(2);
@@ -48,6 +50,9 @@ OPTIONS:
                           Export to LilyPond (.ly) file at the specified path.
   -a, --abc-output <path> Export to ABC notation (.abc) file at the specified path.
   --pdf-output <path>     Render PDF score using lilypond compiler.
+  -w, --wav-output <path> Render WAV audio at the specified path.
+  --play                  Render a temporary WAV and play it.
+  --install-skills        Install the TMD skill for local AI agents.
   --version               Show the version.
   -h, --help              Show help information.
 `);
@@ -60,6 +65,9 @@ let musicxmlOutput = null;
 let lilypondOutput = null;
 let abcOutput = null;
 let pdfOutput = null;
+let wavOutput = null;
+let play = false;
+let installSkills = false;
 
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
@@ -81,9 +89,21 @@ for (let i = 0; i < args.length; i++) {
     abcOutput = args[++i];
   } else if (arg === '--pdf-output') {
     pdfOutput = args[++i];
+  } else if (arg === '-w' || arg === '--wav-output') {
+    wavOutput = args[++i];
+  } else if (arg === '--play') {
+    play = true;
+  } else if (arg === '--install-skills') {
+    installSkills = true;
   } else if (!arg.startsWith('-')) {
     inputPath = arg;
   }
+}
+
+if (installSkills) {
+  const results = TmdSkill.installSkills();
+  results.forEach(result => console.log(`${result.installed ? 'Installed' : 'Failed'} TMD skill: ${result.path}${result.error ? ` (${result.error})` : ''}`));
+  if (!inputPath) process.exit(results.some(result => !result.installed) ? 1 : 0);
 }
 
 if (!inputPath) {
@@ -173,6 +193,20 @@ if (pdfOutput) {
     try { fs.unlinkSync(tmpLy); } catch (_) {}
   } catch (err) {
     console.error(`Error rendering PDF to ${pdfOutput}: ${err.message}`);
+    process.exit(1);
+  }
+}
+
+if (wavOutput || play) {
+  try {
+    const output = wavOutput || path.join(require('os').tmpdir(), `tmd_${Date.now()}.wav`);
+    const bytes = TMDWAVRenderer.renderWAV(sheet);
+    fs.writeFileSync(output, Buffer.from(bytes));
+    if (wavOutput) console.log(`WAV exported successfully to ${wavOutput} (${bytes.length} bytes)`);
+    if (play) execFileSync(process.platform === 'darwin' ? 'afplay' : 'aplay', [output], { stdio: 'inherit' });
+    if (!wavOutput) try { fs.unlinkSync(output); } catch (_) {}
+  } catch (err) {
+    console.error(`Error rendering WAV audio: ${err.message}`);
     process.exit(1);
   }
 }
