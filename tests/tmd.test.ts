@@ -15,6 +15,7 @@ import {
   FilePathNormalizer,
   TextEncodingDetector,
   TmdSkill,
+  TMD_VERSION,
 } from '../src/index.js';
 import { Lexer } from '../src/core/parser.js';
 
@@ -154,6 +155,7 @@ describe('Input utilities and platform features', () => {
     expect(utf8).toEqual({ content: '測試', encoding: 'UTF-8' });
     const utf16 = new Uint8Array([0xff, 0xfe, 0x2c, 0x6e, 0x66, 0x8a]);
     expect(TextEncodingDetector.detectAndDecode(utf16)?.content).toBe('測試');
+    expect(TextEncodingDetector.detectAndDecode(new Uint8Array([0xb4, 0xfa, 0xb8, 0xd5]))?.content).toBe('測試');
   });
 
   it('parses data and files, and reports token ranges', () => {

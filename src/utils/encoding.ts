@@ -12,7 +12,12 @@ export class TextEncodingDetector {
       return { content: new TextDecoder("utf-16le").decode(swapped), encoding: "UTF-16BE" };
     }
     try { return { content: new TextDecoder("utf-8", { fatal: true }).decode(data), encoding: "UTF-8" }; }
-    catch { return { content: new TextDecoder("windows-1252").decode(data), encoding: "Windows-1252" }; }
+    catch {
+      for (const encoding of ["big5", "gb18030", "gbk", "shift_jis", "euc-jp", "utf-32le", "windows-1252", "iso-8859-1"]) {
+        try { return { content: new TextDecoder(encoding, { fatal: true }).decode(data), encoding: encoding.toUpperCase() }; } catch { /* try next */ }
+      }
+      return null;
+    }
   }
 
   static displayName(encoding: string): string { return encoding; }
