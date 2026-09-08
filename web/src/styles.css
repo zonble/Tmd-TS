@@ -978,37 +978,6 @@ dialog.modal.modal-lg .modal-body {
   font-weight: 500;
 }
 
-.ai-cmd-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 2px;
-}
-
-.ai-cmd-label {
-  font-size: 11.5px;
-  color: var(--text-secondary);
-}
-
-.ai-cmd-box {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 6px 10px;
-  gap: 8px;
-}
-
-.ai-cmd-box code {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: #7ee787;
-  word-break: break-all;
-  user-select: all;
-}
-
 .ai-paths-section {
   display: flex;
   flex-direction: column;

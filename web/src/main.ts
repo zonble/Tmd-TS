@@ -48,6 +48,7 @@ const btnLangToggle = document.getElementById("btn-lang-toggle") as HTMLButtonEl
 const btnToggleAi = document.getElementById("btn-toggle-ai") as HTMLButtonElement;
 
 // Export items
+const btnExportTmd = document.getElementById("export-tmd") as HTMLButtonElement;
 const btnExportMidi = document.getElementById("export-midi") as HTMLButtonElement;
 const btnExportMusicXML = document.getElementById("export-musicxml") as HTMLButtonElement;
 const btnExportLilyPond = document.getElementById("export-lilypond") as HTMLButtonElement;
@@ -84,7 +85,6 @@ const btnCloseAiDrawer = document.getElementById("btn-close-ai-drawer") as HTMLB
 const btnOpenAiSettings = document.getElementById("btn-open-ai-settings") as HTMLButtonElement;
 const aiBtnDownload = document.getElementById("ai-btn-download") as HTMLButtonElement;
 const aiBtnCopySkill = document.getElementById("ai-btn-copy-skill") as HTMLButtonElement;
-const aiBtnCopyCmd = document.getElementById("ai-btn-copy-cmd") as HTMLButtonElement;
 const aiPromptInput = document.getElementById("ai-prompt-input") as HTMLTextAreaElement;
 const btnAiGenerate = document.getElementById("btn-ai-generate") as HTMLButtonElement;
 const btnAiStop = document.getElementById("btn-ai-stop") as HTMLButtonElement;
@@ -462,6 +462,21 @@ function initEvents() {
   });
 
   // Export actions
+  btnExportTmd.addEventListener("click", () => {
+    exportDropdown.classList.remove("open");
+    const text = editor.getContent();
+    let filename = "score.tmd";
+    try {
+      const sheet = TmdParser.parse(text);
+      if (sheet?.name) {
+        filename = getSafeFilename(sheet.name, "tmd");
+      }
+    } catch {
+      // Even if syntax is incomplete, let user download their raw TMD code
+    }
+    downloadBlob(filename, new Blob([text], { type: "text/plain;charset=utf-8" }));
+  });
+
   btnExportMidi.addEventListener("click", () => {
     exportDropdown.classList.remove("open");
     const text = editor.getContent();
@@ -634,18 +649,6 @@ function initEvents() {
     }
   });
 
-  aiBtnCopyCmd?.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText("npx tmd-ts --install-skills");
-      const prevText = aiBtnCopyCmd.textContent;
-      aiBtnCopyCmd.textContent = "✓";
-      setTimeout(() => {
-        aiBtnCopyCmd.textContent = prevText;
-      }, 2000);
-    } catch {
-      alert(t("aiCmdCopied"));
-    }
-  });
 
   const updateAiSettingsButtonState = () => {
     aiSettings = loadAISettings();

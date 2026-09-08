@@ -4,7 +4,46 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TMD Studio - Timebase Mark Down 樂譜編輯與試聽</title>
-    <meta name="description" content="TMD (Timebase Mark Down) 純文字音樂標記語言線上編輯器、多格式匯出與合成試聽工具。" />
+    <meta name="description" content="TMD (Timebase Mark Down) 純文字音樂標記語言線上編輯器、多格式匯出（MIDI, MusicXML, LilyPond, ABC, WAV）與合成試聽工具，支援 AI 結對作曲與簡譜排版。" />
+    <meta name="keywords" content="TMD, Timebase Mark Down, 阿怪, 陳志翰, 簡譜, 線上樂譜, 音樂標記語言, MIDI 匯出, MusicXML, LilyPond, ABC notation, AI 寫歌, AI 作曲, 樂譜編輯器" />
+    <meta name="author" content="zonble" />
+    <meta name="theme-color" content="#0d1117" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="canonical" href="https://zonble.github.io/Tmd-TS/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://zonble.github.io/Tmd-TS/" />
+    <meta property="og:title" content="TMD Studio - Timebase Mark Down 樂譜編輯與試聽" />
+    <meta property="og:description" content="TMD (Timebase Mark Down) 純文字音樂標記語言線上編輯器、多格式匯出與合成試聽工具，支援 AI 結對作曲。" />
+    <meta property="og:site_name" content="TMD Studio" />
+    <meta property="og:locale" content="zh_TW" />
+    <meta property="og:locale:alternate" content="en_US" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:url" content="https://zonble.github.io/Tmd-TS/" />
+    <meta name="twitter:title" content="TMD Studio - Timebase Mark Down 樂譜編輯與試聽" />
+    <meta name="twitter:description" content="TMD (Timebase Mark Down) 純文字音樂標記語言線上編輯器、多格式匯出與合成試聽工具，支援 AI 結對作曲。" />
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "TMD Studio",
+      "url": "https://zonble.github.io/Tmd-TS/",
+      "description": "Online editor, synthesizer, and multi-format music exporter for TMD (Timebase Mark Down).",
+      "applicationCategory": "MultimediaApplication",
+      "operatingSystem": "All",
+      "browserRequirements": "Requires JavaScript. Requires HTML5 Audio.",
+      "author": {
+        "@type": "Person",
+        "name": "zonble",
+        "url": "https://github.com/zonble"
+      }
+    }
+    </script>
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
   <body>
@@ -44,6 +83,10 @@
               <span style="font-size: 10px;">▼</span>
             </button>
             <div class="dropdown-menu">
+              <button class="dropdown-item" id="export-tmd">
+                <span>📄</span> <span data-i18n="exportTmd">TMD 樂譜原始檔 (.tmd)</span>
+              </button>
+              <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="export-midi">
                 <span>🎹</span> <span data-i18n="exportMidi">Standard MIDI (.mid)</span>
               </button>
@@ -300,14 +343,6 @@
                   <button id="ai-btn-copy-skill" class="btn" data-i18n="aiBtnCopySkill">📋 複製 SKILL.md 內容</button>
                 </div>
 
-                <div class="ai-cmd-section">
-                  <div class="ai-cmd-label" data-i18n="aiInstallCmdLabel">或於終端機一鍵全域安裝至本機各 AI 技能目錄：</div>
-                  <div class="ai-cmd-box">
-                    <code id="ai-cmd-text">npx tmd-ts --install-skills</code>
-                    <button id="ai-btn-copy-cmd" class="btn btn-icon-only" title="複製指令" data-i18n-title="aiCopyCmd">📋</button>
-                  </div>
-                </div>
-
                 <div class="ai-paths-section">
                   <div class="ai-paths-title" data-i18n="aiPathsTitle">各工具常見 Skill 目錄（將下載的 SKILL.md 放入即可）：</div>
                   <ul class="ai-paths-list">
@@ -331,13 +366,13 @@
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="ai-settings-provider" data-i18n="aiProviderSelect">AI 提供商 (Provider)</label>
+            <label for="ai-settings-provider" data-i18n="aiProviderSelect">AI 提供商</label>
             <select id="ai-settings-provider" class="select-control" style="width: 100%;">
-              <option value="gemini">Google Gemini (推薦：免費額度最寬裕)</option>
-              <option value="openai">OpenAI (GPT-4o, GPT-4.5, o3-mini)</option>
-              <option value="groq">Groq (Llama 3.3 70B 極速推論)</option>
-              <option value="anthropic">Anthropic Claude (Claude 3.7 Sonnet)</option>
-              <option value="custom">自訂 OpenAI-Compatible (DeepSeek / 本機 Ollama)</option>
+              <option value="gemini">Gemini (推薦)</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="groq">Groq</option>
+              <option value="custom">Custom (DeepSeek / Ollama)</option>
             </select>
           </div>
 

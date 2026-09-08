@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://zonble.github.io/Tmd-TS/sitemap.xml
