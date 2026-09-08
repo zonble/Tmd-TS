@@ -45,7 +45,6 @@ const btnPlay = document.getElementById("btn-play") as HTMLButtonElement;
 const exportDropdown = document.getElementById("export-dropdown") as HTMLElement;
 const btnExportMenu = document.getElementById("btn-export-menu") as HTMLButtonElement;
 const btnLangToggle = document.getElementById("btn-lang-toggle") as HTMLButtonElement;
-const btnDownloadSkill = document.getElementById("btn-download-skill") as HTMLButtonElement;
 const btnToggleAi = document.getElementById("btn-toggle-ai") as HTMLButtonElement;
 
 // Export items
@@ -78,18 +77,13 @@ const helpModal = document.getElementById("help-modal") as HTMLDialogElement;
 const btnCloseHelp = document.getElementById("btn-close-help") as HTMLButtonElement;
 const btnDismissHelp = document.getElementById("btn-dismiss-help") as HTMLButtonElement;
 
-// AI Modal (Guide)
-const aiModal = document.getElementById("ai-modal") as HTMLDialogElement;
-const btnCloseAi = document.getElementById("btn-close-ai") as HTMLButtonElement;
-const btnDismissAi = document.getElementById("btn-dismiss-ai") as HTMLButtonElement;
-const aiBtnDownload = document.getElementById("ai-btn-download") as HTMLButtonElement;
-const aiBtnCopySkill = document.getElementById("ai-btn-copy-skill") as HTMLButtonElement;
-const aiBtnCopyCmd = document.getElementById("ai-btn-copy-cmd") as HTMLButtonElement;
-
 // AI Drawer
 const aiDrawer = document.getElementById("ai-drawer") as HTMLElement;
 const btnCloseAiDrawer = document.getElementById("btn-close-ai-drawer") as HTMLButtonElement;
 const btnOpenAiSettings = document.getElementById("btn-open-ai-settings") as HTMLButtonElement;
+const aiBtnDownload = document.getElementById("ai-btn-download") as HTMLButtonElement;
+const aiBtnCopySkill = document.getElementById("ai-btn-copy-skill") as HTMLButtonElement;
+const aiBtnCopyCmd = document.getElementById("ai-btn-copy-cmd") as HTMLButtonElement;
 const aiPromptInput = document.getElementById("ai-prompt-input") as HTMLTextAreaElement;
 const btnAiGenerate = document.getElementById("btn-ai-generate") as HTMLButtonElement;
 const btnAiStop = document.getElementById("btn-ai-stop") as HTMLButtonElement;
@@ -519,47 +513,7 @@ function initEvents() {
     downloadSkillFile();
   });
 
-  btnDownloadSkill.addEventListener("click", () => {
-    aiModal.showModal();
-  });
 
-  aiBtnDownload?.addEventListener("click", () => {
-    downloadSkillFile();
-  });
-
-  aiBtnCopySkill?.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(TmdSkill.skillMarkdown);
-      const prevText = aiBtnCopySkill.textContent;
-      aiBtnCopySkill.textContent = `✓ ${t("aiSkillCopied")}`;
-      setTimeout(() => {
-        aiBtnCopySkill.textContent = prevText;
-      }, 2000);
-    } catch {
-      alert(t("aiSkillCopied"));
-    }
-  });
-
-  aiBtnCopyCmd?.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText("npx tmd-ts --install-skills");
-      const prevText = aiBtnCopyCmd.textContent;
-      aiBtnCopyCmd.textContent = "✓";
-      setTimeout(() => {
-        aiBtnCopyCmd.textContent = prevText;
-      }, 2000);
-    } catch {
-      alert(t("aiCmdCopied"));
-    }
-  });
-
-  btnCloseAi?.addEventListener("click", () => {
-    aiModal.close();
-  });
-
-  btnDismissAi?.addEventListener("click", () => {
-    aiModal.close();
-  });
 
   // New Song Button
   btnNewSong?.addEventListener("click", () => {
@@ -647,6 +601,56 @@ function initEvents() {
     aiSettingsModal.showModal();
   };
 
+
+  // Skill tab actions
+  aiBtnDownload?.addEventListener("click", () => {
+    downloadSkillFile();
+  });
+
+  aiBtnCopySkill?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(TmdSkill.skillMarkdown);
+      const prevText = aiBtnCopySkill.textContent;
+      aiBtnCopySkill.textContent = `✓ ${t("aiSkillCopied")}`;
+      setTimeout(() => {
+        aiBtnCopySkill.textContent = prevText;
+      }, 2000);
+    } catch {
+      alert(t("aiSkillCopied"));
+    }
+  });
+
+  aiBtnCopyCmd?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText("npx tmd-ts --install-skills");
+      const prevText = aiBtnCopyCmd.textContent;
+      aiBtnCopyCmd.textContent = "✓";
+      setTimeout(() => {
+        aiBtnCopyCmd.textContent = prevText;
+      }, 2000);
+    } catch {
+      alert(t("aiCmdCopied"));
+    }
+  });
+
+  const updateAiSettingsButtonState = () => {
+    aiSettings = loadAISettings();
+    const currentProvider = aiSettings.activeProvider;
+    const currentConfig = aiSettings.providers[currentProvider];
+    const hasKey = Boolean(currentConfig?.apiKey?.trim()) || currentProvider === "custom";
+
+    if (!hasKey) {
+      btnOpenAiSettings.classList.add("needs-key");
+      btnOpenAiSettings.title = `${t("aiSettingsTitle")} (未設定 Key)`;
+    } else {
+      btnOpenAiSettings.classList.remove("needs-key");
+      btnOpenAiSettings.title = `${t("aiSettingsTitle")} (${currentProvider.toUpperCase()})`;
+    }
+  };
+
+  // Update initial button appearance
+  updateAiSettingsButtonState();
+
   btnToggleAi?.addEventListener("click", () => {
     aiDrawer.classList.toggle("hidden");
     if (!aiDrawer.classList.contains("hidden")) {
@@ -655,14 +659,7 @@ function initEvents() {
         inspectorPanel.classList.add("hidden");
       }
       aiPromptInput.focus();
-
-      // Check if API key / token is configured for the active provider
-      aiSettings = loadAISettings();
-      const currentProvider = aiSettings.activeProvider;
-      const currentConfig = aiSettings.providers[currentProvider];
-      if (!currentConfig?.apiKey?.trim() && currentProvider !== "custom") {
-        openAiSettingsModal();
-      }
+      updateAiSettingsButtonState();
     }
   });
 
@@ -703,6 +700,7 @@ function initEvents() {
     };
 
     saveAISettings(aiSettings);
+    updateAiSettingsButtonState();
     aiSettingsModal.close();
     aiStatusText.textContent = `已套用 ${provider.toUpperCase()} (${selectedModel}) 設定。`;
   });
