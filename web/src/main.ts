@@ -39,6 +39,7 @@ let aiAbortController: AbortController | null = null;
 let aiCurrentGeneratedCode: string = "";
 
 // DOM Elements
+const btnNewSong = document.getElementById("btn-new-song") as HTMLButtonElement;
 const sampleSelect = document.getElementById("sample-select") as HTMLSelectElement;
 const btnPlay = document.getElementById("btn-play") as HTMLButtonElement;
 const exportDropdown = document.getElementById("export-dropdown") as HTMLElement;
@@ -558,6 +559,21 @@ function initEvents() {
 
   btnDismissAi?.addEventListener("click", () => {
     aiModal.close();
+  });
+
+  // New Song Button
+  btnNewSong?.addEventListener("click", () => {
+    const starterSample = SAMPLES.find((s) => s.id === "starter_template") || SAMPLES[0];
+    const current = editor.getContent().trim();
+    if (current && current !== starterSample.content.trim()) {
+      if (!confirm(t("confirmNewSong"))) {
+        return;
+      }
+    }
+    sampleSelect.value = starterSample.id;
+    editor.setContent(starterSample.content);
+    updateInspector(starterSample.content);
+    editor.focus();
   });
 
   // Sample select
