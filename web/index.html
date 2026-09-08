@@ -76,6 +76,12 @@
             <span id="lang-toggle-text" data-i18n="langToggle">English</span>
           </button>
 
+          <!-- Toggle AI Assistant Drawer -->
+          <button id="btn-toggle-ai" class="btn btn-primary" title="開啟 AI 智慧作曲面板" data-i18n-title="btnAiAssistantTitle">
+            <span class="btn-icon">✨</span>
+            <span data-i18n="btnAiAssistant">AI 寫歌</span>
+          </button>
+
           <!-- Toggle Inspector -->
           <button id="btn-toggle-inspector" class="btn btn-icon-only" title="開啟/關閉資訊側欄" data-i18n-title="btnToggleInspector">
             📊
@@ -176,7 +182,105 @@
             </div>
           </div>
         </aside>
+        <!-- AI Assistant Drawer -->
+        <aside id="ai-drawer" class="ai-drawer hidden">
+          <div class="panel-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">✨</span>
+              <span data-i18n="aiAssistantTitle" style="font-weight: 700;">AI 寫歌助手</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button id="btn-open-ai-settings" class="btn btn-icon-only" title="AI 設定" data-i18n-title="aiBtnSettings">⚙️</button>
+              <button id="btn-close-ai-drawer" class="btn btn-icon-only" style="padding: 2px 6px; font-size: 11px;">✕</button>
+            </div>
+          </div>
+          <div class="panel-body ai-drawer-body">
+            <!-- Quick Preset Actions -->
+            <div class="card">
+              <div class="card-title" data-i18n="aiQuickPresetTitle">快捷創作動作</div>
+              <div class="ai-quick-actions">
+                <button class="btn btn-sm ai-preset-btn" data-mode="compose" data-i18n="aiActionCompose">🎲 靈感整首生成</button>
+                <button class="btn btn-sm ai-preset-btn" data-mode="arrange" data-i18n="aiActionArrange">🎸 自動配器伴奏</button>
+                <button class="btn btn-sm ai-preset-btn" data-mode="extend" data-i18n="aiActionExtend">🎼 動機發展續寫</button>
+                <button class="btn btn-sm ai-preset-btn" data-mode="reharm" data-i18n="aiActionReharm">🎹 和聲豐富重編</button>
+                <button class="btn btn-sm ai-preset-btn" data-mode="debug" data-i18n="aiActionDebug">🔍 語法診斷修復</button>
+              </div>
+            </div>
+
+            <!-- Prompt Input & Controls -->
+            <div class="card">
+              <textarea id="ai-prompt-input" class="ai-prompt-textarea" rows="3" data-i18n-placeholder="aiPromptPlaceholder" placeholder="輸入創作需求，例如：請以 80 BPM G 大調寫一首溫暖的 City Pop 主歌，帶木吉他與放克貝斯..."></textarea>
+              <div class="ai-action-bar">
+                <div id="ai-status-text" class="ai-status-hint" data-i18n="aiStatusIdle">準備就緒，自備 API Key 直接在瀏覽器運行，不消耗伺服器 Token。</div>
+                <div style="display: flex; gap: 8px;">
+                  <button id="btn-ai-stop" class="btn btn-sm" style="display: none;" data-i18n="aiBtnStop">⏹ 停止生成</button>
+                  <button id="btn-ai-generate" class="btn btn-sm btn-primary" data-i18n="aiBtnGenerate">✨ 開始生成</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Result Stream & Actions -->
+            <div id="ai-result-container" class="card" style="display: none;">
+              <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span>生成結果 (TMD Preview)</span>
+                <div class="ai-result-btn-row">
+                  <button id="btn-ai-preview-play" class="btn btn-sm" title="試聽生成的樂譜" data-i18n="aiBtnPlayPreview">▶️ 試聽</button>
+                  <button id="btn-ai-copy-code" class="btn btn-sm" title="複製代碼" data-i18n="aiBtnCopyCode">📋 複製</button>
+                  <button id="btn-ai-apply-replace" class="btn btn-sm btn-primary" title="替換目前編輯器內容" data-i18n="aiBtnApplyReplace">替換目前樂譜</button>
+                  <button id="btn-ai-apply-insert" class="btn btn-sm" title="插入至游標位置" data-i18n="aiBtnApplyInsert">插入游標處</button>
+                </div>
+              </div>
+              <pre id="ai-result-output" class="ai-code-preview"></pre>
+            </div>
+          </div>
+        </aside>
       </main>
+
+      <!-- AI Settings Modal Dialog -->
+      <dialog id="ai-settings-modal" class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title" data-i18n="aiSettingsTitle">AI 模型與金鑰設定</h2>
+          <button id="btn-close-ai-settings" class="btn btn-icon-only">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="ai-settings-provider" data-i18n="aiProviderSelect">AI 提供商 (Provider)</label>
+            <select id="ai-settings-provider" class="select-control" style="width: 100%;">
+              <option value="gemini">Google Gemini (推薦：免費額度最寬裕)</option>
+              <option value="openai">OpenAI (GPT-4o, GPT-4.5, o3-mini)</option>
+              <option value="groq">Groq (Llama 3.3 70B 極速推論)</option>
+              <option value="anthropic">Anthropic Claude (Claude 3.7 Sonnet)</option>
+              <option value="custom">自訂 OpenAI-Compatible (DeepSeek / 本機 Ollama)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="ai-settings-model-preset" data-i18n="aiModelSelect">模型 (Model)</label>
+            <select id="ai-settings-model-preset" class="select-control" style="width: 100%;">
+              <!-- populated dynamically -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="ai-settings-model-custom" data-i18n="aiCustomModelInput">或自訂模型名稱 (Free Text)</label>
+            <input type="text" id="ai-settings-model-custom" class="text-control" data-i18n-placeholder="aiCustomModelPlaceholder" placeholder="自訂模型，如 deepseek-chat 或 gpt-4o" />
+          </div>
+
+          <div class="form-group">
+            <label for="ai-settings-key" data-i18n="aiApiKeyLabel">API Key (儲存於本機瀏覽器，安全無伺服器中轉)</label>
+            <input type="password" id="ai-settings-key" class="text-control" data-i18n-placeholder="aiApiKeyPlaceholder" placeholder="請輸入 API Key..." />
+          </div>
+
+          <div id="ai-settings-baseurl-group" class="form-group" style="display: none;">
+            <label for="ai-settings-baseurl" data-i18n="aiBaseUrlLabel">API Base URL (適用於自訂相容端點或本機 Ollama)</label>
+            <input type="text" id="ai-settings-baseurl" class="text-control" data-i18n-placeholder="aiBaseUrlPlaceholder" placeholder="https://api.deepseek.com/v1 或 http://localhost:11434/v1" />
+          </div>
+        </div>
+        <form method="dialog" class="modal-footer">
+          <button id="btn-save-ai-settings" class="btn btn-primary" data-i18n="aiSaveSettings">儲存設定</button>
+          <button id="btn-dismiss-ai-settings" class="btn" data-i18n="aiCloseSettings">關閉</button>
+        </form>
+      </dialog>
 
       <!-- Bottom Status Bar -->
       <footer class="status-bar">

@@ -117,6 +117,7 @@ export interface TMDWebEditor {
   view: EditorView;
   getContent(): string;
   setContent(text: string): void;
+  insertAtCursor(text: string): void;
   focus(): void;
 }
 
@@ -181,6 +182,17 @@ export function createTmdEditor(
           to: view.state.doc.length,
           insert: text,
         },
+      });
+    },
+    insertAtCursor(text: string) {
+      const selection = view.state.selection.main;
+      view.dispatch({
+        changes: {
+          from: selection.from,
+          to: selection.to,
+          insert: text,
+        },
+        selection: { anchor: selection.from + text.length },
       });
     },
     focus() {

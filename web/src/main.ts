@@ -21,9 +21,22 @@ import {
   Locale,
 } from "./i18n.js";
 
+import {
+  loadAISettings,
+  saveAISettings,
+  callAI,
+  extractTmdCode,
+  MODEL_PRESETS,
+  DEFAULT_MODELS,
+  AIProviderType,
+  AISettingsState,
+} from "./ai/index.js";
+
 let editor: TMDWebEditor;
 let currentSheet: Sheet | null = null;
 let isSeeking = false;
+let aiAbortController: AbortController | null = null;
+let aiCurrentGeneratedCode: string = "";
 
 // DOM Elements
 const sampleSelect = document.getElementById("sample-select") as HTMLSelectElement;
@@ -32,6 +45,7 @@ const exportDropdown = document.getElementById("export-dropdown") as HTMLElement
 const btnExportMenu = document.getElementById("btn-export-menu") as HTMLButtonElement;
 const btnLangToggle = document.getElementById("btn-lang-toggle") as HTMLButtonElement;
 const btnDownloadSkill = document.getElementById("btn-download-skill") as HTMLButtonElement;
+const btnToggleAi = document.getElementById("btn-toggle-ai") as HTMLButtonElement;
 
 // Export items
 const btnExportMidi = document.getElementById("export-midi") as HTMLButtonElement;
@@ -63,13 +77,40 @@ const helpModal = document.getElementById("help-modal") as HTMLDialogElement;
 const btnCloseHelp = document.getElementById("btn-close-help") as HTMLButtonElement;
 const btnDismissHelp = document.getElementById("btn-dismiss-help") as HTMLButtonElement;
 
-// AI Modal
+// AI Modal (Guide)
 const aiModal = document.getElementById("ai-modal") as HTMLDialogElement;
 const btnCloseAi = document.getElementById("btn-close-ai") as HTMLButtonElement;
 const btnDismissAi = document.getElementById("btn-dismiss-ai") as HTMLButtonElement;
 const aiBtnDownload = document.getElementById("ai-btn-download") as HTMLButtonElement;
 const aiBtnCopySkill = document.getElementById("ai-btn-copy-skill") as HTMLButtonElement;
 const aiBtnCopyCmd = document.getElementById("ai-btn-copy-cmd") as HTMLButtonElement;
+
+// AI Drawer
+const aiDrawer = document.getElementById("ai-drawer") as HTMLElement;
+const btnCloseAiDrawer = document.getElementById("btn-close-ai-drawer") as HTMLButtonElement;
+const btnOpenAiSettings = document.getElementById("btn-open-ai-settings") as HTMLButtonElement;
+const aiPromptInput = document.getElementById("ai-prompt-input") as HTMLTextAreaElement;
+const btnAiGenerate = document.getElementById("btn-ai-generate") as HTMLButtonElement;
+const btnAiStop = document.getElementById("btn-ai-stop") as HTMLButtonElement;
+const aiStatusText = document.getElementById("ai-status-text") as HTMLElement;
+const aiResultContainer = document.getElementById("ai-result-container") as HTMLElement;
+const aiResultOutput = document.getElementById("ai-result-output") as HTMLElement;
+const btnAiPreviewPlay = document.getElementById("btn-ai-preview-play") as HTMLButtonElement;
+const btnAiCopyCode = document.getElementById("btn-ai-copy-code") as HTMLButtonElement;
+const btnAiApplyReplace = document.getElementById("btn-ai-apply-replace") as HTMLButtonElement;
+const btnAiApplyInsert = document.getElementById("btn-ai-apply-insert") as HTMLButtonElement;
+
+// AI Settings Modal
+const aiSettingsModal = document.getElementById("ai-settings-modal") as HTMLDialogElement;
+const btnCloseAiSettings = document.getElementById("btn-close-ai-settings") as HTMLButtonElement;
+const btnDismissAiSettings = document.getElementById("btn-dismiss-ai-settings") as HTMLButtonElement;
+const btnSaveAiSettings = document.getElementById("btn-save-ai-settings") as HTMLButtonElement;
+const aiSettingsProvider = document.getElementById("ai-settings-provider") as HTMLSelectElement;
+const aiSettingsModelPreset = document.getElementById("ai-settings-model-preset") as HTMLSelectElement;
+const aiSettingsModelCustom = document.getElementById("ai-settings-model-custom") as HTMLInputElement;
+const aiSettingsKey = document.getElementById("ai-settings-key") as HTMLInputElement;
+const aiSettingsBaseUrl = document.getElementById("ai-settings-baseurl") as HTMLInputElement;
+const aiSettingsBaseUrlGroup = document.getElementById("ai-settings-baseurl-group") as HTMLElement;
 
 // Player Bar (Matching zago)
 const tmdPlayerBar = document.getElementById("tmd-player-bar") as HTMLElement;
@@ -196,8 +237,8 @@ function handleEditorChange(text: string) {
 }
 
 // Playback handling
-async function startPlayback() {
-  const text = editor.getContent();
+async function startPlayback(customText?: string) {
+  const text = customText !== undefined ? customText : editor.getContent();
   let sheet: Sheet | null = null;
   try {
     sheet = TmdParser.parse(text);
@@ -555,6 +596,216 @@ function initEvents() {
 
   btnDismissHelp.addEventListener("click", () => {
     helpModal.close();
+  });
+
+  // AI Assistant Drawer & Settings
+  let aiSettings = loadAISettings();
+
+  const populateModelPresets = (provider: AIProviderType) => {
+    aiSettingsModelPreset.innerHTML = "";
+    const presets = MODEL_PRESETS[provider] || [];
+    presets.forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = `${p.name}${p.recommended ? " ★" : ""}`;
+      aiSettingsModelPreset.appendChild(opt);
+    });
+
+    const currentCfg = aiSettings.providers[provider];
+    if (presets.some((p) => p.id === currentCfg.model)) {
+      aiSettingsModelPreset.value = currentCfg.model;
+      aiSettingsModelCustom.value = "";
+    } else {
+      aiSettingsModelCustom.value = currentCfg.model;
+    }
+
+    aiSettingsKey.value = currentCfg.apiKey || "";
+    aiSettingsBaseUrl.value = currentCfg.baseUrl || "";
+    aiSettingsBaseUrlGroup.style.display = (provider === "custom" || provider === "groq") ? "flex" : "none";
+  };
+
+  btnToggleAi?.addEventListener("click", () => {
+    aiDrawer.classList.toggle("hidden");
+    if (!aiDrawer.classList.contains("hidden")) {
+      // If on narrow screen, close inspector to avoid overcrowding
+      if (window.innerWidth < 800) {
+        inspectorPanel.classList.add("hidden");
+      }
+      aiPromptInput.focus();
+    }
+  });
+
+  btnCloseAiDrawer?.addEventListener("click", () => {
+    aiDrawer.classList.add("hidden");
+  });
+
+  btnOpenAiSettings?.addEventListener("click", () => {
+    aiSettings = loadAISettings();
+    aiSettingsProvider.value = aiSettings.activeProvider;
+    populateModelPresets(aiSettings.activeProvider);
+    aiSettingsModal.showModal();
+  });
+
+  btnCloseAiSettings?.addEventListener("click", () => {
+    aiSettingsModal.close();
+  });
+
+  btnDismissAiSettings?.addEventListener("click", () => {
+    aiSettingsModal.close();
+  });
+
+  aiSettingsProvider.addEventListener("change", () => {
+    const selected = aiSettingsProvider.value as AIProviderType;
+    populateModelPresets(selected);
+  });
+
+  btnSaveAiSettings?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const provider = aiSettingsProvider.value as AIProviderType;
+    const customModel = aiSettingsModelCustom.value.trim();
+    const selectedModel = customModel || aiSettingsModelPreset.value || DEFAULT_MODELS[provider];
+    const key = aiSettingsKey.value.trim();
+    const baseUrl = aiSettingsBaseUrl.value.trim();
+
+    aiSettings.activeProvider = provider;
+    aiSettings.providers[provider] = {
+      apiKey: key,
+      model: selectedModel,
+      ...(baseUrl ? { baseUrl } : {}),
+    };
+
+    saveAISettings(aiSettings);
+    aiSettingsModal.close();
+    aiStatusText.textContent = `已套用 ${provider.toUpperCase()} (${selectedModel}) 設定。`;
+  });
+
+  // Preset Buttons
+  document.querySelectorAll<HTMLButtonElement>(".ai-preset-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const mode = btn.dataset.mode;
+      const prompts: Record<string, string> = {
+        compose: "請以流行流行放克風格 (110 BPM, G 大調) 創作一首完整的 4 軌 TMD 歌曲（旋律、和弦、貝斯、鼓組）。",
+        arrange: "請保留我現有的主旋律，為它編寫豐富的木吉他分解和弦 [CHORD]、走音貝斯 [Bass] 與動態鼓點 [Drums]。",
+        extend: "請接續這段主題動機，發展出情感昂揚的 8 小節副歌，並在最後一小節給予清晰的終止式收尾。",
+        reharm: "請重新為目前的旋律安排色彩更豐富的爵士/流行和弦進行（加入 maj7, m7, 7, sus4 或次屬和弦）。",
+        debug: "請診斷並修正我這份樂譜的小節拍數、格式錯誤與排版，確保各軌道長度平衡且能正常解析播放。",
+      };
+      if (mode && prompts[mode]) {
+        aiPromptInput.value = prompts[mode];
+        aiPromptInput.dataset.activeMode = mode;
+        aiPromptInput.focus();
+      }
+    });
+  });
+
+  // AI Generation
+  btnAiGenerate?.addEventListener("click", async () => {
+    const prompt = aiPromptInput.value.trim();
+    if (!prompt) {
+      aiPromptInput.focus();
+      return;
+    }
+
+    aiSettings = loadAISettings();
+    const provider = aiSettings.activeProvider;
+    const config = aiSettings.providers[provider];
+
+    if (!config.apiKey.trim() && provider !== "custom") {
+      alert(t("aiMissingApiKey"));
+      aiSettingsProvider.value = provider;
+      populateModelPresets(provider);
+      aiSettingsModal.showModal();
+      return;
+    }
+
+    aiAbortController = new AbortController();
+    btnAiGenerate.style.display = "none";
+    btnAiStop.style.display = "inline-flex";
+    aiStatusText.textContent = t("aiStatusGenerating");
+    aiResultContainer.style.display = "block";
+    aiResultOutput.textContent = "";
+    aiCurrentGeneratedCode = "";
+
+    const mode = (aiPromptInput.dataset.activeMode as any) || "compose";
+    let accumulatedText = "";
+
+    try {
+      accumulatedText = await callAI(provider, config, {
+        prompt,
+        currentTmd: editor.getContent(),
+        mode,
+        signal: aiAbortController.signal,
+        onChunk: (chunk) => {
+          accumulatedText += chunk;
+          aiResultOutput.textContent = accumulatedText;
+          aiResultOutput.scrollTop = aiResultOutput.scrollHeight;
+        },
+      });
+
+      aiResultOutput.textContent = accumulatedText;
+      const extracted = extractTmdCode(accumulatedText);
+      if (extracted) {
+        aiCurrentGeneratedCode = extracted;
+        aiStatusText.textContent = t("aiStatusDone");
+      } else {
+        aiStatusText.textContent = t("aiNoCodeFound");
+      }
+    } catch (err: any) {
+      if (err.name === "AbortError") {
+        aiStatusText.textContent = "已停止生成。";
+      } else {
+        aiStatusText.textContent = `生成失敗: ${err.message}`;
+      }
+    } finally {
+      btnAiGenerate.style.display = "inline-flex";
+      btnAiStop.style.display = "none";
+      aiAbortController = null;
+    }
+  });
+
+  btnAiStop?.addEventListener("click", () => {
+    if (aiAbortController) {
+      aiAbortController.abort();
+    }
+  });
+
+  btnAiPreviewPlay?.addEventListener("click", () => {
+    const codeToPlay = aiCurrentGeneratedCode || extractTmdCode(aiResultOutput.textContent || "");
+    if (!codeToPlay) {
+      return alert(t("aiNoCodeFound"));
+    }
+    startPlayback(codeToPlay);
+  });
+
+  btnAiCopyCode?.addEventListener("click", async () => {
+    const codeToCopy = aiCurrentGeneratedCode || extractTmdCode(aiResultOutput.textContent || "") || aiResultOutput.textContent || "";
+    if (!codeToCopy) return;
+    try {
+      await navigator.clipboard.writeText(codeToCopy);
+      const prev = btnAiCopyCode.textContent;
+      btnAiCopyCode.textContent = "✓ 已複製";
+      setTimeout(() => {
+        btnAiCopyCode.textContent = prev;
+      }, 2000);
+    } catch {
+      alert("已複製代碼！");
+    }
+  });
+
+  btnAiApplyReplace?.addEventListener("click", () => {
+    const code = aiCurrentGeneratedCode || extractTmdCode(aiResultOutput.textContent || "");
+    if (!code) return alert(t("aiNoCodeFound"));
+    editor.setContent(code);
+    updateInspector(code);
+    aiStatusText.textContent = t("aiAppliedSuccess");
+  });
+
+  btnAiApplyInsert?.addEventListener("click", () => {
+    const code = aiCurrentGeneratedCode || extractTmdCode(aiResultOutput.textContent || "");
+    if (!code) return alert(t("aiNoCodeFound"));
+    editor.insertAtCursor(`\n${code}\n`);
+    updateInspector(editor.getContent());
+    aiStatusText.textContent = t("aiAppliedSuccess");
   });
 }
 
