@@ -1,4 +1,4 @@
-import { Note, PitchMapping, PlaybackDirectiveEvent, Sheet, TMDPlaybackRenderer } from "../core";
+import { Note, PitchMapping, PlaybackDirectiveEvent, Sheet, TMDPlaybackRenderer, TMDMeasureRenderer } from "../core";
 
 export class TMDMusicXMLGenerator {
   public static generateMusicXML(sheet: Sheet): string {
@@ -48,64 +48,43 @@ export class TMDMusicXMLGenerator {
   }
 
   private static generatePartMeasures(instrument: string, sheet: Sheet, divisions: number): string {
-    const timeline = TMDPlaybackRenderer.render(sheet, instrument);
-    const measureDuration = (Math.max(1, sheet.beat.count) * 4.0) / Math.max(1, sheet.beat.noteValue);
-    const measureCount = Math.max(1, Math.ceil(timeline.duration / measureDuration));
+    const measures = TMDMeasureRenderer.renderMeasures(sheet, instrument);
     let xml = "";
-    let eventIndex = 0;
-    let directiveIndex = 0;
 
-    for (let measure = 0; measure < measureCount; measure++) {
-      const start = measure * measureDuration;
-      const end = start + measureDuration;
+    for (const measure of measures) {
       let content = "";
-
-      if (measure === 0) {
+      if (measure.index === 0) {
         content += TMDMusicXMLGenerator.generateAttributesXML(sheet, divisions);
       }
+      for (const directive of measure.directives) {
+        content += TMDMusicXMLGenerator.generatePlaybackDirectiveXML(directive);
+      }
 
-      while (directiveIndex < timeline.directives.length && timeline.directives[directiveIndex].position < end) {
-        const dir = timeline.directives[directiveIndex];
-        if (dir.position >= start) {
-          content += TMDMusicXMLGenerator.generatePlaybackDirectiveXML(dir);
+      for (const event of measure.events) {
+        const duration = Math.max(1, Math.round(event.duration * divisions));
+        switch (event.content.type) {
+          case "note":
+            content += TMDMusicXMLGenerator.generateNoteXML(
+              event.content.note,
+              duration,
+              event.state.keyOffset,
+              event.tieStart,
+              event.tieStop
+            );
+            break;
+          case "chord":
+            content += TMDMusicXMLGenerator.generateChordXML(event.content.chord.toString(), duration);
+            break;
+          case "rest":
+            content += TMDMusicXMLGenerator.generateRestXML(duration);
+            break;
+          case "percussion":
+            content += TMDMusicXMLGenerator.generatePercussionXML(event.content.pattern, duration);
+            break;
         }
-        directiveIndex++;
       }
 
-      let cursor = start;
-      while (eventIndex < timeline.events.length && timeline.events[eventIndex].position < end) {
-        const event = timeline.events[eventIndex];
-        if (event.position >= start) {
-          const gap = event.position - cursor;
-          if (gap > 0) {
-            content += TMDMusicXMLGenerator.generateRestXML(Math.round(gap * divisions));
-          }
-          const duration = Math.max(1, Math.round(event.duration * divisions));
-          switch (event.content.type) {
-            case "note":
-              content += TMDMusicXMLGenerator.generateNoteXML(event.content.note, duration, event.state.keyOffset);
-              break;
-            case "chord":
-              content += TMDMusicXMLGenerator.generateChordXML(event.content.chord.toString(), duration);
-              break;
-            case "rest":
-              content += TMDMusicXMLGenerator.generateRestXML(duration);
-              break;
-            case "percussion":
-              content += TMDMusicXMLGenerator.generatePercussionXML(event.content.pattern, duration);
-              break;
-          }
-          cursor = event.position + event.duration;
-        }
-        eventIndex++;
-      }
-
-      const remaining = end - cursor;
-      if (remaining > 0) {
-        content += TMDMusicXMLGenerator.generateRestXML(Math.round(remaining * divisions));
-      }
-
-      xml += `    <measure number="${measure + 1}">\n${content}    </measure>\n\n`;
+      xml += `    <measure number="${measure.index + 1}">\n${content}    </measure>\n\n`;
     }
 
     return xml;
@@ -136,26 +115,54 @@ export class TMDMusicXMLGenerator {
       else if (c === "T" || c === "t") notes.push(["A", 4]);
       else if (c === "S" || c === "s") notes.push(["D", 5]);
     }
-    const noteDuration = Math.max(1, Math.floor(duration / Math.max(1, notes.length)));
-    return notes
-      .map(
-        ([step, octave]) =>
-          `      <note>\n        <unpitched>\n          <display-step>${step}</display-step>\n          <display-octave>${octave}</display-octave>\n        </unpitched>\n        <duration>${noteDuration}</duration>\n      </note>\n`
-      )
-      .join("");
+    if (notes.length === 0) {
+      return TMDMusicXMLGenerator.generateRestXML(duration);
+    }
+    const count = notes.length;
+    const base = Math.floor(duration / count);
+    const remainder = duration % count;
+    let xml = "";
+    notes.forEach(([step, octave], i) => {
+      const noteDur = base + (i < remainder ? 1 : 0);
+      xml += `      <note>\n        <unpitched>\n          <display-step>${step}</display-step>\n          <display-octave>${octave}</display-octave>\n        </unpitched>\n        <duration>${noteDur}</duration>\n      </note>\n`;
+    });
+    return xml;
   }
 
   private static generateAttributesXML(sheet: Sheet, divisions: number): string {
     return `      <attributes>\n        <divisions>${divisions}</divisions>\n        <key>\n          <fifths>${TMDMusicXMLGenerator.keySignatureToFifths(sheet.keySignature.toString())}</fifths>\n        </key>\n        <time>\n          <beats>${sheet.beat.count}</beats>\n          <beat-type>${sheet.beat.noteValue}</beat-type>\n        </time>\n        <clef>\n          <sign>G</sign>\n          <line>2</line>\n        </clef>\n      </attributes>\n      <direction placement="above">\n        <direction-type>\n          <metronome>\n            <beat-unit>quarter</beat-unit>\n            <per-minute>${Math.round(sheet.speed > 0 ? sheet.speed : 120)}</per-minute>\n          </metronome>\n        </direction-type>\n        <sound tempo="${Math.round(sheet.speed > 0 ? sheet.speed : 120)}"/>\n      </direction>\n`;
   }
 
-  private static generateNoteXML(note: Note, duration: number, keyOffset: number): string {
+  private static generateNoteXML(
+    note: Note,
+    duration: number,
+    keyOffset: number,
+    tieStart = false,
+    tieStop = false
+  ): string {
     const { step, alter, octave } = TMDMusicXMLGenerator.pitchToStepAlterOctave(note, keyOffset);
     let xml = `      <note>\n        <pitch>\n          <step>${step}</step>\n`;
     if (alter !== 0) {
       xml += `          <alter>${alter}</alter>\n`;
     }
-    xml += `          <octave>${octave}</octave>\n        </pitch>\n        <duration>${duration}</duration>\n      </note>\n`;
+    xml += `          <octave>${octave}</octave>\n        </pitch>\n        <duration>${duration}</duration>\n`;
+    if (tieStop) {
+      xml += `        <tie type="stop"/>\n`;
+    }
+    if (tieStart) {
+      xml += `        <tie type="start"/>\n`;
+    }
+    if (tieStart || tieStop) {
+      xml += `        <notations>\n`;
+      if (tieStop) {
+        xml += `          <tied type="stop"/>\n`;
+      }
+      if (tieStart) {
+        xml += `          <tied type="start"/>\n`;
+      }
+      xml += `        </notations>\n`;
+    }
+    xml += `      </note>\n`;
     return xml;
   }
 

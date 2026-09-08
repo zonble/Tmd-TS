@@ -1,4 +1,15 @@
-import { ChordSymbol, Note, Paragraph, PitchMapping, PlaybackDirectiveEvent, PlaybackEvent, Sheet, TMDPlaybackRenderer, chordQualityIntervals } from "../core";
+import {
+  ChordSymbol,
+  Note,
+  Paragraph,
+  PitchMapping,
+  PlaybackDirectiveEvent,
+  Sheet,
+  chordQualityIntervals,
+  TMDMeasureRenderer,
+  MeasureEvent,
+  NotationDuration,
+} from "../core";
 
 export class TMDLilyPondGenerator {
   public static generateLilyPond(sheet: Sheet): string {
@@ -20,8 +31,22 @@ export class TMDLilyPondGenerator {
     const distinct = Array.from(new Set(sheet.paragraphs.map((p) => p.instrument))).sort();
     const instruments = distinct.length > 0 ? distinct : ["Piano"];
 
+    const identifierMap = new Map<string, string>();
+    const usedNames = new Set<string>();
+
     instruments.forEach((inst, idx) => {
-      const varName = TMDLilyPondGenerator.sanitizeIdentifier(inst, idx);
+      let name = TMDLilyPondGenerator.sanitizeIdentifier(inst, idx);
+      if (usedNames.has(name)) {
+        const numberWords = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+        const suffix = idx < 10 ? numberWords[idx] : `N${idx}`;
+        name += suffix;
+      }
+      usedNames.add(name);
+      identifierMap.set(inst, name);
+    });
+
+    instruments.forEach((inst) => {
+      const varName = identifierMap.get(inst) || "Track";
       const isDrum = TMDLilyPondGenerator.paragraphsContainPercussion(sheet.paragraphs, inst);
       ly += `${varName} = ${isDrum ? "\\drummode " : ""}{\n  \\global\n`;
       ly += TMDLilyPondGenerator.generateTrackMusic(inst, sheet, isDrum);
@@ -29,8 +54,8 @@ export class TMDLilyPondGenerator {
     });
 
     ly += `\\score {\n  <<\n`;
-    instruments.forEach((inst, idx) => {
-      const varName = TMDLilyPondGenerator.sanitizeIdentifier(inst, idx);
+    instruments.forEach((inst) => {
+      const varName = identifierMap.get(inst) || "Track";
       const isDrum = TMDLilyPondGenerator.paragraphsContainPercussion(sheet.paragraphs, inst);
       const staffType = isDrum ? "DrumStaff" : "Staff";
       ly += `    \\new ${staffType} = "${TMDLilyPondGenerator.escapeLilyPond(inst)}" \\with {\n`;
@@ -44,26 +69,21 @@ export class TMDLilyPondGenerator {
   }
 
   private static generateTrackMusic(instrument: string, sheet: Sheet, percussion: boolean): string {
-    const timeline = TMDPlaybackRenderer.render(sheet, instrument);
+    const measures = TMDMeasureRenderer.renderMeasures(sheet, instrument);
     let result = "  ";
-    let dirIdx = 0;
 
-    for (const event of timeline.events) {
-      while (dirIdx < timeline.directives.length && timeline.directives[dirIdx].position <= event.position) {
-        result += TMDLilyPondGenerator.formatDirective(timeline.directives[dirIdx]);
-        dirIdx++;
+    for (const measure of measures) {
+      for (const directive of measure.directives) {
+        result += TMDLilyPondGenerator.formatDirective(directive);
       }
-      result += TMDLilyPondGenerator.formatPlaybackEvent(event, percussion);
-      result += " ";
+      for (const event of measure.events) {
+        result += TMDLilyPondGenerator.formatMeasureEvent(event, percussion);
+        result += " ";
+      }
+      result += "|\n  ";
     }
 
-    while (dirIdx < timeline.directives.length) {
-      result += TMDLilyPondGenerator.formatDirective(timeline.directives[dirIdx]);
-      dirIdx++;
-    }
-
-    result += "|\n";
-    return result;
+    return result.trim() + "\n";
   }
 
   private static formatDirective(directive: PlaybackDirectiveEvent): string {
@@ -81,31 +101,51 @@ export class TMDLilyPondGenerator {
     }
   }
 
-  private static formatPlaybackEvent(event: PlaybackEvent, percussion: boolean): string {
-    const duration = TMDLilyPondGenerator.formatQuarterDuration(event.duration);
+  private static formatMeasureEvent(event: MeasureEvent, percussion: boolean): string {
+    const decomposed = NotationDuration.decompose(event.duration);
     switch (event.content.type) {
-      case "note":
-        return `${TMDLilyPondGenerator.noteToLilyPondPitch(event.content.note, event.state.keyOffset)}${duration}`;
+      case "note": {
+        const pitch = TMDLilyPondGenerator.noteToLilyPondPitch(event.content.note, event.state.keyOffset);
+        const parts: string[] = [];
+        decomposed.forEach((d, idx) => {
+          const durStr = `${d.baseDenominator}${d.isDotted ? "." : ""}`;
+          const isLast = idx === decomposed.length - 1;
+          const tie = isLast ? (event.tieStart ? "~" : "") : "~";
+          parts.push(`${pitch}${durStr}${tie}`);
+        });
+        return parts.join(" ");
+      }
       case "chord": {
         const pitches = TMDLilyPondGenerator.chordToLilyPondPitches(event.content.chord, event.state.keyOffset);
-        return `<${pitches.join(" ")}>${duration}`;
+        const chordBody = `<${pitches.join(" ")}>`;
+        const parts: string[] = [];
+        decomposed.forEach((d, idx) => {
+          const durStr = `${d.baseDenominator}${d.isDotted ? "." : ""}`;
+          const isLast = idx === decomposed.length - 1;
+          const tie = isLast ? (event.tieStart ? "~" : "") : "~";
+          parts.push(`${chordBody}${durStr}${tie}`);
+        });
+        return parts.join(" ");
       }
       case "rest":
-        return `r${duration}`;
+        return decomposed.map((d) => `r${d.baseDenominator}${d.isDotted ? "." : ""}`).join(" ");
       case "percussion": {
         const pattern = event.content.pattern;
         const mapping: Record<string, string> = {
           X: "hh", x: "hh", T: "toml", t: "toml", S: "sn", s: "sn"
         };
         const names = Array.from(pattern).map((c) => mapping[c]).filter(Boolean);
-        return names.map((n) => `${n}${duration}`).join(" ");
+        if (names.length === 0) {
+          return decomposed.map((d) => `r${d.baseDenominator}${d.isDotted ? "." : ""}`).join(" ");
+        }
+        return decomposed
+          .map((d) => {
+            const durStr = `${d.baseDenominator}${d.isDotted ? "." : ""}`;
+            return names.map((n) => `${n}${durStr}`).join(" ");
+          })
+          .join(" ");
       }
     }
-  }
-
-  private static formatQuarterDuration(quarterNotes: number): string {
-    const val = Math.round(4.0 / Math.max(quarterNotes, 0.0001));
-    return String(Math.max(1, val));
   }
 
   private static noteToLilyPondPitch(note: Note, keyOffset: number): string {
@@ -157,8 +197,17 @@ export class TMDLilyPondGenerator {
   }
 
   private static sanitizeIdentifier(str: string, idx: number): string {
-    const filtered = Array.from(str).filter((c) => /[a-zA-Z]/.test(c)).join("");
-    return filtered.length > 0 ? filtered : `track${idx + 1}`;
+    const numberWords = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+    let converted = "";
+    for (const ch of str) {
+      if (/[a-zA-Z]/.test(ch)) {
+        converted += ch;
+      } else if (/[0-9]/.test(ch)) {
+        const digit = parseInt(ch, 10);
+        converted += numberWords[digit] || "";
+      }
+    }
+    return converted.length > 0 ? converted : `Track${idx + 1}`;
   }
 
   private static escapeLilyPond(str: string): string {
@@ -175,3 +224,4 @@ export class TMDLilyPondGenerator {
       );
   }
 }
+
