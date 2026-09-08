@@ -614,6 +614,10 @@ dialog.modal {
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8);
 }
 
+dialog.modal:not([open]) {
+  display: none !important;
+}
+
 dialog.modal::backdrop {
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
@@ -659,7 +663,7 @@ dialog.modal::backdrop {
   border: 1px solid var(--border-color);
 }
 
-dialog.modal.modal-lg {
+dialog.modal.modal-lg[open] {
   max-width: 860px;
   width: 92%;
   max-height: 88vh;
