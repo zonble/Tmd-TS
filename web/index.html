@@ -56,6 +56,12 @@
             <span>TMD Studio</span>
           </a>
 
+          <!-- Library Drawer Button -->
+          <button id="btn-toggle-library" class="btn" title="我的樂譜庫與範例" data-i18n-title="btnLibraryTitle">
+            <span class="btn-icon">📁</span>
+            <span class="btn-text" data-i18n="btnLibrary">樂譜庫</span>
+          </button>
+
           <!-- New Song Button -->
           <button id="btn-new-song" class="btn" title="開始寫新歌 (載入乾淨範本)" data-i18n-title="btnNewSongTitle">
             <span class="btn-icon">➕</span>
@@ -85,6 +91,9 @@
             <div class="dropdown-menu">
               <button class="dropdown-item" id="export-tmd">
                 <span>📄</span> <span data-i18n="exportTmd">TMD 樂譜原始檔 (.tmd)</span>
+              </button>
+              <button class="dropdown-item" id="export-library-zip">
+                <span>📦</span> <span data-i18n="exportLibraryZip">打包所有樂譜 (ZIP)</span>
               </button>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="export-midi">
@@ -144,6 +153,43 @@
 
       <!-- Main Workspace -->
       <main class="workspace">
+        <!-- Library Drawer (Left sidebar) -->
+        <aside id="library-drawer" class="library-drawer hidden">
+          <div class="panel-header">
+            <div class="library-toolbar-actions" style="display: flex; align-items: center; gap: 4px;">
+              <button id="btn-library-new" class="btn btn-sm" title="建立新樂譜" data-i18n-title="btnNewSongTitle"><span class="btn-icon">➕</span><span data-i18n="btnNewSong">寫新歌</span></button>
+              <label for="input-import-tmd" class="btn btn-sm" title="匯入 .tmd 檔案" data-i18n-title="btnImportTmdTitle" style="cursor: pointer; margin: 0;">
+                <span class="btn-icon">📂</span><span data-i18n="btnImportTmd">匯入</span>
+                <input type="file" id="input-import-tmd" accept=".tmd,.txt" style="display: none;" />
+              </label>
+              <button id="btn-backup-zip" class="btn btn-sm" title="打包下載所有自訂樂譜 (ZIP)" data-i18n-title="btnBackupZipTitle"><span class="btn-icon">📦</span><span data-i18n="btnBackupZip">備份打包</span></button>
+            </div>
+            <button id="btn-close-library" class="btn btn-icon-only" style="padding: 2px 6px; font-size: 11px;">✕</button>
+          </div>
+          <div class="panel-body library-drawer-body">
+            <!-- Section: My Saved Scores (IndexedDB) -->
+            <div class="library-section">
+              <div class="library-section-header">
+                <span class="card-title" data-i18n="myScoresTitle" style="margin: 0;">我的樂譜 (本機保存)</span>
+                <span id="library-scores-count" class="library-count-badge">0</span>
+              </div>
+              <div id="library-scores-list" class="library-list">
+                <!-- Dynamically populated from IndexedDB -->
+              </div>
+            </div>
+
+            <!-- Section: Built-in Samples -->
+            <div class="library-section">
+              <div class="library-section-header">
+                <span class="card-title" data-i18n="sampleTemplatesTitle" style="margin: 0;">範例曲目</span>
+              </div>
+              <div id="library-samples-list" class="library-list">
+                <!-- Dynamically populated from SAMPLES -->
+              </div>
+            </div>
+          </div>
+        </aside>
+
         <!-- Editor Container -->
         <div id="editor-container" class="editor-container"></div>
 
@@ -165,8 +211,7 @@
           </div>
           <div class="player-controls">
             <button id="player-btn-pause" class="player-ctrl-btn" title="Pause / Resume">⏸</button>
-            <button id="player-btn-stop" class="player-ctrl-btn" title="Stop">⏹</button>
-            <button id="player-btn-close" class="player-ctrl-btn player-close-btn" title="Close">✕</button>
+            <button id="player-btn-close" class="player-ctrl-btn player-close-btn" title="Stop & Close">✕</button>
           </div>
         </div>
 

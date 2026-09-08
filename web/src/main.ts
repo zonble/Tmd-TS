@@ -8,6 +8,7 @@ import {
 } from "../../src/exporters/index.js";
 import { TMDWAVRenderer } from "../../src/audio.js";
 import { TmdSkill } from "../../src/skill.js";
+import JSZip from "jszip";
 
 import { createTmdEditor, TMDWebEditor } from "./editor.js";
 import { tmdPlayer, TMDMidiSynthType } from "./midi-player.js";
@@ -32,14 +33,30 @@ import {
   AISettingsState,
 } from "./ai/index.js";
 import { initTmdWebMcp } from "./mcp/webmcpIntegration.js";
+import { TmdStorage, SavedScore, extractTmdTitle } from "./storage/db.js";
 
 let editor: TMDWebEditor;
 let currentSheet: Sheet | null = null;
 let isSeeking = false;
 let aiAbortController: AbortController | null = null;
 let aiCurrentGeneratedCode: string = "";
+let currentScoreId: string | null = null; // null means viewing a read-only template
+let isTemplateScore: boolean = false;
+let activeTemplateId: string | null = null;
+let autoSaveTimer: any = null;
+let refreshLibraryScoresHandler: (() => Promise<void>) | null = null;
 
 // DOM Elements
+const btnToggleLibrary = document.getElementById("btn-toggle-library") as HTMLButtonElement;
+const libraryDrawer = document.getElementById("library-drawer") as HTMLElement;
+const btnCloseLibrary = document.getElementById("btn-close-library") as HTMLButtonElement;
+const btnLibraryNew = document.getElementById("btn-library-new") as HTMLButtonElement;
+const btnBackupZip = document.getElementById("btn-backup-zip") as HTMLButtonElement;
+const inputImportTmd = document.getElementById("input-import-tmd") as HTMLInputElement;
+const libraryScoresList = document.getElementById("library-scores-list") as HTMLElement;
+const librarySamplesList = document.getElementById("library-samples-list") as HTMLElement;
+const libraryScoresCount = document.getElementById("library-scores-count") as HTMLElement;
+
 const btnNewSong = document.getElementById("btn-new-song") as HTMLButtonElement;
 const sampleSelect = document.getElementById("sample-select") as HTMLSelectElement;
 const btnPlay = document.getElementById("btn-play") as HTMLButtonElement;
@@ -50,6 +67,7 @@ const btnToggleAi = document.getElementById("btn-toggle-ai") as HTMLButtonElemen
 
 // Export items
 const btnExportTmd = document.getElementById("export-tmd") as HTMLButtonElement;
+const btnExportLibraryZip = document.getElementById("export-library-zip") as HTMLButtonElement;
 const btnExportMidi = document.getElementById("export-midi") as HTMLButtonElement;
 const btnExportMusicXML = document.getElementById("export-musicxml") as HTMLButtonElement;
 const btnExportLilyPond = document.getElementById("export-lilypond") as HTMLButtonElement;
@@ -118,7 +136,6 @@ const playerTime = document.getElementById("player-time") as HTMLElement;
 const playerProgress = document.getElementById("player-progress") as HTMLInputElement;
 const synthSelect = document.getElementById("synth-select") as HTMLSelectElement;
 const playerBtnPause = document.getElementById("player-btn-pause") as HTMLButtonElement;
-const playerBtnStop = document.getElementById("player-btn-stop") as HTMLButtonElement;
 const playerBtnClose = document.getElementById("player-btn-close") as HTMLButtonElement;
 
 function formatTime(seconds: number): string {
@@ -235,6 +252,54 @@ function handleEditorChange(text: string) {
   parseDebounceTimer = setTimeout(() => {
     updateInspector(text);
   }, 200);
+
+  // Auto-save to IndexedDB (Debounced 500ms)
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(async () => {
+    try {
+      if (isTemplateScore) {
+        // If the user hasn't actually modified the template content, do NOT create a copy!
+        const activeSample = SAMPLES.find((s) => s.id === activeTemplateId || s.id === sampleSelect?.value);
+        if (activeSample && text.trim() === activeSample.content.trim()) {
+          return;
+        }
+
+        // Copy-on-write: When modifying a template, create a user draft in IndexedDB
+        const title = extractTmdTitle(text);
+        const newScore = await TmdStorage.saveScore({
+          title,
+          content: text,
+        });
+        currentScoreId = newScore.id;
+        isTemplateScore = false;
+        activeTemplateId = null;
+        TmdStorage.setActiveScoreId(newScore.id);
+        if (refreshLibraryScoresHandler) await refreshLibraryScoresHandler();
+      } else if (currentScoreId) {
+        const title = extractTmdTitle(text);
+        await TmdStorage.saveScore({
+          id: currentScoreId,
+          title,
+          content: text,
+        });
+        TmdStorage.setActiveScoreId(currentScoreId);
+        if (refreshLibraryScoresHandler) await refreshLibraryScoresHandler();
+      }
+
+      // Visual auto-save feedback in status bar
+      if (sbStatus) {
+        const prevText = sbStatus.textContent;
+        sbStatus.textContent = t("savedAutoNotice");
+        setTimeout(() => {
+          if (sbStatus && sbStatus.textContent === t("savedAutoNotice")) {
+            sbStatus.textContent = prevText;
+          }
+        }, 1500);
+      }
+    } catch (e) {
+      console.error("Auto-save error:", e);
+    }
+  }, 500);
 }
 
 // Playback handling
@@ -395,11 +460,6 @@ function initEvents() {
     tmdPlayer.togglePause();
   });
 
-  playerBtnStop.addEventListener("click", () => {
-    tmdPlayer.stop();
-    tmdPlayerBar.style.display = "none";
-  });
-
   playerBtnClose.addEventListener("click", () => {
     tmdPlayer.stop();
     tmdPlayerBar.style.display = "none";
@@ -550,19 +610,222 @@ function initEvents() {
 
 
 
-  // New Song Button
-  btnNewSong?.addEventListener("click", () => {
-    const starterSample = SAMPLES.find((s) => s.id === "starter_template") || SAMPLES[0];
-    const current = editor.getContent().trim();
-    if (current && current !== starterSample.content.trim()) {
-      if (!confirm(t("confirmNewSong"))) {
+  const exportAllScoresZip = async () => {
+    try {
+      const scores = await TmdStorage.listScores();
+      if (!scores || scores.length === 0) {
+        alert(t("noScoresToBackup"));
         return;
       }
+      const zip = new JSZip();
+      const usedFilenames = new Map<string, number>();
+
+      scores.forEach((s) => {
+        let baseName = s.title.replace(/[\\/:*?"<>|]/g, "_").trim() || "score";
+        let count = usedFilenames.get(baseName) || 0;
+        let filename = `${baseName}.tmd`;
+        if (count > 0) {
+          filename = `${baseName}_(${count}).tmd`;
+        }
+        usedFilenames.set(baseName, count + 1);
+        zip.file(filename, s.content);
+      });
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const dateStr = new Date().toISOString().slice(0, 10);
+      downloadBlob(`tmd-scores-backup-${dateStr}.zip`, blob);
+    } catch (e: any) {
+      console.error("Backup ZIP failed:", e);
+      alert(`備份失敗: ${e.message || String(e)}`);
     }
-    sampleSelect.value = starterSample.id;
-    editor.setContent(starterSample.content);
-    updateInspector(starterSample.content);
+  };
+
+  btnBackupZip?.addEventListener("click", () => {
+    exportAllScoresZip();
+  });
+
+  btnExportLibraryZip?.addEventListener("click", () => {
+    exportDropdown.classList.remove("open");
+    exportAllScoresZip();
+  });
+
+  // Library Drawer Management
+  const loadScoreIntoEditor = (score: SavedScore) => {
+    currentScoreId = score.id;
+    isTemplateScore = false;
+    activeTemplateId = null;
+    TmdStorage.setActiveScoreId(score.id);
+    editor.setContent(score.content);
+    updateInspector(score.content);
+    sampleSelect.value = "";
+    refreshLibraryScores();
+  };
+
+  const loadTemplateIntoEditor = (sampleId: string) => {
+    const sample = SAMPLES.find((s) => s.id === sampleId);
+    if (!sample) return;
+    currentScoreId = null;
+    isTemplateScore = true;
+    activeTemplateId = sample.id;
+    TmdStorage.setActiveScoreId(null);
+    editor.setContent(sample.content);
+    updateInspector(sample.content);
+    sampleSelect.value = sample.id;
+    refreshLibraryScores();
+  };
+
+  const createNewSong = async () => {
+    const starterSample = SAMPLES.find((s) => s.id === "starter_template") || SAMPLES[0];
+    const newScore = await TmdStorage.saveScore({
+      title: "未命名新歌",
+      content: starterSample.content,
+    });
+    loadScoreIntoEditor(newScore);
     editor.focus();
+  };
+
+  const refreshLibraryScores = async () => {
+    try {
+      const scores = await TmdStorage.listScores();
+      if (libraryScoresCount) {
+        libraryScoresCount.textContent = String(scores.length);
+      }
+
+      if (libraryScoresList) {
+        if (scores.length === 0) {
+          libraryScoresList.innerHTML = `<div class="library-empty-hint">${t("emptyScoresHint")}</div>`;
+        } else {
+          libraryScoresList.innerHTML = scores
+            .map((score) => {
+              const isActive = currentScoreId === score.id;
+              const dateStr = new Date(score.updatedAt).toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+              return `
+                <div class="library-item ${isActive ? "active" : ""}" data-id="${score.id}">
+                  <div class="library-item-content">
+                    <div class="library-item-title">${score.title}</div>
+                    <div class="library-item-meta">
+                      <span>🕒 ${dateStr}</span>
+                    </div>
+                  </div>
+                  <div class="library-item-actions">
+                    <button class="library-action-btn copy-btn" data-action="copy" title="複製副本">📋</button>
+                    <button class="library-action-btn delete-btn delete" data-action="delete" title="刪除">🗑️</button>
+                  </div>
+                </div>
+              `;
+            })
+            .join("");
+        }
+      }
+
+      // Render Templates List
+      if (librarySamplesList) {
+        librarySamplesList.innerHTML = SAMPLES.map((sample) => {
+          const isSelected = isTemplateScore && sampleSelect?.value === sample.id;
+          return `
+            <div class="library-item ${isSelected ? "active" : ""}" data-sample-id="${sample.id}">
+              <div class="library-item-content">
+                <div class="library-item-title">${sample.name}</div>
+                <div class="library-item-meta">
+                  <span>${sample.category}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+    } catch (e) {
+      console.error("Failed to refresh library scores:", e);
+    }
+  };
+
+  refreshLibraryScoresHandler = refreshLibraryScores;
+
+  // Library Drawer UI events
+  btnToggleLibrary?.addEventListener("click", () => {
+    libraryDrawer.classList.toggle("hidden");
+    if (!libraryDrawer.classList.contains("hidden")) {
+      refreshLibraryScores();
+    }
+  });
+
+  btnCloseLibrary?.addEventListener("click", () => {
+    libraryDrawer.classList.add("hidden");
+  });
+
+  btnLibraryNew?.addEventListener("click", () => {
+    createNewSong();
+  });
+
+  // Import TMD file from disk
+  inputImportTmd?.addEventListener("change", async (e) => {
+    const file = inputImportTmd.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const title = extractTmdTitle(text) || file.name.replace(/\.[^/.]+$/, "");
+      const newScore = await TmdStorage.saveScore({
+        title,
+        content: text,
+      });
+      loadScoreIntoEditor(newScore);
+      inputImportTmd.value = "";
+    } catch (err: any) {
+      alert(`匯入失敗: ${err.message || String(err)}`);
+    }
+  });
+
+  // Item clicks inside library list
+  libraryScoresList?.addEventListener("click", async (e) => {
+    const target = e.target as HTMLElement;
+    const item = target.closest(".library-item") as HTMLElement | null;
+    if (!item || !item.dataset.id) return;
+    const scoreId = item.dataset.id;
+
+    const action = target.closest("[data-action]")?.getAttribute("data-action");
+    if (action === "delete") {
+      e.stopPropagation();
+      const score = await TmdStorage.getScore(scoreId);
+      if (!score) return;
+      if (confirm(t("confirmDeleteScore").replace("{title}", score.title))) {
+        await TmdStorage.deleteScore(scoreId);
+        if (currentScoreId === scoreId) {
+          // If active score was deleted, fallback to starter template
+          loadTemplateIntoEditor("sandiansanye");
+        }
+        await refreshLibraryScores();
+      }
+      return;
+    }
+
+    if (action === "copy") {
+      e.stopPropagation();
+      const copy = await TmdStorage.duplicateScore(scoreId);
+      loadScoreIntoEditor(copy);
+      return;
+    }
+
+    // Load score
+    const score = await TmdStorage.getScore(scoreId);
+    if (score) {
+      loadScoreIntoEditor(score);
+    }
+  });
+
+  librarySamplesList?.addEventListener("click", (e) => {
+    const item = (e.target as HTMLElement).closest(".library-item") as HTMLElement | null;
+    if (!item || !item.dataset.sampleId) return;
+    loadTemplateIntoEditor(item.dataset.sampleId);
+  });
+
+  // New Song Button
+  btnNewSong?.addEventListener("click", () => {
+    createNewSong();
   });
 
   // Sample select
@@ -574,11 +837,7 @@ function initEvents() {
   });
 
   sampleSelect.addEventListener("change", () => {
-    const sample = SAMPLES.find((s) => s.id === sampleSelect.value);
-    if (sample) {
-      editor.setContent(sample.content);
-      updateInspector(sample.content);
-    }
+    loadTemplateIntoEditor(sampleSelect.value);
   });
 
   // Inspector toggle
@@ -899,12 +1158,33 @@ function initEvents() {
   });
 }
 
-function init() {
+async function init() {
   const container = document.getElementById("editor-container")!;
-  const initialSample = SAMPLES[0];
+  const defaultSample = SAMPLES[0]; // 《三天三夜》
+
+  let initialContent = defaultSample.content;
+  currentScoreId = null;
+  isTemplateScore = true;
+  activeTemplateId = defaultSample.id;
+
+  try {
+    const activeId = TmdStorage.getActiveScoreId();
+    if (activeId) {
+      const saved = await TmdStorage.getScore(activeId);
+      if (saved) {
+        initialContent = saved.content;
+        currentScoreId = saved.id;
+        isTemplateScore = false;
+        activeTemplateId = null;
+      }
+    }
+  } catch (e) {
+    console.warn("Could not restore active score from storage:", e);
+  }
+
   editor = createTmdEditor(
     container,
-    initialSample.content,
+    initialContent,
     handleEditorChange,
     (line, col) => {
       if (sbCursor) {
@@ -912,14 +1192,19 @@ function init() {
       }
     }
   );
-  sampleSelect.value = initialSample.id;
+
+  if (isTemplateScore) {
+    sampleSelect.value = defaultSample.id;
+  } else {
+    sampleSelect.value = "";
+  }
 
   // Initialize Language
   const initialLocale = detectLanguage();
   applyI18n(initialLocale);
 
   initEvents();
-  updateInspector(initialSample.content);
+  updateInspector(initialContent);
 
   // Initialize Web MCP service
   try {
@@ -938,4 +1223,7 @@ function init() {
   }
 }
 
-window.addEventListener("DOMContentLoaded", init);
+window.addEventListener("DOMContentLoaded", () => {
+  init().catch((err) => console.error("Initialization failed:", err));
+});
+
