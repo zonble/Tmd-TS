@@ -11,6 +11,14 @@ import { TMDWAVRenderer } from "../../src/audio.js";
 import { createTmdEditor, TMDWebEditor } from "./editor.js";
 import { tmdPlayer, TMDMidiSynthType } from "./midi-player.js";
 import { SAMPLES } from "./samples.js";
+import {
+  applyI18n,
+  detectLanguage,
+  getCurrentLocale,
+  t,
+  onLanguageChange,
+  Locale,
+} from "./i18n.js";
 
 let editor: TMDWebEditor;
 let currentSheet: Sheet | null = null;
@@ -21,6 +29,7 @@ const sampleSelect = document.getElementById("sample-select") as HTMLSelectEleme
 const btnPlay = document.getElementById("btn-play") as HTMLButtonElement;
 const exportDropdown = document.getElementById("export-dropdown") as HTMLElement;
 const btnExportMenu = document.getElementById("btn-export-menu") as HTMLButtonElement;
+const btnLangToggle = document.getElementById("btn-lang-toggle") as HTMLButtonElement;
 
 // Export items
 const btnExportMidi = document.getElementById("export-midi") as HTMLButtonElement;
@@ -92,7 +101,7 @@ function updateInspector(text: string) {
   } catch (err: any) {
     currentSheet = null;
     inspectorStatus.className = "status-badge error";
-    inspectorStatus.textContent = `⚠ ${err.message || "語法錯誤"}`;
+    inspectorStatus.textContent = `${t("statusError")}: ${err.message || ""}`;
     sbStatus.textContent = "Syntax Error";
     sbSummary.textContent = err.message || "";
     return;
@@ -100,18 +109,18 @@ function updateInspector(text: string) {
 
   if (!currentSheet) {
     inspectorStatus.className = "status-badge error";
-    inspectorStatus.textContent = "⚠ 未能識別 TMD 標頭 (缺少 ::SCORE::)";
+    inspectorStatus.textContent = t("missingScoreHeader");
     sbStatus.textContent = "Invalid TMD";
     sbSummary.textContent = "Missing ::SCORE:: root header";
     return;
   }
 
   inspectorStatus.className = "status-badge success";
-  inspectorStatus.textContent = "✓ 語法解析正確";
+  inspectorStatus.textContent = t("statusValid");
 
   // Metadata
-  statTitle.textContent = currentSheet.name || "(無曲名)";
-  statTempo.textContent = currentSheet.speed ? `${currentSheet.speed}` : "120 (預設)";
+  statTitle.textContent = currentSheet.name || t("defaultTitle");
+  statTempo.textContent = currentSheet.speed ? `${currentSheet.speed}` : t("defaultTempo");
 
   if (currentSheet.keySignature) {
     const letter = scaleDegreeLetter(currentSheet.keySignature.tonic);
@@ -140,7 +149,7 @@ function updateInspector(text: string) {
       .filter(Boolean)
       .join("");
   } else {
-    inspectorOrders.innerHTML = `<span class="stat-label">未定義 -> 播放流程</span>`;
+    inspectorOrders.innerHTML = `<span class="stat-label">${t("noOrders")}</span>`;
   }
 
   // Tracks
@@ -158,7 +167,7 @@ function updateInspector(text: string) {
       })
       .join("");
   } else {
-    inspectorTracks.innerHTML = `<span class="stat-label">無音軌段落</span>`;
+    inspectorTracks.innerHTML = `<span class="stat-label">${t("noTracks")}</span>`;
   }
 
   // Status bar summary
@@ -182,12 +191,12 @@ async function startPlayback() {
   try {
     sheet = TmdParser.parse(text);
   } catch (err: any) {
-    alert(`無法播放：樂譜語法錯誤\n${err.message}`);
+    alert(`${t("alertCannotPlaySyntax")}\n${err.message}`);
     return;
   }
 
   if (!sheet) {
-    alert("無法播放：未找到有效的 TMD 樂譜標頭 (請確保開頭包含 ::SCORE::)");
+    alert(t("alertCannotPlayMissingHeader"));
     return;
   }
 
@@ -196,7 +205,7 @@ async function startPlayback() {
   try {
     midiBytes = TMDMIDIGenerator.generateMIDI(sheet);
   } catch (err: any) {
-    alert(`MIDI 生成失敗：${err.message}`);
+    alert(`${t("alertMidiFailed")}: ${err.message}`);
     return;
   }
 
@@ -310,6 +319,18 @@ function initEvents() {
     await tmdPlayer.setSynthType(selected);
   });
 
+  // Language switcher
+  btnLangToggle.addEventListener("click", () => {
+    const nextLocale: Locale = getCurrentLocale() === "zh-TW" ? "en" : "zh-TW";
+    applyI18n(nextLocale);
+  });
+
+  onLanguageChange(() => {
+    if (editor) {
+      updateInspector(editor.getContent());
+    }
+  });
+
   // Export dropdown menu
   btnExportMenu.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -327,7 +348,7 @@ function initEvents() {
     exportDropdown.classList.remove("open");
     const text = editor.getContent();
     const sheet = TmdParser.parse(text);
-    if (!sheet) return alert("無法匯出：請修正樂譜語法錯誤");
+    if (!sheet) return alert(t("alertCannotExport"));
     const midi = TMDMIDIGenerator.generateMIDI(sheet);
     downloadBlob(getSafeFilename(sheet.name, "mid"), new Blob([midi as any], { type: "audio/midi" }));
   });
@@ -336,7 +357,7 @@ function initEvents() {
     exportDropdown.classList.remove("open");
     const text = editor.getContent();
     const sheet = TmdParser.parse(text);
-    if (!sheet) return alert("無法匯出：請修正樂譜語法錯誤");
+    if (!sheet) return alert(t("alertCannotExport"));
     const xml = TMDMusicXMLGenerator.generateMusicXML(sheet);
     downloadBlob(getSafeFilename(sheet.name, "musicxml"), new Blob([xml], { type: "application/vnd.recordare.musicxml+xml;charset=utf-8" }));
   });
@@ -345,7 +366,7 @@ function initEvents() {
     exportDropdown.classList.remove("open");
     const text = editor.getContent();
     const sheet = TmdParser.parse(text);
-    if (!sheet) return alert("無法匯出：請修正樂譜語法錯誤");
+    if (!sheet) return alert(t("alertCannotExport"));
     const ly = TMDLilyPondGenerator.generateLilyPond(sheet);
     downloadBlob(getSafeFilename(sheet.name, "ly"), new Blob([ly], { type: "text/plain;charset=utf-8" }));
   });
@@ -354,7 +375,7 @@ function initEvents() {
     exportDropdown.classList.remove("open");
     const text = editor.getContent();
     const sheet = TmdParser.parse(text);
-    if (!sheet) return alert("無法匯出：請修正樂譜語法錯誤");
+    if (!sheet) return alert(t("alertCannotExport"));
     const abc = TMDABCGenerator.generateABC(sheet);
     downloadBlob(getSafeFilename(sheet.name, "abc"), new Blob([abc], { type: "text/vnd.abc;charset=utf-8" }));
   });
@@ -363,7 +384,7 @@ function initEvents() {
     exportDropdown.classList.remove("open");
     const text = editor.getContent();
     const sheet = TmdParser.parse(text);
-    if (!sheet) return alert("無法匯出：請修正樂譜語法錯誤");
+    if (!sheet) return alert(t("alertCannotExport"));
     const wav = TMDWAVRenderer.renderWAV(sheet);
     downloadBlob(getSafeFilename(sheet.name, "wav"), new Blob([wav as any], { type: "audio/wav" }));
   });
@@ -412,6 +433,10 @@ function init() {
   const initialSample = SAMPLES[0];
   editor = createTmdEditor(container, initialSample.content, handleEditorChange);
   sampleSelect.value = initialSample.id;
+
+  // Initialize Language
+  const initialLocale = detectLanguage();
+  applyI18n(initialLocale);
 
   initEvents();
   updateInspector(initialSample.content);
