@@ -7,6 +7,7 @@ import {
   TMDABCGenerator,
 } from "../../src/exporters/index.js";
 import { TMDWAVRenderer } from "../../src/audio.js";
+import { TmdSkill } from "../../src/skill.js";
 
 import { createTmdEditor, TMDWebEditor } from "./editor.js";
 import { tmdPlayer, TMDMidiSynthType } from "./midi-player.js";
@@ -30,6 +31,7 @@ const btnPlay = document.getElementById("btn-play") as HTMLButtonElement;
 const exportDropdown = document.getElementById("export-dropdown") as HTMLElement;
 const btnExportMenu = document.getElementById("btn-export-menu") as HTMLButtonElement;
 const btnLangToggle = document.getElementById("btn-lang-toggle") as HTMLButtonElement;
+const btnDownloadSkill = document.getElementById("btn-download-skill") as HTMLButtonElement;
 
 // Export items
 const btnExportMidi = document.getElementById("export-midi") as HTMLButtonElement;
@@ -37,6 +39,7 @@ const btnExportMusicXML = document.getElementById("export-musicxml") as HTMLButt
 const btnExportLilyPond = document.getElementById("export-lilypond") as HTMLButtonElement;
 const btnExportABC = document.getElementById("export-abc") as HTMLButtonElement;
 const btnExportWAV = document.getElementById("export-wav") as HTMLButtonElement;
+const btnExportSkill = document.getElementById("export-skill") as HTMLButtonElement;
 
 // Inspector elements
 const inspectorPanel = document.getElementById("inspector-panel") as HTMLElement;
@@ -387,6 +390,19 @@ function initEvents() {
     if (!sheet) return alert(t("alertCannotExport"));
     const wav = TMDWAVRenderer.renderWAV(sheet);
     downloadBlob(getSafeFilename(sheet.name, "wav"), new Blob([wav as any], { type: "audio/wav" }));
+  });
+
+  const downloadSkillFile = () => {
+    downloadBlob("SKILL.md", new Blob([TmdSkill.skillMarkdown], { type: "text/markdown;charset=utf-8" }));
+  };
+
+  btnExportSkill.addEventListener("click", () => {
+    exportDropdown.classList.remove("open");
+    downloadSkillFile();
+  });
+
+  btnDownloadSkill.addEventListener("click", () => {
+    downloadSkillFile();
   });
 
   // Sample select

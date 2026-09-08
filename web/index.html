@@ -55,11 +55,21 @@
               <button class="dropdown-item" id="export-wav">
                 <span>🔊</span> <span data-i18n="exportWAV">Sine Wave WAV (.wav)</span>
               </button>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" id="export-skill">
+                <span>🤖</span> <span data-i18n="exportSkill">AI Agent 技能 (SKILL.md)</span>
+              </button>
             </div>
           </div>
         </div>
 
         <div class="nav-right">
+          <!-- Download AI Skill Button -->
+          <button id="btn-download-skill" class="btn" title="下載 AI Agent 技能定義檔 (SKILL.md)" data-i18n-title="btnSkillTitle">
+            <span class="btn-icon">🤖</span>
+            <span data-i18n="btnSkillText">AI 技能</span>
+          </button>
+
           <!-- Language Toggle Button -->
           <button id="btn-lang-toggle" class="btn" title="切換語言 (Language)" data-i18n-title="langToggleTitle">
             <span class="btn-icon">🌐</span>
