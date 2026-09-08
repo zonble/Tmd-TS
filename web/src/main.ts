@@ -640,6 +640,13 @@ function initEvents() {
     aiSettingsBaseUrlGroup.style.display = (provider === "custom" || provider === "groq") ? "flex" : "none";
   };
 
+  const openAiSettingsModal = () => {
+    aiSettings = loadAISettings();
+    aiSettingsProvider.value = aiSettings.activeProvider;
+    populateModelPresets(aiSettings.activeProvider);
+    aiSettingsModal.showModal();
+  };
+
   btnToggleAi?.addEventListener("click", () => {
     aiDrawer.classList.toggle("hidden");
     if (!aiDrawer.classList.contains("hidden")) {
@@ -648,6 +655,14 @@ function initEvents() {
         inspectorPanel.classList.add("hidden");
       }
       aiPromptInput.focus();
+
+      // Check if API key / token is configured for the active provider
+      aiSettings = loadAISettings();
+      const currentProvider = aiSettings.activeProvider;
+      const currentConfig = aiSettings.providers[currentProvider];
+      if (!currentConfig?.apiKey?.trim() && currentProvider !== "custom") {
+        openAiSettingsModal();
+      }
     }
   });
 
@@ -656,10 +671,7 @@ function initEvents() {
   });
 
   btnOpenAiSettings?.addEventListener("click", () => {
-    aiSettings = loadAISettings();
-    aiSettingsProvider.value = aiSettings.activeProvider;
-    populateModelPresets(aiSettings.activeProvider);
-    aiSettingsModal.showModal();
+    openAiSettingsModal();
   });
 
   btnCloseAiSettings?.addEventListener("click", () => {
