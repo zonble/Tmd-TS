@@ -2,17 +2,18 @@ import { AIModelPreset, AIProviderType } from "./types.js";
 
 export const MODEL_PRESETS: Record<AIProviderType, AIModelPreset[]> = {
   gemini: [
-    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash (Fast, Multimodal & Free Tier)", recommended: true },
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro (Deep Reasoning Flagship)" },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
-    { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash-Lite (Ultra Fast)" },
+    { id: "gemini-3.8-flash", name: "Gemini 3.8 Flash (Latest Autonomous Agent Flagship)", recommended: true },
+    { id: "gemini-3.7-flash", name: "Gemini 3.7 Flash (High-performance Reasoning)" },
+    { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash (Efficient Workhorse)" },
+    { id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite (High Volume / Free Tier)" },
+    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash (Stable Legacy)" },
   ],
   openai: [
-    { id: "gpt-4o", name: "GPT-4o (Omni Flagship)", recommended: true },
-    { id: "gpt-4o-mini", name: "GPT-4o mini (Fast & Economical)" },
-    { id: "gpt-4.5-preview", name: "GPT-4.5 Preview (Large Context Knowledge)" },
-    { id: "o3-mini", name: "o3-mini (STEM & High-precision Reasoning)" },
-    { id: "o1", name: "o1 (Deep Thought Reasoning)" },
+    { id: "gpt-6-astra", name: "GPT-6 Astra (Latest Flagship Frontier Reasoning)", recommended: true },
+    { id: "gpt-5.6-sol", name: "GPT-5.6 Sol (Complex Professional Tasks)" },
+    { id: "gpt-5.6-terra", name: "GPT-5.6 Terra (Balanced Speed & Cost)" },
+    { id: "gpt-5.6-luna", name: "GPT-5.6 Luna (Fast & Cost-sensitive)" },
+    { id: "gpt-4o", name: "GPT-4o (Stable Legacy)" },
   ],
   groq: [
     { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B Versatile (Blazing Fast)", recommended: true },
@@ -21,15 +22,18 @@ export const MODEL_PRESETS: Record<AIProviderType, AIModelPreset[]> = {
     { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B Instant" },
   ],
   anthropic: [
-    { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet (Hybrid Reasoning Flagship)", recommended: true },
-    { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku (Ultra Fast & Precise)" },
-    { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet v2" },
+    { id: "claude-fable-5-1", name: "Claude Fable 5.1 (Top Reasoning & Agentic Flagship)", recommended: true },
+    { id: "claude-sonnet-5", name: "Claude Sonnet 5 (Optimal Speed & Coding)" },
+    { id: "claude-opus-5", name: "Claude Opus 5 (Deep Architecture & Enterprise)" },
+    { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5 (High Speed)" },
+    { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet (Stable Legacy)" },
   ],
   custom: [
-    { id: "deepseek-chat", name: "DeepSeek-V3 (671B MoE)", recommended: true },
-    { id: "deepseek-reasoner", name: "DeepSeek-R1 (Full Reasoning)" },
+    { id: "deepseek-v4-flash", name: "DeepSeek-V4 Flash (Native 1M Context)", recommended: true },
+    { id: "deepseek-v4-pro", name: "DeepSeek-V4 Pro (Flagship Agentic)" },
+    { id: "deepseek-chat", name: "DeepSeek-V3 (Stable Legacy)" },
+    { id: "deepseek-reasoner", name: "DeepSeek-R1 (Full Reasoning Legacy)" },
     { id: "qwen2.5-coder:32b", name: "Ollama (qwen2.5-coder:32b)" },
-    { id: "qwen2.5-coder:7b", name: "Ollama (qwen2.5-coder:7b)" },
     { id: "llama3.3", name: "Ollama (llama3.3)" },
   ],
 };
@@ -40,10 +44,11 @@ export const DEFAULT_BASE_URLS: Partial<Record<AIProviderType, string>> = {
 };
 
 export const DEFAULT_MODELS: Record<AIProviderType, string> = {
-  gemini: "gemini-2.5-flash",
-  openai: "gpt-4o",
+  gemini: "gemini-3.8-flash",
+  openai: "gpt-6-astra",
   groq: "llama-3.3-70b-versatile",
-  anthropic: "claude-3-7-sonnet-20250219",
-  custom: "deepseek-chat",
+  anthropic: "claude-fable-5-1",
+  custom: "deepseek-v4-flash",
 };
+
 
