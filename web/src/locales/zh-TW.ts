@@ -28,6 +28,7 @@ export const zhTW = {
   btnExportText: "匯出 / 下載",
   exportTmd: "TMD 樂譜原始檔 (.tmd)",
   exportMidi: "Standard MIDI (.mid)",
+  exportReaper: "REAPER 專案檔 (.rpp)",
   exportMusicXML: "MusicXML 4.0 (.musicxml)",
   exportLilyPond: "LilyPond (.ly)",
   exportABC: "ABC Notation (.abc)",

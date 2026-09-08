@@ -347,7 +347,7 @@ export class TMDMIDIGenerator {
     return [...initial, ...directives];
   }
 
-  private static instrumentEvents(
+  public static instrumentEvents(
     timeline: PlaybackTimeline,
     instrument: string,
     midiInstrument: MIDIInstrument,

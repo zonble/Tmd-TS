@@ -106,6 +106,12 @@ intro:Piano@|0|{
     const midiRes = await convertTool!.handler({ text: sampleTmd, format: 'midi' });
     expect(midiRes.content[0].text.length).toBeGreaterThan(0);
     expect(() => Buffer.from(midiRes.content[0].text, 'base64')).not.toThrow();
+
+    // Convert to REAPER (.rpp)
+    const rppRes = await convertTool!.handler({ text: sampleTmd, format: 'reaper' });
+    expect(rppRes.content[0].text).toContain('<REAPER_PROJECT');
+    expect(rppRes.content[0].text).toContain('NAME "Piano"');
+    expect(rppRes.content[0].text).toContain('<TEMPOENVEX');
   });
 
   it('loadScoreToEditor pushes score to editor and can trigger playback', async () => {

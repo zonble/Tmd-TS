@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **REAPER Project (.rpp) Exporter**:
+  - Implemented `TMDReaperGenerator.generateRPP(sheet)` to export complete, self-contained REAPER `.rpp` projects.
+  - Generates multi-track layout with instrument names, automatic stereo panning (`VOLPAN` for `-L`/`-R`), and instrument family color-coding (`PEAKCOL`).
+  - Converts dynamic tempo changes (`{!=120}`, `{!+10}`) and time signature directives into exact timeline seconds on the Master Tempo Envelope (`<TEMPOENVEX`).
+  - Generates section markers (`MARKER`) corresponding to song order sections (`Intro`, `Verse`, `Chorus`, etc.).
+  - Serializes embedded inline MIDI items (`<SOURCE MIDI HASDATA 1 960 QN>`) with note pitch, velocity, duration, and General MIDI percussion.
+  - Added CLI flags `-r, --reaper-output PATH` and `--rpp-output PATH`.
+  - Added `reaper` and `rpp` target format support to Model Context Protocol (MCP) tool `convert_tmd`.
 - **Online Web Studio (GitHub Pages)**:
   - In-browser TMD editor with full syntax highlighting powered by CodeMirror 6.
   - Multi-format download menu for Standard MIDI (`.mid`), MusicXML (`.musicxml`), LilyPond (`.ly`), ABC Notation (`.abc`), and WAV audio.

@@ -28,6 +28,7 @@ At its core, TMD reflects the practical workflow and mental model of modern popu
 - Normalized musical AST structures (`Beat`, `Note`, `Unit`, `Section`, `Paragraph`, `Order`, `Sheet`).
 - Formatter to serialize AST back to standard TMD syntax.
 - **Multi-track MIDI (SMF Type 1)** exporter.
+- **REAPER Project (.rpp)** exporter for DAW arrangement, multi-track layout, color-coded tracks, stereo panning, section markers, and inline MIDI.
 - **MusicXML 4.0** notation exporter for MuseScore, Sibelius, and web renderers.
 - **LilyPond** engraver exporter for publication-grade score typesetting and PDF rendering.
 - **ABC Notation** exporter for web sheet rendering (`abcjs`) and text-based score sharing.
@@ -130,25 +131,28 @@ tmd score.tmd -p
 # 2. Export to Standard MIDI file
 tmd score.tmd -m score.mid
 
-# 3. Export to MusicXML (open with MuseScore, Sibelius, Finale, etc.)
+# 3. Export to REAPER Project (.rpp) with tracks, colors, panning, markers & inline MIDI
+tmd score.tmd -r score.rpp
+
+# 4. Export to MusicXML (open with MuseScore, Sibelius, Finale, etc.)
 tmd score.tmd -x score.musicxml
 
-# 4. Export to LilyPond (.ly) source file
+# 5. Export to LilyPond (.ly) source file
 tmd score.tmd -l score.ly
 
-# 5. Render directly to PDF using local lilypond compiler
+# 6. Render directly to PDF using local lilypond compiler
 tmd score.tmd --pdf-output score.pdf
 
-# 6. Export to ABC notation file (for abcjs or Markdown web rendering)
+# 7. Export to ABC notation file (for abcjs or Markdown web rendering)
 tmd score.tmd -a score.abc
 
-# 7. Render to lightweight WAV audio preview (pure sine wave fallback)
+# 8. Render to lightweight WAV audio preview (pure sine wave fallback)
 tmd score.tmd -w preview.wav
 
-# 8. Play preview through system audio player (afplay on macOS, aplay on Linux)
+# 9. Play preview through system audio player (afplay on macOS, aplay on Linux)
 tmd score.tmd --play
 
-# 9. Install TMD skill definition for AI agents (Codex, Antigravity, Claude, etc.)
+# 10. Install TMD skill definition for AI agents (Codex, Antigravity, Claude, etc.)
 tmd --install-skills
 ```
 
@@ -159,6 +163,7 @@ import {
   TmdParser,
   formatSummary,
   TMDMIDIGenerator,
+  TMDReaperGenerator,
   TMDMusicXMLGenerator,
   TMDLilyPondGenerator,
   TMDABCGenerator,
@@ -191,6 +196,9 @@ console.log(formatSummary(sheet));
 
 // Export to MIDI Uint8Array
 const midiData = TMDMIDIGenerator.generateMIDI(sheet);
+
+// Export to REAPER project (.rpp) string
+const rppProject = TMDReaperGenerator.generateRPP(sheet);
 
 // Export to MusicXML string
 const musicXML = TMDMusicXMLGenerator.generateMusicXML(sheet);

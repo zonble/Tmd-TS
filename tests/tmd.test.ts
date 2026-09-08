@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, normalize } from 'node:path';
 import {
   TmdParser,
   formatSheet,
@@ -149,7 +149,7 @@ describe('Exporters', () => {
 describe('Input utilities and platform features', () => {
   it('normalizes file URLs and editor locations', () => {
     expect(FilePathNormalizer.isFileURL('file:///tmp/a%20b.tmd')).toBe(true);
-    expect(FilePathNormalizer.fileURLToPath('file:///tmp/a%20b.tmd')).toBe('/tmp/a b.tmd');
+    expect(FilePathNormalizer.fileURLToPath('file:///tmp/a%20b.tmd')).toBe(normalize('/tmp/a b.tmd'));
     expect(FilePathNormalizer.parseLocation('song.tmd:42:7')).toEqual({ filePath: 'song.tmd', line: 42, column: 7 });
     expect(FilePathNormalizer.parseLocation('song.tmd#L42C7')).toEqual({ filePath: 'song.tmd', line: 42, column: 7 });
   });

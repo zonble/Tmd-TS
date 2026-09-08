@@ -11,6 +11,7 @@ import {
   TMDMusicXMLGenerator,
   TMDLilyPondGenerator,
   TMDABCGenerator,
+  TMDReaperGenerator,
 } from "../exporters/index.js";
 import { TMDWAVRenderer } from "../audio.js";
 import { TmdSkill } from "../skill.js";
@@ -106,7 +107,7 @@ export class TmdMcpServer {
   }: {
     text?: string;
     filePath?: string;
-    format: "midi" | "musicxml" | "lilypond" | "abc" | "wav";
+    format: "midi" | "musicxml" | "lilypond" | "abc" | "wav" | "reaper" | "rpp";
     outputPath?: string;
   }) {
     let content = text;
@@ -164,6 +165,15 @@ export class TmdMcpServer {
         }
         return textContent(Buffer.from(wav).toString("base64"));
       }
+      case "reaper":
+      case "rpp": {
+        const rpp = TMDReaperGenerator.generateRPP(sheet);
+        if (outputPath) {
+          fs.writeFileSync(outputPath, rpp, "utf-8");
+          return textContent(`REAPER project successfully written to ${outputPath}`);
+        }
+        return textContent(rpp);
+      }
       default:
         throw new Error(`Unsupported format: ${format}`);
     }
@@ -208,7 +218,7 @@ export class TmdMcpServer {
           text: z.string().optional().describe("TMD score code text"),
           filePath: z.string().optional().describe("Path to .tmd file on filesystem"),
           format: z
-            .enum(["midi", "musicxml", "lilypond", "abc", "wav"])
+            .enum(["midi", "musicxml", "lilypond", "abc", "wav", "reaper", "rpp"])
             .describe("Target format"),
           outputPath: z
             .string()

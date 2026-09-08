@@ -203,7 +203,7 @@ export class TMDPlaybackRenderer {
     }
   }
 
-  private static durationOf(name: String, sheet: Sheet): number {
+  public static durationOf(name: string, sheet: Sheet): number {
     const matching = sheet.paragraphs.filter((p) => p.name === name);
     if (matching.length === 0) return 0;
 
@@ -219,7 +219,7 @@ export class TMDPlaybackRenderer {
     );
   }
 
-  private static measureDuration(beat: Beat): number {
+  public static measureDuration(beat: Beat): number {
     return (Math.max(1, beat.count) * 4.0) / Math.max(1, beat.noteValue);
   }
 }

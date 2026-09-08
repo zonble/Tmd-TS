@@ -5,6 +5,7 @@ import {
   TMDMusicXMLGenerator,
   TMDLilyPondGenerator,
   TMDABCGenerator,
+  TMDReaperGenerator,
 } from "../../src/exporters/index.js";
 import { TMDWAVRenderer } from "../../src/audio.js";
 import { TmdSkill } from "../../src/skill.js";
@@ -69,6 +70,7 @@ const btnToggleAi = document.getElementById("btn-toggle-ai") as HTMLButtonElemen
 const btnExportTmd = document.getElementById("export-tmd") as HTMLButtonElement;
 const btnExportLibraryZip = document.getElementById("export-library-zip") as HTMLButtonElement;
 const btnExportMidi = document.getElementById("export-midi") as HTMLButtonElement;
+const btnExportReaper = document.getElementById("export-reaper") as HTMLButtonElement;
 const btnExportMusicXML = document.getElementById("export-musicxml") as HTMLButtonElement;
 const btnExportLilyPond = document.getElementById("export-lilypond") as HTMLButtonElement;
 const btnExportABC = document.getElementById("export-abc") as HTMLButtonElement;
@@ -561,6 +563,15 @@ function initEvents() {
     if (!sheet) return alert(t("alertCannotExport"));
     const midi = TMDMIDIGenerator.generateMIDI(sheet);
     downloadBlob(getSafeFilename(sheet.name, "mid"), new Blob([midi as any], { type: "audio/midi" }));
+  });
+
+  btnExportReaper.addEventListener("click", () => {
+    exportDropdown.classList.remove("open");
+    const text = editor.getContent();
+    const sheet = TmdParser.parse(text);
+    if (!sheet) return alert(t("alertCannotExport"));
+    const rpp = TMDReaperGenerator.generateRPP(sheet);
+    downloadBlob(getSafeFilename(sheet.name, "rpp"), new Blob([rpp], { type: "text/plain;charset=utf-8" }));
   });
 
   btnExportMusicXML.addEventListener("click", () => {

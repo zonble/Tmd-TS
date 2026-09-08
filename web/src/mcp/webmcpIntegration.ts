@@ -5,6 +5,7 @@ import {
   TMDMusicXMLGenerator,
   TMDLilyPondGenerator,
   TMDABCGenerator,
+  TMDReaperGenerator,
 } from "../../../src/exporters/index.js";
 import { TmdSkill } from "../../../src/skill.js";
 
@@ -119,7 +120,7 @@ export const buildTmdWebMcpTools = (ctx: TmdWebMcpContext): WebMcpTool[] => [
   {
     name: "convertTmd",
     description:
-      "Convert TMD score text to target music formats: midi (base64 encoded), musicxml, lilypond, or abc.",
+      "Convert TMD score text to target music formats: midi (base64 encoded), reaper (.rpp), musicxml, lilypond, or abc.",
     inputSchema: {
       type: "object",
       properties: {
@@ -129,8 +130,8 @@ export const buildTmdWebMcpTools = (ctx: TmdWebMcpContext): WebMcpTool[] => [
         },
         format: {
           type: "string",
-          enum: ["midi", "musicxml", "lilypond", "abc"],
-          description: "Target export format: midi (base64), musicxml, lilypond, abc",
+          enum: ["midi", "musicxml", "lilypond", "abc", "reaper", "rpp"],
+          description: "Target export format: midi (base64), reaper (rpp), musicxml, lilypond, abc",
         },
       },
       required: ["text", "format"],
@@ -152,6 +153,10 @@ export const buildTmdWebMcpTools = (ctx: TmdWebMcpContext): WebMcpTool[] => [
           }
           const base64 = typeof btoa !== "undefined" ? btoa(binary) : Buffer.from(uint8).toString("base64");
           return textContent(base64);
+        }
+        case "reaper":
+        case "rpp": {
+          return textContent(TMDReaperGenerator.generateRPP(sheet));
         }
         case "musicxml": {
           return textContent(TMDMusicXMLGenerator.generateMusicXML(sheet));

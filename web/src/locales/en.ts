@@ -28,6 +28,7 @@ export const en = {
   btnExportText: "Export",
   exportTmd: "TMD Score File (.tmd)",
   exportMidi: "Standard MIDI (.mid)",
+  exportReaper: "REAPER Project (.rpp)",
   exportMusicXML: "MusicXML 4.0 (.musicxml)",
   exportLilyPond: "LilyPond (.ly)",
   exportABC: "ABC Notation (.abc)",

@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import { TmdParser, formatSummary } from "./core/index.js";
-import { TMDABCGenerator, TMDLilyPondGenerator, TMDMusicXMLGenerator, TMDMIDIGenerator } from "./exporters/index.js";
+import { TMDABCGenerator, TMDLilyPondGenerator, TMDMusicXMLGenerator, TMDMIDIGenerator, TMDReaperGenerator } from "./exporters/index.js";
 import { TMDWAVRenderer } from "./audio.js";
 import { TmdSkill } from "./skill.js";
 import { TmdMcpServer, TmdMcpInstaller } from "./mcp/index.js";
@@ -19,6 +19,8 @@ USAGE: tmd [<options>] [<input-path>]
   -x, --musicxml-output PATH  Export MusicXML 4.0.
   -l, --lilypond-output PATH  Export LilyPond source.
   -a, --abc-output PATH   Export ABC notation.
+  -r, --reaper-output PATH Export REAPER project (.rpp).
+      --rpp-output PATH   Export REAPER project (.rpp).
   -w, --wav-output PATH   Render portable 16-bit stereo WAV.
       --pdf-output PATH   Render PDF through lilypond.
       --play              Render and play through afplay/aplay.
@@ -42,7 +44,7 @@ export function main(argv = process.argv.slice(2)): number {
     if (arg === "--mcp") { runMcp = true; continue; }
     if (arg === "--install-mcp") { installMcp = true; continue; }
     if (arg === "--install-skills") { installSkills = true; continue; }
-    const option: Record<string, string> = { "-m": "midi", "--midi-output": "midi", "-x": "musicxml", "--musicxml-output": "musicxml", "-l": "lilypond", "--lilypond-output": "lilypond", "-a": "abc", "--abc-output": "abc", "-w": "wav", "--wav-output": "wav", "--pdf-output": "pdf" };
+    const option: Record<string, string> = { "-m": "midi", "--midi-output": "midi", "-x": "musicxml", "--musicxml-output": "musicxml", "-l": "lilypond", "--lilypond-output": "lilypond", "-a": "abc", "--abc-output": "abc", "-r": "reaper", "--reaper-output": "reaper", "--rpp-output": "reaper", "-w": "wav", "--wav-output": "wav", "--pdf-output": "pdf" };
     if (option[arg]) { outputs[option[arg]] = argv[++i]; continue; }
     if (!arg.startsWith("-")) input = arg;
     else { console.error(`Unknown option: ${arg}`); return 2; }
@@ -76,6 +78,7 @@ export function main(argv = process.argv.slice(2)): number {
     if (outputs.musicxml) fs.writeFileSync(outputs.musicxml, TMDMusicXMLGenerator.generateMusicXML(sheet));
     if (outputs.lilypond) fs.writeFileSync(outputs.lilypond, TMDLilyPondGenerator.generateLilyPond(sheet));
     if (outputs.abc) fs.writeFileSync(outputs.abc, TMDABCGenerator.generateABC(sheet));
+    if (outputs.reaper) fs.writeFileSync(outputs.reaper, TMDReaperGenerator.generateRPP(sheet));
     if (outputs.pdf) { const temp = path.join(os.tmpdir(), `tmd-${Date.now()}.ly`); fs.writeFileSync(temp, TMDLilyPondGenerator.generateLilyPond(sheet)); execFileSync("lilypond", ["--pdf", "-o", outputs.pdf.replace(/\.pdf$/, ""), temp], { stdio: "inherit" }); fs.rmSync(temp, { force: true }); }
     if (outputs.wav || play) { const temp = outputs.wav || path.join(os.tmpdir(), `tmd-${Date.now()}.wav`); fs.writeFileSync(temp, TMDWAVRenderer.renderWAV(sheet)); if (play) execFileSync(process.platform === "darwin" ? "afplay" : "aplay", [temp], { stdio: "inherit" }); if (!outputs.wav) fs.rmSync(temp, { force: true }); }
   } catch (error) { console.error(`Error exporting TMD: ${error instanceof Error ? error.message : String(error)}`); return 1; }
