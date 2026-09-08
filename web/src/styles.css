@@ -408,10 +408,10 @@ html, body {
    ========================================================================== */
 
 .tmd-player-bar {
-  position: absolute;
-  top: 14px;
+  position: fixed;
+  top: 60px;
   right: 20px;
-  z-index: 50;
+  z-index: 99;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -424,7 +424,15 @@ html, body {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 12px rgba(88, 166, 255, 0.2);
   color: #e6edf3;
   font-size: 13px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tmd-player-bar.dragging {
+  cursor: grabbing;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7), 0 0 18px rgba(88, 166, 255, 0.4);
 }
 
 @keyframes slideDown {
