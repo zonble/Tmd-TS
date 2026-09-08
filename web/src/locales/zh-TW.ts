@@ -118,6 +118,8 @@ export const zhTW = {
   aiBaseUrlPlaceholder: "https://api.deepseek.com/v1 或 http://localhost:11434/v1",
   aiSaveSettings: "儲存設定",
   aiCloseSettings: "關閉",
+  aiGetOfficialKey: "前往官方取得金鑰 ↗",
+  aiAskAiHowToGet: "問問 AI 怎麼申請 ↗",
   aiMissingApiKey: "請先點擊右上角「⚙️ 設定」輸入 API Key 才能開始生成！",
   aiNoCodeFound: "未在 AI 回應中找到有效的 TMD 樂譜代碼區塊。",
   aiAppliedSuccess: "已將 TMD 樂譜帶入編輯器！",

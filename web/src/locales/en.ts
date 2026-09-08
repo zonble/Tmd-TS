@@ -118,6 +118,8 @@ export const en = {
   aiBaseUrlPlaceholder: "https://api.deepseek.com/v1 or http://localhost:11434/v1",
   aiSaveSettings: "Save Settings",
   aiCloseSettings: "Close",
+  aiGetOfficialKey: "Get API Key from Provider ↗",
+  aiAskAiHowToGet: "Ask AI How to Get Key ↗",
   aiMissingApiKey: "Please click '⚙️ Settings' in the top right to configure your API Key first!",
   aiNoCodeFound: "No valid TMD code block found in AI response.",
   aiAppliedSuccess: "TMD score applied to editor!",

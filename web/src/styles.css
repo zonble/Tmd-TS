@@ -1210,4 +1210,11 @@ dialog.modal.modal-lg .modal-body {
   }
 }
 
+.ai-helper-link {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
 
+.ai-helper-link:hover {
+  opacity: 0.85;
+  text-decoration: underline !important;
+}

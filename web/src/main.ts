@@ -105,6 +105,8 @@ const aiSettingsProvider = document.getElementById("ai-settings-provider") as HT
 const aiSettingsModelPreset = document.getElementById("ai-settings-model-preset") as HTMLSelectElement;
 const aiSettingsModelCustom = document.getElementById("ai-settings-model-custom") as HTMLInputElement;
 const aiSettingsKey = document.getElementById("ai-settings-key") as HTMLInputElement;
+const aiKeyOfficialLink = document.getElementById("ai-key-official-link") as HTMLAnchorElement;
+const aiKeyAskAiLink = document.getElementById("ai-key-ask-ai-link") as HTMLAnchorElement;
 const aiSettingsBaseUrl = document.getElementById("ai-settings-baseurl") as HTMLInputElement;
 const aiSettingsBaseUrlGroup = document.getElementById("ai-settings-baseurl-group") as HTMLElement;
 
@@ -447,6 +449,8 @@ function initEvents() {
     if (editor) {
       updateInspector(editor.getContent());
     }
+    const selectedProvider = (aiSettingsProvider?.value as AIProviderType) || aiSettings.activeProvider;
+    populateModelPresets(selectedProvider);
   });
 
   // Export dropdown menu
@@ -621,6 +625,36 @@ function initEvents() {
     aiSettingsKey.value = currentCfg.apiKey || "";
     aiSettingsBaseUrl.value = currentCfg.baseUrl || "";
     aiSettingsBaseUrlGroup.style.display = (provider === "custom" || provider === "groq") ? "flex" : "none";
+
+    // Dynamic helper links for API Key
+    const providerOfficialUrls: Record<AIProviderType, string> = {
+      gemini: "https://aistudio.google.com/app/apikey",
+      openai: "https://platform.openai.com/api-keys",
+      anthropic: "https://console.anthropic.com/settings/keys",
+      groq: "https://console.groq.com/keys",
+      custom: "https://platform.deepseek.com/api_keys",
+    };
+
+    const providerNames: Record<AIProviderType, string> = {
+      gemini: "Google Gemini",
+      openai: "OpenAI",
+      anthropic: "Anthropic Claude",
+      groq: "Groq",
+      custom: "DeepSeek / Custom",
+    };
+
+    if (aiKeyOfficialLink) {
+      aiKeyOfficialLink.href = providerOfficialUrls[provider] || "https://aistudio.google.com/app/apikey";
+    }
+
+    if (aiKeyAskAiLink) {
+      const isZh = getCurrentLocale() === "zh-TW";
+      const q = isZh
+        ? encodeURIComponent(`如何申請 ${providerNames[provider]} API key 教學步驟`)
+        : encodeURIComponent(`How to get ${providerNames[provider]} API key step by step tutorial`);
+      const hl = isZh ? "zh-TW" : "en";
+      aiKeyAskAiLink.href = `https://www.google.com/search?q=${q}&hl=${hl}`;
+    }
   };
 
   const openAiSettingsModal = () => {

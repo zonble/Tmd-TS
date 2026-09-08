@@ -391,6 +391,17 @@
           <div class="form-group">
             <label for="ai-settings-key" data-i18n="aiApiKeyLabel">API Key (儲存於本機瀏覽器，安全無伺服器中轉)</label>
             <input type="password" id="ai-settings-key" class="text-control" data-i18n-placeholder="aiApiKeyPlaceholder" placeholder="請輸入 API Key..." />
+            <div class="ai-key-helper-links" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px; font-size: 11.5px;">
+              <a id="ai-key-official-link" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="ai-helper-link" style="color: var(--accent-blue); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                <span>🔗</span>
+                <span id="ai-key-official-text" data-i18n="aiGetOfficialKey">前往官方取得金鑰 ↗</span>
+              </a>
+              <span style="color: var(--border-color);">•</span>
+              <a id="ai-key-ask-ai-link" href="https://www.google.com/search?q=%E5%A6%82%E4%BD%95%E7%94%B3%E8%AB%8B+Google+Gemini+API+Key+%E6%AD%A5%E9%A9%9F" target="_blank" rel="noopener noreferrer" class="ai-helper-link" style="color: var(--accent-green); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                <span>🤖</span>
+                <span id="ai-key-ask-ai-text" data-i18n="aiAskAiHowToGet">問問 AI 怎麼申請 ↗</span>
+              </a>
+            </div>
           </div>
 
           <div id="ai-settings-baseurl-group" class="form-group" style="display: none;">
