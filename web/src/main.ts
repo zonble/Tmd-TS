@@ -63,6 +63,14 @@ const helpModal = document.getElementById("help-modal") as HTMLDialogElement;
 const btnCloseHelp = document.getElementById("btn-close-help") as HTMLButtonElement;
 const btnDismissHelp = document.getElementById("btn-dismiss-help") as HTMLButtonElement;
 
+// AI Modal
+const aiModal = document.getElementById("ai-modal") as HTMLDialogElement;
+const btnCloseAi = document.getElementById("btn-close-ai") as HTMLButtonElement;
+const btnDismissAi = document.getElementById("btn-dismiss-ai") as HTMLButtonElement;
+const aiBtnDownload = document.getElementById("ai-btn-download") as HTMLButtonElement;
+const aiBtnCopySkill = document.getElementById("ai-btn-copy-skill") as HTMLButtonElement;
+const aiBtnCopyCmd = document.getElementById("ai-btn-copy-cmd") as HTMLButtonElement;
+
 // Player Bar (Matching zago)
 const tmdPlayerBar = document.getElementById("tmd-player-bar") as HTMLElement;
 const playerTitle = document.getElementById("player-title") as HTMLElement;
@@ -402,7 +410,45 @@ function initEvents() {
   });
 
   btnDownloadSkill.addEventListener("click", () => {
+    aiModal.showModal();
+  });
+
+  aiBtnDownload?.addEventListener("click", () => {
     downloadSkillFile();
+  });
+
+  aiBtnCopySkill?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(TmdSkill.skillMarkdown);
+      const prevText = aiBtnCopySkill.textContent;
+      aiBtnCopySkill.textContent = `✓ ${t("aiSkillCopied")}`;
+      setTimeout(() => {
+        aiBtnCopySkill.textContent = prevText;
+      }, 2000);
+    } catch {
+      alert(t("aiSkillCopied"));
+    }
+  });
+
+  aiBtnCopyCmd?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText("npx tmd-ts --install-skills");
+      const prevText = aiBtnCopyCmd.textContent;
+      aiBtnCopyCmd.textContent = "✓";
+      setTimeout(() => {
+        aiBtnCopyCmd.textContent = prevText;
+      }, 2000);
+    } catch {
+      alert(t("aiCmdCopied"));
+    }
+  });
+
+  btnCloseAi?.addEventListener("click", () => {
+    aiModal.close();
+  });
+
+  btnDismissAi?.addEventListener("click", () => {
+    aiModal.close();
   });
 
   // Sample select

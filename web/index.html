@@ -227,6 +227,93 @@ verse:Lead@|0|{
           <button id="btn-dismiss-help" class="btn btn-primary" data-i18n="btnDismissHelp">了解</button>
         </div>
       </dialog>
+
+      <!-- AI Co-Composing Guide Dialog -->
+      <dialog id="ai-modal" class="modal modal-lg">
+        <div class="modal-header">
+          <h2 class="modal-title" data-i18n="aiModalTitle">TMD 與 AI 協作作曲指南</h2>
+          <button id="btn-close-ai" class="btn btn-icon-only">✕</button>
+        </div>
+        <div class="modal-body">
+          <!-- Step 1 -->
+          <div class="ai-step-card">
+            <h3 class="ai-step-title" data-i18n="aiStep1Title">步驟 1：取得 TMD Skill 並載入 AI 技能庫</h3>
+            <p class="ai-step-desc" data-i18n="aiStep1Desc">
+              TMD 是結構化純文字音樂語言。將 TMD Skill 載入至您的 AI 工具（Claude Code、Codex、Antigravity、Gemini、Cursor 等），AI 即可精確遵循簡譜、和弦標記、軌道小節位移與轉調規範：
+            </p>
+            <div class="ai-btn-group">
+              <button id="ai-btn-download" class="btn btn-primary" data-i18n="aiBtnDownloadSkill">📥 下載 SKILL.md</button>
+              <button id="ai-btn-copy-skill" class="btn" data-i18n="aiBtnCopySkill">📋 複製 SKILL.md 內容</button>
+            </div>
+
+            <div class="ai-cmd-section">
+              <div class="ai-cmd-label" data-i18n="aiInstallCmdLabel">或於終端機一鍵全域安裝至本機各 AI 技能目錄：</div>
+              <div class="ai-cmd-box">
+                <code id="ai-cmd-text">npx tmd-ts --install-skills</code>
+                <button id="ai-btn-copy-cmd" class="btn btn-icon-only" title="複製指令" data-i18n-title="aiCopyCmd">📋</button>
+              </div>
+            </div>
+
+            <div class="ai-paths-section">
+              <div class="ai-paths-title" data-i18n="aiPathsTitle">各工具常見 Skill 目錄（將下載的 SKILL.md 放入即可）：</div>
+              <ul class="ai-paths-list">
+                <li><strong data-i18n="aiPathClaude">Claude Code</strong>: <code>~/.claude/skills/tmd/SKILL.md</code></li>
+                <li><strong data-i18n="aiPathCodex">Codex</strong>: <code>~/.codex/skills/tmd/SKILL.md</code></li>
+                <li><strong data-i18n="aiPathGemini">Gemini / Antigravity</strong>: <code>~/.gemini/config/skills/tmd/SKILL.md</code></li>
+                <li><strong data-i18n="aiPathCursor">Cursor / VS Code</strong>: <code>.cursor/rules/tmd.md</code> / 專案根目錄 <code>AGENTS.md</code></li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="ai-step-card">
+            <h3 class="ai-step-title" data-i18n="aiStep2Title">步驟 2：AI 協同作曲實戰 5 大心法</h3>
+            <p class="ai-step-desc" data-i18n="aiStep2Desc">
+              不同於無法細修的黑箱音樂生成，在 TMD 中人與 AI 就像「結對程式設計（Pair Programming）」一般互動協作：
+            </p>
+
+            <div class="ai-patterns-grid">
+              <!-- Pattern 1 -->
+              <div class="ai-pattern-item">
+                <div class="ai-pattern-title" data-i18n="aiPattern1Title">1. 旋律配器編排（Lead-to-Arrangement）</div>
+                <div class="ai-pattern-desc" data-i18n="aiPattern1Desc">人類寫好主旋律（Vocal），請 AI 加上木吉他伴奏、貝斯走音與鼓組進場。</div>
+                <div class="ai-prompt-box" data-i18n="aiPattern1Prompt">Prompt 範例：「這是我用 TMD 寫的主旋律，請為它編排伴奏：加入 CHORD 軌彈奏吉他和弦、Bass 軌彈奏根音，並在第 2 小節以 @|+2| 讓鼓組 Drums 進場。」</div>
+              </div>
+
+              <!-- Pattern 2 -->
+              <div class="ai-pattern-item">
+                <div class="ai-pattern-title" data-i18n="aiPattern2Title">2. 動機延伸與問答樂句（Motif Continuation）</div>
+                <div class="ai-pattern-desc" data-i18n="aiPattern2Desc">提供 2 到 4 小節核心旋律動機，請 AI 依據問句（Antecedent）與答句（Consequent）發展成完整 8 小節樂段。</div>
+                <div class="ai-prompt-box" data-i18n="aiPattern2Prompt">Prompt 範例：「這是一段 2 小節動機：1 2 3 5 | 6 5 3 -。請幫我依古典樂問答樂句結構，發展成完整 8 小節段落，並在第 8 小節收束在主音 1。」</div>
+              </div>
+
+              <!-- Pattern 3 -->
+              <div class="ai-pattern-item">
+                <div class="ai-pattern-title" data-i18n="aiPattern3Title">3. 和弦風格探索與重配（Re-Harmonization）</div>
+                <div class="ai-pattern-desc" data-i18n="aiPattern3Desc">TMD 的和弦是一等公民（如 [1]、[6m]、[Cmaj7]、[Am7]），可隨時請 AI 嘗試標準流行進行或 Neo-Soul / 爵士副屬和弦重配。</div>
+                <div class="ai-prompt-box" data-i18n="aiPattern3Prompt">Prompt 範例：「請針對這段旋律提出兩種不同風格的 TMD 和弦進行：1. 標準流行樂 1-5-6-4；2. 帶有次屬和弦與調式互換的 Neo-Soul / 爵士和弦。」</div>
+              </div>
+
+              <!-- Pattern 4 -->
+              <div class="ai-pattern-item">
+                <div class="ai-pattern-title" data-i18n="aiPattern4Title">4. 動態織度與段落進場（Textural Build-Up）</div>
+                <div class="ai-pattern-desc" data-i18n="aiPattern4Desc">善用 TMD 的小節位移語法 @|0|、@|+4| 與弱起過門 @|-1|，指揮 AI 安排樂器逐層堆疊與退場，營造豐富的起承轉合。</div>
+                <div class="ai-prompt-box" data-i18n="aiPattern4Prompt">Prompt 範例：「第 1 段主歌只留木吉他；第 4 小節加入貝斯；在副歌前 1 小節以 @|-1| 讓鼓組進行過門（Fill-in），隨後副歌全體齊奏進場。」</div>
+              </div>
+
+              <!-- Pattern 5 -->
+              <div class="ai-pattern-item">
+                <div class="ai-pattern-title" data-i18n="aiPattern5Title">5. 巨觀曲式流程與轉調（Macro Flow & Modulation）</div>
+                <div class="ai-pattern-desc" data-i18n="aiPattern5Desc">段落各自獨立完成後，由 AI 在 -> 播放順序中規劃重複與轉調（如最後一次副歌升半音 {?+1}）。</div>
+                <div class="ai-prompt-box" data-i18n="aiPattern5Prompt">Prompt 範例：「我已經寫好了 intro、verse、chorus、bridge，請幫我規劃 TMD 的 -> 演奏順序，並在最後一段副歌加入升半音轉調 {?+1}。」</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-dismiss-ai" class="btn btn-primary" data-i18n="btnDismissHelp">了解</button>
+        </div>
+      </dialog>
     </div>
 
     <script type="module" src="./src/main.ts"></script>

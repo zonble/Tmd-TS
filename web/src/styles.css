@@ -659,8 +659,119 @@ dialog.modal::backdrop {
   border: 1px solid var(--border-color);
 }
 
+dialog.modal.modal-lg {
+  max-width: 860px;
+  width: 92%;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+
+dialog.modal.modal-lg .modal-body {
+  overflow-y: auto;
+  max-height: calc(88vh - 130px);
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ai-step-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.ai-step-badge {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--accent-blue);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.ai-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.ai-paths-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  background: var(--bg-primary);
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.ai-path-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ai-path-agent {
+  font-weight: 600;
+  color: var(--accent-blue);
+  min-width: 110px;
+  flex-shrink: 0;
+}
+
+.ai-path-code {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.ai-pattern-item {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-pattern-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-bright);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-prompt-box {
+  background: rgba(88, 166, 255, 0.06);
+  border-left: 3px solid var(--accent-blue);
+  padding: 8px 12px;
+  border-radius: 0 4px 4px 0;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  font-style: italic;
+}
+
 .modal-footer {
-  margin-top: 20px;
+  margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
 }
