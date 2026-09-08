@@ -349,8 +349,41 @@
                     <li><strong data-i18n="aiPathClaude">Claude Code</strong>: <code>~/.claude/skills/tmd/SKILL.md</code></li>
                     <li><strong data-i18n="aiPathCodex">Codex</strong>: <code>~/.codex/skills/tmd/SKILL.md</code></li>
                     <li><strong data-i18n="aiPathGemini">Gemini / Antigravity</strong>: <code>~/.gemini/config/skills/tmd/SKILL.md</code></li>
-                    <li><strong data-i18n="aiPathCursor">Cursor / VS Code</strong>: <code>.cursor/rules/tmd.md</code> / 專案根目錄 <code>AGENTS.md</code></li>
+                    <li><strong data-i18n="aiPathCursor">Cursor / VS Code</strong>: <code>.cursor/rules/tmd.md</code> / <span data-i18n="aiPathProjectRoot">專案根目錄</span> <code>AGENTS.md</code></li>
                   </ul>
+                </div>
+              </div>
+
+              <!-- Web MCP Section -->
+              <div class="ai-step-card">
+                <div class="ai-step-header">
+                  <span class="ai-step-badge">MCP</span>
+                  <h3 class="ai-step-title" data-i18n="aiWebMcpTitle" style="margin: 0;">Web MCP 服務（讓外部 AI Agent 連線調用）</h3>
+                </div>
+                <p class="ai-step-desc" data-i18n="aiWebMcpDesc">
+                  本網頁內建 Web MCP 服務（Model Context Protocol）。任何支援 MCP 的外部 AI 工具（如 Claude Desktop、Cursor、Local LLM）均可直接連線此網頁，調用 5 大專業音樂工具：
+                </p>
+
+                <div class="ai-paths-section">
+                  <div class="ai-paths-title" data-i18n="aiWebMcpToolsTitle">開放的 MCP 工具：</div>
+                  <ul class="ai-paths-list">
+                    <li><code>getTmdSkill</code>: <span data-i18n="aiMcpToolSkill">取得 TMD 完整語法規範與 Prompt Skill</span></li>
+                    <li><code>parseTmd</code>: <span data-i18n="aiMcpToolParse">驗證 TMD 語法、回傳調性、速度、軌道與診斷報告</span></li>
+                    <li><code>convertTmd</code>: <span data-i18n="aiMcpToolConvert">一鍵轉換 TMD 為 MIDI (Base64)、MusicXML、LilyPond、ABC</span></li>
+                    <li><code>getCurrentScore</code>: <span data-i18n="aiMcpToolGet">讀取目前瀏覽器編輯器內的樂譜內容</span></li>
+                    <li><code>loadScoreToEditor</code>: <span data-i18n="aiMcpToolLoad">將 AI 生成的樂譜推送至編輯器，並可觸發自動播放</span></li>
+                  </ul>
+                </div>
+
+                <div style="margin-top: 6px; font-size: 11.5px; color: var(--text-secondary); line-height: 1.5;" data-i18n="aiWebMcpWidgetHint">
+                  💡 點擊右下角藍色方塊即可開啟 WebMCP 連線視窗與配對 Token；若瀏覽器支援 <code>navigator.modelContext</code> 亦已自動完成原生註冊。
+                </div>
+
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-subtle);">
+                  <a id="ai-webmcp-ask-link" href="https://www.google.com/search?q=%E6%80%8E%E6%A8%A3%E8%A8%AD%E5%AE%9A+Web+MCP&hl=zh-TW" target="_blank" rel="noopener noreferrer" class="ai-helper-link" style="color: var(--accent-green); text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500;">
+                    <span>🤖</span>
+                    <span id="ai-webmcp-ask-text" data-i18n="aiAskWebMcpHowTo">問問 AI：怎樣設定與連線 Web MCP？ ↗</span>
+                  </a>
                 </div>
               </div>
             </div>
@@ -469,6 +502,7 @@ verse:Lead@|0|{
 
     </div>
 
+    <script src="./webmcp.js"></script>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>

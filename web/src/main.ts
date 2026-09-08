@@ -31,6 +31,7 @@ import {
   AIProviderType,
   AISettingsState,
 } from "./ai/index.js";
+import { initTmdWebMcp } from "./mcp/webmcpIntegration.js";
 
 let editor: TMDWebEditor;
 let currentSheet: Sheet | null = null;
@@ -445,12 +446,24 @@ function initEvents() {
     applyI18n(nextLocale);
   });
 
+  const updateWebMcpAskLink = () => {
+    const link = document.getElementById("ai-webmcp-ask-link") as HTMLAnchorElement | null;
+    if (!link) return;
+    const isZh = getCurrentLocale() === "zh-TW";
+    const q = isZh
+      ? encodeURIComponent("怎樣設定 Web MCP 連線教學")
+      : encodeURIComponent("How to setup and connect to Web MCP tutorial");
+    const hl = isZh ? "zh-TW" : "en";
+    link.href = `https://www.google.com/search?q=${q}&hl=${hl}`;
+  };
+
   onLanguageChange(() => {
     if (editor) {
       updateInspector(editor.getContent());
     }
     const selectedProvider = (aiSettingsProvider?.value as AIProviderType) || aiSettings.activeProvider;
     populateModelPresets(selectedProvider);
+    updateWebMcpAskLink();
   });
 
   // Export dropdown menu
@@ -907,6 +920,22 @@ function init() {
 
   initEvents();
   updateInspector(initialSample.content);
+
+  // Initialize Web MCP service
+  try {
+    initTmdWebMcp(window, {
+      getCurrentScore: () => editor.getContent(),
+      loadScoreToEditor: (text: string) => {
+        editor.setContent(text);
+        updateInspector(text);
+      },
+      startPlayback: () => {
+        startPlayback(editor.getContent());
+      },
+    });
+  } catch (err) {
+    console.warn("Failed to initialize Web MCP:", err);
+  }
 }
 
 window.addEventListener("DOMContentLoaded", init);

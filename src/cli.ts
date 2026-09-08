@@ -6,6 +6,7 @@ import { TmdParser, formatSummary } from "./core/index.js";
 import { TMDABCGenerator, TMDLilyPondGenerator, TMDMusicXMLGenerator, TMDMIDIGenerator } from "./exporters/index.js";
 import { TMDWAVRenderer } from "./audio.js";
 import { TmdSkill } from "./skill.js";
+import { TmdMcpServer, TmdMcpInstaller } from "./mcp/index.js";
 import { TMD_VERSION } from "./version.js";
 
 export function printHelp(): void {
@@ -21,6 +22,8 @@ USAGE: tmd [<options>] [<input-path>]
   -w, --wav-output PATH   Render portable 16-bit stereo WAV.
       --pdf-output PATH   Render PDF through lilypond.
       --play              Render and play through afplay/aplay.
+      --mcp               Run as a stdio Model Context Protocol (MCP) server.
+      --install-mcp       Register TMD MCP server in Claude, Cursor, and Gemini configs.
       --install-skills    Install the TMD AI-agent skill.
       --version           Show the version.
   -h, --help              Show this help.
@@ -28,7 +31,7 @@ USAGE: tmd [<options>] [<input-path>]
 }
 
 export function main(argv = process.argv.slice(2)): number {
-  let input: string | undefined, parseOnly = false, play = false, install = false;
+  let input: string | undefined, parseOnly = false, play = false, installSkills = false, installMcp = false, runMcp = false;
   const outputs: Record<string, string | undefined> = {};
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -36,13 +39,27 @@ export function main(argv = process.argv.slice(2)): number {
     if (arg === "--version") { console.log(`tmd-ts ${TMD_VERSION}`); return 0; }
     if (arg === "-p" || arg === "--parse-only") { parseOnly = true; continue; }
     if (arg === "--play") { play = true; continue; }
-    if (arg === "--install-skills") { install = true; continue; }
+    if (arg === "--mcp") { runMcp = true; continue; }
+    if (arg === "--install-mcp") { installMcp = true; continue; }
+    if (arg === "--install-skills") { installSkills = true; continue; }
     const option: Record<string, string> = { "-m": "midi", "--midi-output": "midi", "-x": "musicxml", "--musicxml-output": "musicxml", "-l": "lilypond", "--lilypond-output": "lilypond", "-a": "abc", "--abc-output": "abc", "-w": "wav", "--wav-output": "wav", "--pdf-output": "pdf" };
     if (option[arg]) { outputs[option[arg]] = argv[++i]; continue; }
     if (!arg.startsWith("-")) input = arg;
     else { console.error(`Unknown option: ${arg}`); return 2; }
   }
-  if (install) {
+  if (runMcp) {
+    TmdMcpServer.run().catch((err) => {
+      console.error("Fatal error running TMD MCP Server:", err);
+      process.exit(1);
+    });
+    return 0;
+  }
+  if (installMcp) {
+    const results = TmdMcpInstaller.installAll();
+    results.forEach(result => console.log(`${result.installed ? "Installed" : "Failed"} TMD MCP config: ${result.path}${result.error ? ` (${result.error})` : ""}`));
+    if (!input) return results.every(result => result.installed) ? 0 : 1;
+  }
+  if (installSkills) {
     const results = TmdSkill.installSkills();
     results.forEach(result => console.log(`${result.installed ? "Installed" : "Failed"} TMD skill: ${result.path}${result.error ? ` (${result.error})` : ""}`));
     if (!input) return results.every(result => result.installed) ? 0 : 1;
