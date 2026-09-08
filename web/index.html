@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TMD Studio - Timebase Mark Down Editor & Player</title>
+    <meta name="description" content="Online editor, multi-format exporter, and synthesizer for the TMD (Timebase Mark Down) music markup language." />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Navbar -->
+      <header class="navbar">
+        <div class="nav-left">
+          <a href="#" class="brand">
+            <span class="brand-icon">🎵</span>
+            <span>TMD Studio</span>
+            <span class="brand-badge">WEB</span>
+          </a>
+
+          <!-- Samples Dropdown -->
+          <select id="sample-select" class="select-control" title="載入範例曲目 (Load Sample Score)">
+            <option value="" disabled selected>📂 載入範例曲目...</option>
+          </select>
+        </div>
+
+        <div class="nav-center">
+          <!-- Play Button -->
+          <button id="btn-play" class="btn btn-primary" title="線上試聽樂曲 (Play TMD Score)">
+            <span class="btn-icon">▶</span>
+            <span class="btn-text">試聽 (Play)</span>
+          </button>
+
+          <!-- Export Dropdown -->
+          <div class="dropdown" id="export-dropdown">
+            <button id="btn-export-menu" class="btn" title="匯出樂譜檔案 (Export Formats)">
+              <span class="btn-icon">📥</span>
+              <span class="btn-text">匯出 / 下載</span>
+              <span style="font-size: 10px;">▼</span>
+            </button>
+            <div class="dropdown-menu">
+              <button class="dropdown-item" id="export-midi">
+                <span>🎹</span> <span>Standard MIDI (.mid)</span>
+              </button>
+              <button class="dropdown-item" id="export-musicxml">
+                <span>🎼</span> <span>MusicXML 4.0 (.musicxml)</span>
+              </button>
+              <button class="dropdown-item" id="export-lilypond">
+                <span>🪶</span> <span>LilyPond (.ly)</span>
+              </button>
+              <button class="dropdown-item" id="export-abc">
+                <span>🔤</span> <span>ABC Notation (.abc)</span>
+              </button>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" id="export-wav">
+                <span>🔊</span> <span>Sine Wave WAV (.wav)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="nav-right">
+          <!-- Toggle Inspector -->
+          <button id="btn-toggle-inspector" class="btn btn-icon-only" title="開啟/關閉資訊側欄 (Toggle Inspector)">
+            📊
+          </button>
+
+          <!-- Help Modal Button -->
+          <button id="btn-help" class="btn btn-icon-only" title="語法速查與說明 (Help)">
+            ❓
+          </button>
+
+          <!-- GitHub Link -->
+          <a href="https://github.com/zonble/Tmd-TS" target="_blank" rel="noopener noreferrer" class="btn btn-icon-only" title="GitHub Repository">
+            <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+            </svg>
+          </a>
+        </div>
+      </header>
+
+      <!-- Main Workspace -->
+      <main class="workspace">
+        <!-- Editor Container -->
+        <div id="editor-container" class="editor-container"></div>
+
+        <!-- TMD Floating Mini Player Bar (Matching zago) -->
+        <div id="tmd-player-bar" class="tmd-player-bar" style="display: none;">
+          <span class="player-icon pulse">🎵</span>
+          <div class="player-meta">
+            <span id="player-title" class="player-title">score.mid</span>
+            <span id="player-time" class="player-time">00:00 / 00:00</span>
+          </div>
+          <input type="range" id="player-progress" class="player-slider" min="0" max="100" value="0" step="0.1" title="Seek" />
+          <div class="player-synth-wrapper">
+            <label for="synth-select" style="display:none;">Synth</label>
+            <select id="synth-select" class="player-synth-select" title="選擇合成器音色庫 (SoundFont / Synth)">
+              <option value="piano">🎹 Grand Piano (FluidR3)</option>
+              <option value="tiny">⚡ Tiny Synth (Chiptune)</option>
+              <option value="webmidi">🎛 System MIDI Out</option>
+            </select>
+          </div>
+          <div class="player-controls">
+            <button id="player-btn-pause" class="player-ctrl-btn" title="Pause / Resume">⏸</button>
+            <button id="player-btn-stop" class="player-ctrl-btn" title="Stop">⏹</button>
+            <button id="player-btn-close" class="player-ctrl-btn player-close-btn" title="Close">✕</button>
+          </div>
+        </div>
+
+        <!-- Inspector Sidebar -->
+        <aside id="inspector-panel" class="inspector-panel">
+          <div class="panel-header">
+            <span>樂譜資訊 (Score Inspector)</span>
+            <button id="btn-close-inspector" class="btn btn-icon-only" style="padding: 2px 6px; font-size: 11px;">✕</button>
+          </div>
+          <div class="panel-body">
+            <!-- Syntax Check Status -->
+            <div class="card">
+              <div class="card-title">語法檢查 (Status)</div>
+              <div id="inspector-status" class="status-badge success">✓ 語法正確</div>
+            </div>
+
+            <!-- Global Metadata -->
+            <div class="card">
+              <div class="card-title">基本設定 (Metadata)</div>
+              <div class="stat-grid">
+                <div class="stat-item">
+                  <span class="stat-label">曲名</span>
+                  <span class="stat-value" id="stat-title">-</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">速度 (BPM)</span>
+                  <span class="stat-value" id="stat-tempo">-</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">調號 (Key)</span>
+                  <span class="stat-value" id="stat-key">-</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">拍號 (Meter)</span>
+                  <span class="stat-value" id="stat-meter">-</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Playback Flow / Orders -->
+            <div class="card">
+              <div class="card-title">演奏順序 (Playback Order)</div>
+              <div id="inspector-orders" class="tags-list">
+                <span class="stat-label">無演奏順序宣告</span>
+              </div>
+            </div>
+
+            <!-- Tracks & Instruments -->
+            <div class="card">
+              <div class="card-title">軌道與樂器編制 (Tracks)</div>
+              <div id="inspector-tracks" style="display: flex; flex-direction: column; gap: 6px;">
+                <span class="stat-label">無音軌資料</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </main>
+
+      <!-- Bottom Status Bar -->
+      <footer class="status-bar">
+        <div class="status-left">
+          <span id="sb-status">Ready</span>
+          <span id="sb-summary"></span>
+        </div>
+        <div class="status-right">
+          <span>In memory of <a href="https://github.com/aguai" target="_blank" rel="noopener noreferrer" class="tribute-link">Chen, Chih-Han (阿怪, 1974–2019)</a></span>
+        </div>
+      </footer>
+
+      <!-- Help Dialog -->
+      <dialog id="help-modal" class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title">TMD 簡明語法速查</h2>
+          <button id="btn-close-help" class="btn btn-icon-only">✕</button>
+        </div>
+        <div class="modal-body">
+          <p>TMD (Timebase Mark Down) 是阿怪設計的純文字音樂標記語言，支援多音軌簡譜、和弦與播放流導出。</p>
+          <pre><code>::SCORE::
+** 曲名 (Title) **
+!= 120              /* 速度 BPM */
+?= C                /* 調號 Key */
+&lt;4/4&gt;               /* 拍號 Meter */
+
+/* 段落:樂器@|小節偏移|{ ... } */
+intro:Piano@|0|{
+  &lt;2*&gt;              /* 1 小節 2 拍 */
+  |[1] - | [6m] - |
+}
+
+verse:Lead@|0|{
+  &lt;4*&gt;              /* 1 小節 4 拍 */
+  | 1 2 3 1 | 5 - 3 - |
+}
+
+/* 演奏流程宣告與轉調 */
+-&gt; intro -&gt; verse -&gt; {?+1} -&gt; verse -&gt;#</code></pre>
+          <ul style="padding-left: 20px; font-size: 13px; display: flex; flex-direction: column; gap: 6px;">
+            <li><code>1</code>–<code>7</code>：簡譜音階；<code>^</code>：高八度；<code>_</code>：低八度。</li>
+            <li><code>[1]</code>, <code>[6m]</code>, <code>[Cmaj7]</code>：和弦標記。</li>
+            <li><code>(1 2 3)%(--)</code>：連音符（三連音等）。</li>
+            <li><code>{!= 140}</code>, <code>{?+2}</code>：動態速度與轉調指令。</li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-dismiss-help" class="btn btn-primary">了解 (Close)</button>
+        </div>
+      </dialog>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

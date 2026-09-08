@@ -68,6 +68,21 @@ Once installed, your AI agent will automatically understand how to compose, arra
 6. **Style & Metric Variations**:
    Prompt the AI to adapt a 4/4 ballad into a 3/4 waltz, re-groove straight rhythms into syncopated Funk/R&B patterns, or add tuplet ornaments `(1 2 3)%(--)`.
 
+## Online Web Studio (GitHub Pages)
+
+Experience TMD editing and playback directly in your browser without installing anything:
+
+- **Interactive Editor**: Syntax highlighting for TMD metadata, numbered notation (`1`–`7`), octaves, chords (`[1]`, `[6m]`), and directives.
+- **Multi-Format Export**: One-click download for Standard MIDI (`.mid`), MusicXML 4.0 (`.musicxml`), LilyPond (`.ly`), ABC Notation (`.abc`), and WAV audio.
+- **In-Browser Audio Player**: Floating playback bar matching `zago`'s WebAssembly edition, featuring Grand Piano (FluidR3 SoundFont), Chiptune TinySynth, and Web MIDI hardware output.
+- **Preset Scores**: Instant loading for classic tunes such as 《三天三夜》, 《少年》, and contrapuntal canons.
+
+Run the web studio locally:
+
+```bash
+npm run web:dev
+```
+
 ## Requirements
 
 - **Node.js**: `v20.0.0` or newer.

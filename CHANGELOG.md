@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-09-07
+### Added
+- **Online Web Studio (GitHub Pages)**:
+  - In-browser TMD editor with full syntax highlighting powered by CodeMirror 6.
+  - Multi-format download menu for Standard MIDI (`.mid`), MusicXML (`.musicxml`), LilyPond (`.ly`), ABC Notation (`.abc`), and WAV audio.
+  - Floating mini audio player bar matching `zago`'s WebAssembly edition, supporting Grand Piano (FluidR3 SoundFont), Chiptune TinySynth, and Web MIDI hardware output.
+  - Preset song library including 《三天三夜》, 《少年》, and contrapuntal canons.
+  - Automated GitHub Pages deployment workflow (`.github/workflows/deploy-pages.yml`).
+  - Added root npm scripts `web:dev` and `web:build`.
 
 ### Added
 - Initial public TypeScript release of `tmd-ts`.

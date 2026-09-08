@@ -20,6 +20,8 @@
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
     "prepublishOnly": "npm run build && npm test"
   },
   "devDependencies": {
