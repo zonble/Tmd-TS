@@ -67,6 +67,10 @@ describe('TmdParser and Format', () => {
     expect(sheet.beat.count).toBe(4);
     expect(sheet.beat.noteValue).toBe(4);
     expect(sheet.paragraphs.length).toBe(4);
+    expect(sheet.paragraphs[0].line).toBe(9);
+    expect(sheet.paragraphs[1].line).toBe(17);
+    expect(sheet.paragraphs[2].line).toBe(25);
+    expect(sheet.paragraphs[3].line).toBe(31);
     expect(sheet.orders).toEqual([
       { type: 'name', name: 'verse' },
       { type: 'name', name: 'chorus' }

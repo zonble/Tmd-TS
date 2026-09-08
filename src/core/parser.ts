@@ -532,6 +532,8 @@ export class TmdParser {
   }
 
   private parseParagraph(): Paragraph {
+    const startLine = this.current.line;
+    const startCol = this.current.column;
     let name = "";
     if (this.current.type === "identifier") {
       name = this.advance().value;
@@ -577,7 +579,7 @@ export class TmdParser {
     if (this.current.type === "programText") {
       const showProgram = this.advance().value;
       this.match("closeBrace");
-      return { name, instrument, start, sections: [], executionTime, showProgram };
+      return { name, instrument, start, sections: [], executionTime, showProgram, line: startLine, column: startCol };
     }
 
     const sections: Section[] = [];
@@ -654,7 +656,7 @@ export class TmdParser {
     }
     this.match("closeBrace");
 
-    return { name, instrument, start, sections, executionTime };
+    return { name, instrument, start, sections, executionTime, line: startLine, column: startCol };
   }
 
   private parseUnit(): Unit | null {

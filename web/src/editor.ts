@@ -118,19 +118,27 @@ export interface TMDWebEditor {
   getContent(): string;
   setContent(text: string): void;
   insertAtCursor(text: string): void;
+  scrollToLine(line: number): void;
   focus(): void;
 }
 
 export function createTmdEditor(
   container: HTMLElement,
   initialContent: string,
-  onChange?: (content: string) => void
+  onChange?: (content: string) => void,
+  onCursorActivity?: (line: number, col: number) => void
 ): TMDWebEditor {
   const languageCompartment = new Compartment();
 
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged && onChange) {
       onChange(update.state.doc.toString());
+    }
+    if ((update.selectionSet || update.docChanged) && onCursorActivity) {
+      const pos = update.state.selection.main.head;
+      const line = update.state.doc.lineAt(pos);
+      const col = pos - line.from + 1;
+      onCursorActivity(line.number, col);
     }
   });
 
@@ -194,6 +202,16 @@ export function createTmdEditor(
         },
         selection: { anchor: selection.from + text.length },
       });
+    },
+    scrollToLine(line: number) {
+      const doc = view.state.doc;
+      const targetLine = Math.max(1, Math.min(line, doc.lines));
+      const lineObj = doc.line(targetLine);
+      view.dispatch({
+        selection: { anchor: lineObj.from, head: lineObj.to },
+        scrollIntoView: true,
+      });
+      view.focus();
     },
     focus() {
       view.focus();

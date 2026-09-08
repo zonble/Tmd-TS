@@ -70,6 +70,7 @@ const inspectorTracks = document.getElementById("inspector-tracks") as HTMLEleme
 // Status bar
 const sbStatus = document.getElementById("sb-status") as HTMLElement;
 const sbSummary = document.getElementById("sb-summary") as HTMLElement;
+const sbCursor = document.getElementById("sb-cursor") as HTMLElement;
 
 // Help Modal
 const btnHelp = document.getElementById("btn-help") as HTMLButtonElement;
@@ -205,8 +206,10 @@ function updateInspector(text: string) {
       .map((p) => {
         const offset = p.start ? (p.start > 0 ? `+${p.start}` : `${p.start}`) : "0";
         const totalUnits = p.sections.reduce((acc, s) => acc + s.unitGroups.reduce((uAcc, g) => uAcc + g.units.length, 0), 0);
+        const lineAttr = p.line ? `data-line="${p.line}"` : "";
+        const titleAttr = p.line ? `title="點擊跳轉至第 ${p.line} 行"` : "";
         return `
-          <div class="track-item">
+          <div class="track-item" ${lineAttr} ${titleAttr}>
             <span class="track-name">${p.name}:${p.instrument}</span>
             <span class="track-meta">@|${offset}| · ${totalUnits} notes</span>
           </div>
@@ -555,6 +558,17 @@ function initEvents() {
     inspectorPanel.classList.add("hidden");
   });
 
+  // Track item click -> Jump to editor line
+  inspectorTracks?.addEventListener("click", (e) => {
+    const target = (e.target as HTMLElement).closest(".track-item") as HTMLElement | null;
+    if (target && target.dataset.line) {
+      const line = parseInt(target.dataset.line, 10);
+      if (!isNaN(line) && line > 0) {
+        editor.scrollToLine(line);
+      }
+    }
+  });
+
   // Help modal
   btnHelp.addEventListener("click", () => {
     helpModal.showModal();
@@ -838,7 +852,16 @@ function initEvents() {
 function init() {
   const container = document.getElementById("editor-container")!;
   const initialSample = SAMPLES[0];
-  editor = createTmdEditor(container, initialSample.content, handleEditorChange);
+  editor = createTmdEditor(
+    container,
+    initialSample.content,
+    handleEditorChange,
+    (line, col) => {
+      if (sbCursor) {
+        sbCursor.textContent = `Ln ${line}, Col ${col}`;
+      }
+    }
+  );
   sampleSelect.value = initialSample.id;
 
   // Initialize Language

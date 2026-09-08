@@ -272,6 +272,8 @@ export interface Paragraph {
   sections: Section[];
   executionTime?: string;
   showProgram?: string;
+  line?: number;
+  column?: number;
 }
 
 export type Order =
