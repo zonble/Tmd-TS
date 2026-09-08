@@ -779,3 +779,131 @@ dialog.modal.modal-lg .modal-body {
   justify-content: flex-end;
   gap: 10px;
 }
+
+/* ==========================================================================
+   Responsive Breakpoints for Smaller Screens
+   ========================================================================== */
+
+@media (max-width: 992px) {
+  .navbar {
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .nav-left, .nav-center, .nav-right {
+    gap: 6px;
+  }
+
+  .brand {
+    font-size: 14px;
+    gap: 6px;
+  }
+
+  .brand-icon {
+    font-size: 16px;
+  }
+
+  .brand-badge {
+    display: none;
+  }
+
+  .btn {
+    padding: 4px 8px;
+    font-size: 12px;
+    gap: 4px;
+  }
+
+  .btn-icon {
+    font-size: 13px;
+  }
+
+  .btn-icon-only {
+    padding: 4px 6px;
+    font-size: 12px;
+  }
+
+  .btn-icon-only svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .select-control {
+    padding: 4px 8px;
+    font-size: 12px;
+    max-width: 160px;
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 6px;
+    gap: 4px;
+    height: 44px;
+  }
+
+  .brand span:not(.brand-icon) {
+    display: none;
+  }
+
+  .brand-icon {
+    font-size: 15px;
+  }
+
+  .btn {
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+
+  .btn-icon {
+    font-size: 12px;
+  }
+
+  .btn-icon-only {
+    padding: 3px 5px;
+    font-size: 11px;
+  }
+
+  .btn-icon-only svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .btn-text {
+    display: inline;
+  }
+
+  .select-control {
+    padding: 3px 6px;
+    font-size: 11px;
+    max-width: 125px;
+  }
+}
+
+@media (max-width: 600px) {
+  .nav-center .btn-text {
+    display: none;
+  }
+
+  #btn-download-skill span[data-i18n] {
+    display: none;
+  }
+
+  #btn-lang-toggle span[data-i18n] {
+    display: none;
+  }
+
+  .btn {
+    padding: 4px 6px;
+  }
+
+  .btn-icon {
+    font-size: 13px;
+  }
+
+  .select-control {
+    max-width: 105px;
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+}
+
