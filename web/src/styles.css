@@ -1015,16 +1015,8 @@ dialog.modal.modal-lg .modal-body {
 }
 
 @media (max-width: 600px) {
-  .nav-center .btn-text {
-    display: none;
-  }
-
-  #btn-download-skill span[data-i18n] {
-    display: none;
-  }
-
-  #btn-lang-toggle span[data-i18n] {
-    display: none;
+  .btn-text {
+    display: none !important;
   }
 
   .btn {

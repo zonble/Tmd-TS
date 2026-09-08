@@ -50,7 +50,11 @@ Hope you like this acoustic progression!`;
   it('provides default models for all 5 providers including latest presets', () => {
     expect(DEFAULT_MODELS.gemini).toBe('gemini-2.5-flash');
     expect(DEFAULT_MODELS.anthropic).toBe('claude-3-7-sonnet-20250219');
+    expect(DEFAULT_MODELS.openai).toBe('gpt-4o');
     expect(MODEL_PRESETS.openai.some((m) => m.id === 'gpt-4.5-preview')).toBe(true);
+    expect(MODEL_PRESETS.openai.some((m) => m.id === 'o1')).toBe(true);
+    expect(MODEL_PRESETS.groq.some((m) => m.id === 'deepseek-r1-distill-llama-70b')).toBe(true);
     expect(MODEL_PRESETS.custom.some((m) => m.id === 'deepseek-chat')).toBe(true);
+    expect(MODEL_PRESETS.custom.some((m) => m.id === 'deepseek-reasoner')).toBe(true);
   });
 });
