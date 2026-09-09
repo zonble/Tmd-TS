@@ -47,11 +47,11 @@ Build reusable motifs and sections before expanding a full arrangement. Keep mel
 2. Make the smallest structural edit that satisfies the request.
 3. Re-parse; verify unit counts, offsets, directive positions, and order.
 4. Format/round-trip the AST when preserving source structure matters.
-5. Export only after validation. Available outputs are MIDI, MusicXML 4.0, LilyPond, ABC, and portable 16-bit stereo WAV.
+5. Export only after validation. Available outputs are MIDI, MusicXML 4.0, LilyPond, ABC, REAPER (.rpp), ChordPro (.cho), and portable 16-bit stereo WAV.
 
 ## Export expectations
 
-MIDI is a Standard MIDI File Type 1 with separate instrument tracks. MusicXML is suitable for notation applications. LilyPond is source for engraving/PDF. ABC is useful for web rendering. WAV is a deterministic dependency-free preview renderer; it is not intended to replace a high-quality SoundFont or CoreAudio synthesizer.
+MIDI is a Standard MIDI File Type 1 with separate instrument tracks. MusicXML is suitable for notation applications. LilyPond is source for engraving/PDF. ABC is useful for web rendering. REAPER is a full DAW project with timeline tempo envelope and markers. ChordPro is a lead sheet format for guitar and vocal charts. WAV is a deterministic dependency-free preview renderer; it is not intended to replace a high-quality SoundFont or CoreAudio synthesizer.
 
 ## Safety checks
 
