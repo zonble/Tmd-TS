@@ -71,6 +71,7 @@ export const zhTW = {
   helpLi2: "<code>[1]</code>, <code>[6m]</code>, <code>[Cmaj7]</code>：和弦標記。",
   helpLi3: "<code>(1 2 3)%(--)</code>：連音符（三連音等）。",
   helpLi4: "<code>{!= 140}</code>, <code>{?+2}</code>：動態速度與轉調指令。",
+  helpSamplesAndExtensions: '💡 更多 TMD 範例樂譜與編輯器外掛（如 VS Code 語法標亮）可至 <a href="https://github.com/zonble/TmdSwift" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">TmdSwift 專案</a> 取得。',
   btnDismissHelp: "了解",
   alertCannotPlaySyntax: "無法播放：樂譜語法錯誤",
   alertCannotPlayMissingHeader: "無法播放：未找到有效的 TMD 樂譜標頭 (請確保開頭包含 ::SCORE::)",

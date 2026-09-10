@@ -4,7 +4,15 @@ A modern TypeScript/JavaScript implementation of the **TMD** (Timebase Mark Down
 
 In memory of **Chen, Chih-Han / [aguai](https://github.com/aguai)** (阿怪, 1974–2019).
 
-Original project: [https://github.com/aguai/TMDLang](https://github.com/aguai/TMDLang)
+- **Original project**: [https://github.com/aguai/TMDLang](https://github.com/aguai/TMDLang)
+- **TMD Samples & Editor Extensions**: [https://github.com/zonble/TmdSwift](https://github.com/zonble/TmdSwift)
+
+## Samples & Editor Extensions
+
+TMD score samples (`.tmd` files) and editor extensions (such as syntax highlighting for VS Code, TextMate, and other editors) can be obtained from the [**TmdSwift**](https://github.com/zonble/TmdSwift) repository:
+
+- 🎼 **TMD Score Samples**: [https://github.com/zonble/TmdSwift](https://github.com/zonble/TmdSwift)
+- 💻 **Editor Extensions & Syntax Highlighting**: [https://github.com/zonble/TmdSwift](https://github.com/zonble/TmdSwift)
 
 ## About TMD
 
@@ -15,7 +23,7 @@ In the age of generative AI, TMD can also serve as a music-native intermediate r
 - **Lower token usage**: Repetition, variation, and transposition can be expressed as structure instead of duplicated note data.
 - **Preserved musical relationships**: The connection between a motif, its variations, and the overall song arrangement remains explicit.
 - **Verifiable and reproducible output**: Structured text is easier to validate, edit, regenerate, and review than unstructured generated audio.
-- **Interoperability**: TMD can be converted into MIDI, MusicXML, LilyPond, ABC notation, or audio for downstream tools.
+- **Interoperability**: TMD can be converted into MIDI, MusicXML, LilyPond, ABC notation, ChordPro, VOCALOID, or audio for downstream tools.
 
 At its core, TMD reflects the practical workflow and mental model of modern popular music songwriting and arrangement:
 - **Lead-sheet and Jianpu thinking**: Melodies are expressed in movable-do numbered scale degrees (`1`–`7`), octaves (`^`, `_`), and accidentals (`'`, `,`), making transpositions and melodic contours intuitive without the visual clutter of traditional staves.
@@ -24,16 +32,18 @@ At its core, TMD reflects the practical workflow and mental model of modern popu
 - **Arrangement as linear execution flow**: Song playback and modulations (`{?+3}`, `{?-3}`) are declared as an explicit execution sequence (`-> intro -> A -> B -> C ->#`), mirroring how musicians and producers compose, rehearse, and structure arrangements in their minds.
 
 **Tmd-TS** re-implements the original parser into a clean, modern TypeScript architecture featuring:
-- A two-stage Lexer + TokenParser pipeline.
+- A two-stage Lexer + TokenParser pipeline with expected token error reporting.
 - Normalized musical AST structures (`Beat`, `Note`, `Unit`, `Section`, `Paragraph`, `Order`, `Sheet`).
 - Formatter to serialize AST back to standard TMD syntax.
-- **Multi-track MIDI (SMF Type 1)** exporter.
+- **Multi-track MIDI (SMF Type 1)** exporter with full General MIDI instrument mapping.
 - **REAPER Project (.rpp)** exporter for DAW arrangement, multi-track layout, color-coded tracks, stereo panning, section markers, and inline MIDI.
+- **ChordPro (.cho)** lead sheet exporter for charts, lead sheets, and songbooks.
+- **VOCALOID2 (.vsq)** and **VOCALOID3/4 (.vsqx)** project exporters for vocal synthesizers.
 - **MusicXML 4.0** notation exporter for MuseScore, Sibelius, and web renderers.
 - **LilyPond** engraver exporter for publication-grade score typesetting and PDF rendering.
 - **ABC Notation** exporter for web sheet rendering (`abcjs`) and text-based score sharing.
 - **Lightweight Fallback WAV Audio** synthesizer (pure software sine-wave synthesizer for pitch/rhythm audition without platform dependencies; see [Audio Limitations](#audio-rendering--wav-limitations)).
-- A command-line interface (`tmd`) for shell automation.
+- A command-line interface (`tmd`) with built-in MCP server support.
 
 ## Co-Composing with AI Using TMD
 
