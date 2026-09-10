@@ -24,4 +24,29 @@ describe('Web UI Exporters & REAPER support (TDD)', () => {
     expect(mainContent).toContain('TMDReaperGenerator');
     expect(mainContent).toContain('.generateRPP(');
   });
+
+  it('defines VOCALOID export i18n labels in zh-TW and en locales', () => {
+    expect((zhTW as any).exportVsq).toBe('VOCALOID2 專案檔 (.vsq)');
+    expect((en as any).exportVsq).toBe('VOCALOID2 Project (.vsq)');
+    expect((zhTW as any).exportVsqx).toBe('VOCALOID3/4 專案檔 (.vsqx)');
+    expect((en as any).exportVsqx).toBe('VOCALOID3/4 Project (.vsqx)');
+  });
+
+  it('includes VOCALOID export buttons in web/index.html with i18n attributes', () => {
+    const htmlPath = path.join(__dirname, '../web/index.html');
+    const html = fs.readFileSync(htmlPath, 'utf-8');
+    expect(html).toContain('id="export-vsq"');
+    expect(html).toContain('data-i18n="exportVsq"');
+    expect(html).toContain('id="export-vsqx"');
+    expect(html).toContain('data-i18n="exportVsqx"');
+  });
+
+  it('binds export-vsq and export-vsqx buttons in web/src/main.ts', () => {
+    const mainPath = path.join(__dirname, '../web/src/main.ts');
+    const mainContent = fs.readFileSync(mainPath, 'utf-8');
+    expect(mainContent).toContain('export-vsq');
+    expect(mainContent).toContain('export-vsqx');
+    expect(mainContent).toContain('TMDVSQGenerator');
+    expect(mainContent).toContain('TMDVSQXGenerator');
+  });
 });

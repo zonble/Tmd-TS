@@ -6,6 +6,8 @@ import {
   TMDLilyPondGenerator,
   TMDABCGenerator,
   TMDReaperGenerator,
+  TMDVSQGenerator,
+  TMDVSQXGenerator,
 } from "../../src/exporters/index.js";
 import { TMDWAVRenderer } from "../../src/audio.js";
 import { TmdSkill } from "../../src/skill.js";
@@ -74,6 +76,8 @@ const btnExportReaper = document.getElementById("export-reaper") as HTMLButtonEl
 const btnExportMusicXML = document.getElementById("export-musicxml") as HTMLButtonElement;
 const btnExportLilyPond = document.getElementById("export-lilypond") as HTMLButtonElement;
 const btnExportABC = document.getElementById("export-abc") as HTMLButtonElement;
+const btnExportVsq = document.getElementById("export-vsq") as HTMLButtonElement;
+const btnExportVsqx = document.getElementById("export-vsqx") as HTMLButtonElement;
 const btnExportWAV = document.getElementById("export-wav") as HTMLButtonElement;
 const btnExportSkill = document.getElementById("export-skill") as HTMLButtonElement;
 
@@ -599,6 +603,24 @@ function initEvents() {
     if (!sheet) return alert(t("alertCannotExport"));
     const abc = TMDABCGenerator.generateABC(sheet);
     downloadBlob(getSafeFilename(sheet.name, "abc"), new Blob([abc], { type: "text/vnd.abc;charset=utf-8" }));
+  });
+
+  btnExportVsq?.addEventListener("click", () => {
+    exportDropdown.classList.remove("open");
+    const text = editor.getContent();
+    const sheet = TmdParser.parse(text);
+    if (!sheet) return alert(t("alertCannotExport"));
+    const vsq = TMDVSQGenerator.generateVSQ(sheet);
+    downloadBlob(getSafeFilename(sheet.name, "vsq"), new Blob([vsq as any], { type: "audio/x-vsq" }));
+  });
+
+  btnExportVsqx?.addEventListener("click", () => {
+    exportDropdown.classList.remove("open");
+    const text = editor.getContent();
+    const sheet = TmdParser.parse(text);
+    if (!sheet) return alert(t("alertCannotExport"));
+    const vsqx = TMDVSQXGenerator.generateVSQX(sheet);
+    downloadBlob(getSafeFilename(sheet.name, "vsqx"), new Blob([vsqx], { type: "application/xml;charset=utf-8" }));
   });
 
   btnExportWAV.addEventListener("click", () => {

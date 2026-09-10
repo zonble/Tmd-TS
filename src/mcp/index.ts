@@ -12,6 +12,8 @@ import {
   TMDLilyPondGenerator,
   TMDABCGenerator,
   TMDReaperGenerator,
+  TMDVSQGenerator,
+  TMDVSQXGenerator,
 } from "../exporters/index.js";
 import { TMDWAVRenderer } from "../audio.js";
 import { TmdSkill } from "../skill.js";
@@ -107,7 +109,7 @@ export class TmdMcpServer {
   }: {
     text?: string;
     filePath?: string;
-    format: "midi" | "musicxml" | "lilypond" | "abc" | "wav" | "reaper" | "rpp";
+    format: "midi" | "musicxml" | "lilypond" | "abc" | "wav" | "reaper" | "rpp" | "vsq" | "vsqx";
     outputPath?: string;
   }) {
     let content = text;
@@ -174,6 +176,22 @@ export class TmdMcpServer {
         }
         return textContent(rpp);
       }
+      case "vsq": {
+        const uint8 = TMDVSQGenerator.generateVSQ(sheet);
+        if (outputPath) {
+          fs.writeFileSync(outputPath, uint8);
+          return textContent(`VOCALOID2 (.vsq) successfully written to ${outputPath}`);
+        }
+        return textContent(Buffer.from(uint8).toString("base64"));
+      }
+      case "vsqx": {
+        const xml = TMDVSQXGenerator.generateVSQX(sheet);
+        if (outputPath) {
+          fs.writeFileSync(outputPath, xml, "utf-8");
+          return textContent(`VOCALOID3/4 (.vsqx) successfully written to ${outputPath}`);
+        }
+        return textContent(xml);
+      }
       default:
         throw new Error(`Unsupported format: ${format}`);
     }
@@ -213,12 +231,12 @@ export class TmdMcpServer {
       "convert_tmd",
       {
         description:
-          "Convert TMD score to target format: midi (base64 or file), musicxml, lilypond, abc, or wav audio.",
+          "Convert TMD score to target format: midi (base64 or file), musicxml, lilypond, abc, wav audio, reaper project, vsq (VOCALOID2), or vsqx (VOCALOID3/4).",
         inputSchema: z.object({
           text: z.string().optional().describe("TMD score code text"),
           filePath: z.string().optional().describe("Path to .tmd file on filesystem"),
           format: z
-            .enum(["midi", "musicxml", "lilypond", "abc", "wav", "reaper", "rpp"])
+            .enum(["midi", "musicxml", "lilypond", "abc", "wav", "reaper", "rpp", "vsq", "vsqx"])
             .describe("Target format"),
           outputPath: z
             .string()

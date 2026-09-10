@@ -32,6 +32,8 @@ export const en = {
   exportMusicXML: "MusicXML 4.0 (.musicxml)",
   exportLilyPond: "LilyPond (.ly)",
   exportABC: "ABC Notation (.abc)",
+  exportVsq: "VOCALOID2 Project (.vsq)",
+  exportVsqx: "VOCALOID3/4 Project (.vsqx)",
   exportWAV: "Sine Wave WAV (.wav)",
   exportSkill: "AI Agent Skill (SKILL.md)",
   btnSkillText: "AI Skill Guide",

@@ -119,6 +119,8 @@ export type MIDIMessage =
   | { type: 'tempo'; bpm: number }
   | { type: 'timeSignature'; beat: Beat }
   | { type: 'endOfTrack' }
+  | { type: 'text'; text: string }
+  | { type: 'customMeta'; metaType: number; data: Uint8Array | number[] }
   | { type: 'noteOn'; channel: number; note: number; velocity: number }
   | { type: 'noteOff'; channel: number; note: number }
   | { type: 'programChange'; channel: number; program: number }
@@ -203,6 +205,15 @@ export class TMDMIDIEncoder {
       }
       case 'endOfTrack':
         return this.metaEvent(0x2f, []);
+      case 'text': {
+        const encoder = new TextEncoder();
+        const data = Array.from(encoder.encode(message.text));
+        return this.metaEvent(0x01, data);
+      }
+      case 'customMeta': {
+        const data = Array.from(message.data);
+        return this.metaEvent(message.metaType, data);
+      }
       case 'noteOn':
         return [(0x90 | (message.channel & 0x0f)) & 0xff, message.note & 0x7f, message.velocity & 0x7f];
       case 'noteOff':
