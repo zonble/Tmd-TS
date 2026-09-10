@@ -58,11 +58,68 @@ export interface Token {
   column: number;
 }
 
+export function tokenExpectedDescription(type: TokenType): string {
+  switch (type) {
+    case "scoreHeader": return "::SCORE::";
+    case "doubleAsterisk": return "**";
+    case "speedPrefix": return "!=";
+    case "relativeTempoPrefix": return "!+";
+    case "keySignaturePrefix": return "?=";
+    case "openAngle": return "<";
+    case "slash": return "/";
+    case "asterisk": return "*";
+    case "closeAngle": return ">";
+    case "colon": return ":";
+    case "at": return "@";
+    case "pipe": return "|";
+    case "openBrace": return "{";
+    case "closeBrace": return "}";
+    case "openParen": return "(";
+    case "closeParen": return ")";
+    case "percentOpenParen": return "%(";
+    case "arrow": return "->";
+    case "arrowEnd": return "->#";
+    case "relativeOrderPrefix": return "{?";
+    case "absoluteOrderPrefix": return "{?=";
+    case "number": return "number";
+    case "positiveNumber": return "positive number";
+    case "double": return "decimal number";
+    case "note": return "note";
+    case "chord": return "chord";
+    case "percussion": return "percussion";
+    case "metadata": return "metadata";
+    case "programText": return "program block";
+    case "tie": return "-";
+    case "identifier": return "identifier";
+    case "eof": return "end of input";
+  }
+}
+
 export interface SourcePosition { offset: number; line: number; column: number; }
 export interface SourceRange { start: SourcePosition; length: number; endOffset: number; }
 export interface LexedToken { token: Token; text: string; range: SourceRange; }
 export class TMDParseError extends Error {
-  constructor(public readonly message: string, public readonly token: Token, public readonly text: string, public readonly range: SourceRange) { super(message); this.name = "TMDParseError"; }
+  public readonly expectedTokens: string[];
+
+  constructor(
+    public readonly rawMessage: string,
+    public readonly token: Token,
+    public readonly text: string,
+    public readonly range: SourceRange,
+    expectedTokens: string[] = []
+  ) {
+    let fullMessage = `${rawMessage} at ${range.start.line}:${range.start.column}: \`${text}\``;
+    if (expectedTokens.length > 0) {
+      fullMessage += ` (expected ${expectedTokens.join(", ")})`;
+    }
+    super(fullMessage);
+    this.name = "TMDParseError";
+    this.expectedTokens = expectedTokens;
+  }
+
+  get description(): string {
+    return this.message;
+  }
 }
 
 export class Lexer {
@@ -363,6 +420,8 @@ export class Lexer {
 export class TmdParser {
   private tokens: Token[];
   private pos = 0;
+  public failureIndex?: number;
+  public expectedTokens: string[] = [];
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -371,10 +430,53 @@ export class TmdParser {
   public static parse(input: string): Sheet {
     const lexer = new Lexer(input);
     const parser = new TmdParser(lexer.tokenize());
-    return parser.parseSheet();
+    const sheet = parser.parseSheet();
+    if (!sheet) {
+      if (parser.expectedTokens.includes("::SCORE::")) {
+        throw new Error(`Syntax error: Missing ::SCORE:: at ${parser.currentToken().line}:${parser.currentToken().column}`);
+      }
+      throw new Error(`Syntax error: Unexpected token at position ${parser.pos}`);
+    }
+    return sheet;
   }
 
-  public static parseThrowing(input: string): Sheet { return this.parse(input); }
+  public static parseThrowing(input: string): Sheet {
+    const lexedTokens = new Lexer(input).tokenizeWithRanges();
+    const parser = new TmdParser(lexedTokens.map(lt => lt.token));
+    const sheet = parser.parseSheet();
+
+    const diagnosticIndex = (idx: number, tokenCount: number): number => {
+      if (tokenCount <= 1) return 0;
+      return Math.min(idx === tokenCount - 1 ? idx - 1 : idx, tokenCount - 1);
+    };
+
+    if (!sheet) {
+      const index = diagnosticIndex(parser.failureIndex ?? parser.pos, lexedTokens.length);
+      const offending = lexedTokens[index];
+      throw new TMDParseError(
+        "Unexpected token",
+        offending.token,
+        offending.text,
+        offending.range,
+        parser.expectedTokens
+      );
+    }
+
+    if (parser.failureIndex !== undefined) {
+      const index = diagnosticIndex(parser.failureIndex, lexedTokens.length);
+      const offending = lexedTokens[index];
+      throw new TMDParseError(
+        "Unexpected token",
+        offending.token,
+        offending.text,
+        offending.range,
+        parser.expectedTokens
+      );
+    }
+
+    return sheet;
+  }
+
   public static parseData(data: Uint8Array): Sheet {
     const result = TextEncodingDetector.detectAndDecode(data);
     if (!result) throw new Error("Could not decode TMD input");
@@ -400,6 +502,13 @@ export class TmdParser {
     return tok;
   }
 
+  private recordFailure(index: number, expected: string[]): void {
+    if (this.failureIndex === undefined || index >= this.failureIndex) {
+      this.failureIndex = index;
+      this.expectedTokens = expected;
+    }
+  }
+
   private match(type: TokenType): boolean {
     if ((this.currentToken().type as string) === type) {
       this.advance();
@@ -408,13 +517,21 @@ export class TmdParser {
     return false;
   }
 
+  private require(type: TokenType): boolean {
+    if (this.match(type)) {
+      return true;
+    }
+    this.recordFailure(this.pos, [tokenExpectedDescription(type)]);
+    return false;
+  }
+
   private skipPipes(): void {
     while (this.current.type === "pipe") this.advance();
   }
 
-  public parseSheet(): Sheet {
-    if (!this.match("scoreHeader")) {
-      throw new Error(`Syntax error: Missing ::SCORE:: at ${this.current.line}:${this.current.column}`);
+  public parseSheet(): Sheet | null {
+    if (!this.require("scoreHeader")) {
+      return null;
     }
 
     let name = "";
@@ -522,7 +639,14 @@ export class TmdParser {
 
         default: {
           const para = this.parseParagraph();
-          paragraphs.push(para);
+          if (para) {
+            paragraphs.push(para);
+          } else {
+            if (this.failureIndex === undefined) {
+              this.recordFailure(this.pos, [tokenExpectedDescription("colon")]);
+            }
+            return null;
+          }
           break;
         }
       }
@@ -531,7 +655,7 @@ export class TmdParser {
     return { name, speed, keySignature, beat, paragraphs, orders, metadata };
   }
 
-  private parseParagraph(): Paragraph {
+  private parseParagraph(): Paragraph | null {
     const startLine = this.current.line;
     const startCol = this.current.column;
     let name = "";
@@ -539,8 +663,8 @@ export class TmdParser {
       name = this.advance().value;
     }
 
-    if (!this.match("colon")) {
-      throw new Error(`Syntax error: Expected ':' in paragraph header at ${this.current.line}:${this.current.column}`);
+    if (!this.require("colon")) {
+      return null;
     }
 
     let instrument = "";
@@ -548,8 +672,8 @@ export class TmdParser {
       instrument = this.advance().value;
     }
 
-    if (!this.match("at")) {
-      throw new Error(`Syntax error: Expected '@' in paragraph header at ${this.current.line}:${this.current.column}`);
+    if (!this.require("at")) {
+      return null;
     }
 
     let start = 0;
@@ -572,8 +696,8 @@ export class TmdParser {
       executionTime = typeof value === "object" ? String(value.degree) : String(value);
     }
 
-    if (!this.match("openBrace")) {
-      throw new Error(`Syntax error: Expected '{' at ${this.current.line}:${this.current.column}`);
+    if (!this.require("openBrace")) {
+      return null;
     }
 
     if (this.current.type === "programText") {
@@ -651,7 +775,8 @@ export class TmdParser {
         }
         sections.push({ noteLength, unitGroups, directives });
       } else {
-        throw new Error(`Syntax error: Unexpected token '${this.current.text}' inside paragraph at ${this.current.line}:${this.current.column}`);
+        this.recordFailure(this.pos, [tokenExpectedDescription("openAngle")]);
+        return null;
       }
     }
     this.match("closeBrace");
