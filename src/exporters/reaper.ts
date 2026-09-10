@@ -7,6 +7,7 @@ import {
 } from '../core/index.js';
 import {
   MIDIInstrument,
+  MIDIInstrumentValue,
   MIDIEvent,
   TMDMIDIGenerator,
 } from './midi.js';
@@ -246,44 +247,55 @@ export class TMDReaperGenerator {
     return lines.join('\n');
   }
 
-  private static getTrackColor(midiInst: MIDIInstrument): number {
+  private static getTrackColor(midiInst: MIDIInstrumentValue): number {
     let r = 120, g = 140, b = 160;
-    switch (midiInst) {
-      case MIDIInstrument.Percussion:
-        r = 230; g = 80; b = 50;
-        break;
-      case MIDIInstrument.Bass:
-        r = 30; g = 130; b = 230;
-        break;
-      case MIDIInstrument.Guitar:
-      case MIDIInstrument.CleanGuitar:
-      case MIDIInstrument.NylonGuitar:
-      case MIDIInstrument.OverdriveGuitar:
-      case MIDIInstrument.DistortionGuitar:
-        r = 50; g = 180; b = 80;
-        break;
-      case MIDIInstrument.Piano:
-      case MIDIInstrument.ElectricPiano:
-      case MIDIInstrument.Organ:
+    if (MIDIInstrument.isPercussion(midiInst)) {
+      r = 230; g = 80; b = 50;
+    } else {
+      const prog = MIDIInstrument.program(midiInst);
+      if (prog >= 0 && prog <= 7) {
+        // Piano & Keys
         r = 150; g = 70; b = 210;
-        break;
-      case MIDIInstrument.Strings:
-      case MIDIInstrument.Violin:
-      case MIDIInstrument.Cello:
+      } else if ((prog >= 8 && prog <= 15) || (prog >= 112 && prog <= 119)) {
+        // Chromatic Percussion & Percussive
+        r = 230; g = 80; b = 50;
+      } else if (prog >= 16 && prog <= 23) {
+        // Organ
+        r = 150; g = 70; b = 210;
+      } else if (prog >= 24 && prog <= 31) {
+        // Guitar
+        r = 50; g = 180; b = 80;
+      } else if (prog >= 32 && prog <= 39) {
+        // Bass
+        r = 30; g = 130; b = 230;
+      } else if (prog >= 40 && prog <= 51) {
+        // Strings & Ensemble
         r = 230; g = 160; b = 30;
-        break;
-      case MIDIInstrument.Brass:
-      case MIDIInstrument.Trumpet:
-        r = 230; g = 200; b = 30;
-        break;
-      case MIDIInstrument.Flute:
-      case MIDIInstrument.Sax:
-        r = 30; g = 180; b = 180;
-        break;
-      case MIDIInstrument.Choir:
-      case MIDIInstrument.Pad:
+      } else if (prog >= 52 && prog <= 55) {
+        // Choir & Voices
         r = 220; g = 100; b = 180;
-        break;
+      } else if (prog >= 56 && prog <= 63) {
+        // Brass
+        r = 230; g = 200; b = 30;
+      } else if (prog >= 64 && prog <= 71) {
+        // Reeds
+        r = 30; g = 180; b = 180;
+      } else if (prog >= 72 && prog <= 79) {
+        // Pipes
+        r = 30; g = 180; b = 180;
+      } else if (prog >= 80 && prog <= 87) {
+        // Synth Lead
+        r = 240; g = 80; b = 160;
+      } else if (prog >= 88 && prog <= 95) {
+        // Synth Pad
+        r = 220; g = 100; b = 180;
+      } else if ((prog >= 96 && prog <= 103) || (prog >= 120 && prog <= 127)) {
+        // FX & Sound FX
+        r = 100; g = 200; b = 220;
+      } else if (prog >= 104 && prog <= 111) {
+        // Ethnic
+        r = 200; g = 140; b = 60;
+      }
     }
     const native = (r & 0xff) | ((g & 0xff) << 8) | ((b & 0xff) << 16);
     return 0x1000000 | native;
