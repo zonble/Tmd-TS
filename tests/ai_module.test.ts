@@ -58,4 +58,44 @@ Hope you like this acoustic progression!`;
     expect(MODEL_PRESETS.gemini.some((m) => m.id === 'gemini-3.8-flash')).toBe(true);
     expect(MODEL_PRESETS.custom.some((m) => m.id === 'deepseek-v4-flash')).toBe(true);
   });
+
+  it('detects API keys and prevents them from being used as model names', async () => {
+    const { looksLikeApiKey, loadAISettings } = await import('../web/src/ai/storage.js');
+    expect(looksLikeApiKey('AIzaSyAOAcOwEOm6O1wS2MUuG4KAGH5tVdXYf68')).toBe(true);
+    expect(looksLikeApiKey('sk-proj-1234567890abcdef1234567890')).toBe(true);
+    expect(looksLikeApiKey('gsk_1234567890abcdef1234567890')).toBe(true);
+    expect(looksLikeApiKey('gemini-3.8-flash')).toBe(false);
+    expect(looksLikeApiKey('gpt-6-astra')).toBe(false);
+    expect(looksLikeApiKey('deepseek-v4-flash')).toBe(false);
+
+    // Mock localStorage containing an API key mistakenly stored in model
+    const mockStorage: Record<string, string> = {
+      tmd_ai_settings_v1: JSON.stringify({
+        activeProvider: 'gemini',
+        providers: {
+          gemini: { apiKey: '', model: 'AIzaSyAOAcOwEOm6O1wS2MUuG4KAGH5tVdXYf68' },
+        },
+      }),
+    };
+    (globalThis as any).localStorage = {
+      getItem: (k: string) => mockStorage[k] || null,
+      setItem: (k: string, v: string) => { mockStorage[k] = v; },
+    };
+
+    const loaded = loadAISettings();
+    expect(loaded.providers.gemini.model).toBe('gemini-3.8-flash');
+    expect(loaded.providers.gemini.apiKey).toBe('AIzaSyAOAcOwEOm6O1wS2MUuG4KAGH5tVdXYf68');
+  });
+
+  it('defines i18n keys for AI settings helper links and model-only applied message', async () => {
+    const { zhTW } = await import('../web/src/locales/zh-TW.js');
+    const { en } = await import('../web/src/locales/en.js');
+
+    expect((zhTW as any).aiGetOfficialKey).toBeDefined();
+    expect((en as any).aiGetOfficialKey).toBeDefined();
+    expect((zhTW as any).aiAskAiHowToGet).toBeDefined();
+    expect((en as any).aiAskAiHowToGet).toBeDefined();
+    expect((zhTW as any).aiModelApplied).toContain('{model}');
+    expect((en as any).aiModelApplied).toContain('{model}');
+  });
 });

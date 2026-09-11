@@ -28,6 +28,7 @@ import {
 import {
   loadAISettings,
   saveAISettings,
+  looksLikeApiKey,
   callAI,
   extractTmdCode,
   MODEL_PRESETS,
@@ -61,7 +62,6 @@ const librarySamplesList = document.getElementById("library-samples-list") as HT
 const libraryScoresCount = document.getElementById("library-scores-count") as HTMLElement;
 
 const btnNewSong = document.getElementById("btn-new-song") as HTMLButtonElement;
-const sampleSelect = document.getElementById("sample-select") as HTMLSelectElement;
 const btnPlay = document.getElementById("btn-play") as HTMLButtonElement;
 const exportDropdown = document.getElementById("export-dropdown") as HTMLElement;
 const btnExportMenu = document.getElementById("btn-export-menu") as HTMLButtonElement;
@@ -265,7 +265,7 @@ function handleEditorChange(text: string) {
     try {
       if (isTemplateScore) {
         // If the user hasn't actually modified the template content, do NOT create a copy!
-        const activeSample = SAMPLES.find((s) => s.id === activeTemplateId || s.id === sampleSelect?.value);
+        const activeSample = SAMPLES.find((s) => s.id === activeTemplateId);
         if (activeSample && text.trim() === activeSample.content.trim()) {
           return;
         }
@@ -690,7 +690,6 @@ function initEvents() {
     TmdStorage.setActiveScoreId(score.id);
     editor.setContent(score.content);
     updateInspector(score.content);
-    sampleSelect.value = "";
     refreshLibraryScores();
   };
 
@@ -703,7 +702,6 @@ function initEvents() {
     TmdStorage.setActiveScoreId(null);
     editor.setContent(sample.content);
     updateInspector(sample.content);
-    sampleSelect.value = sample.id;
     refreshLibraryScores();
   };
 
@@ -759,7 +757,7 @@ function initEvents() {
       // Render Templates List
       if (librarySamplesList) {
         librarySamplesList.innerHTML = SAMPLES.map((sample) => {
-          const isSelected = isTemplateScore && sampleSelect?.value === sample.id;
+          const isSelected = isTemplateScore && activeTemplateId === sample.id;
           return `
             <div class="library-item ${isSelected ? "active" : ""}" data-sample-id="${sample.id}">
               <div class="library-item-content">
@@ -859,18 +857,6 @@ function initEvents() {
   // New Song Button
   btnNewSong?.addEventListener("click", () => {
     createNewSong();
-  });
-
-  // Sample select
-  SAMPLES.forEach((sample) => {
-    const opt = document.createElement("option");
-    opt.value = sample.id;
-    opt.textContent = `${sample.name} [${sample.category}]`;
-    sampleSelect.appendChild(opt);
-  });
-
-  sampleSelect.addEventListener("change", () => {
-    loadTemplateIntoEditor(sampleSelect.value);
   });
 
   // Inspector toggle
@@ -1043,10 +1029,24 @@ function initEvents() {
   btnSaveAiSettings?.addEventListener("click", (e) => {
     e.preventDefault();
     const provider = aiSettingsProvider.value as AIProviderType;
-    const customModel = aiSettingsModelCustom.value.trim();
-    const selectedModel = customModel || aiSettingsModelPreset.value || DEFAULT_MODELS[provider];
-    const key = aiSettingsKey.value.trim();
+    let customModel = aiSettingsModelCustom.value.trim();
+    let key = aiSettingsKey.value.trim();
     const baseUrl = aiSettingsBaseUrl.value.trim();
+
+    // Prevent API key from being accidentally saved or displayed as model name
+    if (looksLikeApiKey(customModel) || (key && customModel === key)) {
+      if (!key) {
+        key = customModel;
+        aiSettingsKey.value = key;
+      }
+      customModel = "";
+      aiSettingsModelCustom.value = "";
+    }
+
+    let selectedModel = customModel || aiSettingsModelPreset.value || DEFAULT_MODELS[provider];
+    if (looksLikeApiKey(selectedModel)) {
+      selectedModel = DEFAULT_MODELS[provider];
+    }
 
     aiSettings.activeProvider = provider;
     aiSettings.providers[provider] = {
@@ -1058,7 +1058,7 @@ function initEvents() {
     saveAISettings(aiSettings);
     updateAiSettingsButtonState();
     aiSettingsModal.close();
-    aiStatusText.textContent = `已套用 ${provider.toUpperCase()} (${selectedModel}) 設定。`;
+    aiStatusText.textContent = t("aiModelApplied").replace("{model}", selectedModel);
   });
 
   // Preset Buttons
@@ -1225,12 +1225,6 @@ async function init() {
       }
     }
   );
-
-  if (isTemplateScore) {
-    sampleSelect.value = defaultSample.id;
-  } else {
-    sampleSelect.value = "";
-  }
 
   // Initialize Language
   const initialLocale = detectLanguage();

@@ -49,4 +49,16 @@ describe('Web UI Exporters & REAPER support (TDD)', () => {
     expect(mainContent).toContain('TMDVSQGenerator');
     expect(mainContent).toContain('TMDVSQXGenerator');
   });
+
+  it('removes top toolbar sample-select dropdown and relies on drawer samples list', () => {
+    const htmlPath = path.join(__dirname, '../web/index.html');
+    const html = fs.readFileSync(htmlPath, 'utf-8');
+    expect(html).not.toContain('id="sample-select"');
+    expect(html).toContain('id="library-samples-list"');
+
+    const mainPath = path.join(__dirname, '../web/src/main.ts');
+    const mainContent = fs.readFileSync(mainPath, 'utf-8');
+    expect(mainContent).not.toContain('sample-select');
+    expect(mainContent).not.toContain('sampleSelect');
+  });
 });
