@@ -61,4 +61,17 @@ describe('Web UI Exporters & REAPER support (TDD)', () => {
     expect(mainContent).not.toContain('sample-select');
     expect(mainContent).not.toContain('sampleSelect');
   });
+
+  it('includes AI validation banner and repair wiring in web/index.html and web/src/main.ts', () => {
+    const htmlPath = path.join(__dirname, '../web/index.html');
+    const html = fs.readFileSync(htmlPath, 'utf-8');
+    expect(html).toContain('id="ai-validation-banner"');
+    expect(html).toContain('id="btn-ai-retry-repair"');
+
+    const mainPath = path.join(__dirname, '../web/src/main.ts');
+    const mainContent = fs.readFileSync(mainPath, 'utf-8');
+    expect(mainContent).toContain('validateTmdCode');
+    expect(mainContent).toContain('buildRepairPrompt');
+    expect(mainContent).toContain('btn-ai-retry-repair');
+  });
 });

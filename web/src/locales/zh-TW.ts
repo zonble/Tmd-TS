@@ -153,5 +153,10 @@ export const zhTW = {
   aiMissingApiKey: "請先點擊右上角「⚙️ 設定」輸入 API Key 才能開始生成！",
   aiNoCodeFound: "未在 AI 回應中找到有效的 TMD 樂譜代碼區塊。",
   aiAppliedSuccess: "已將 TMD 樂譜帶入編輯器！",
+  aiStatusAutoRepairing: "⚠️ 語法未通過 (第 {line} 行)，正在自動修正...",
+  aiStatusRepaired: "✓ 語法修正成功！可直接試聽或置入編輯器。",
+  aiValidationError: "⚠️ TMD 語法檢驗未通過 (第 {line} 行)：{error}",
+  aiBtnRetryRepair: "🔧 請 AI 再次修復",
+  aiInvalidTmdWarning: "此樂譜包含語法錯誤，無法直接試聽。請先修復語法。",
 };
 

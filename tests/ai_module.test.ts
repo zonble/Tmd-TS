@@ -8,6 +8,9 @@ describe('AI Module Prompt and Parsing', () => {
     expect(sys).toContain('Timebase Mark Down');
     expect(sys).toContain('::SCORE::');
     expect(sys).toContain('```tmd');
+    expect(sys).toContain("1'^");
+    expect(sys).toContain('(1 2 3)%(--)');
+    expect(sys).toContain('->#');
   });
 
   it('builds specialized user prompt for arrange mode', () => {
@@ -97,5 +100,81 @@ Hope you like this acoustic progression!`;
     expect((en as any).aiAskAiHowToGet).toBeDefined();
     expect((zhTW as any).aiModelApplied).toContain('{model}');
     expect((en as any).aiModelApplied).toContain('{model}');
+  });
+
+  it('validates TMD score and extracts precise syntax error diagnostics', async () => {
+    const { validateTmdCode } = await import('../web/src/ai/validator.js');
+
+    const validTmd = `::SCORE::
+** Valid Song **
+!= 120
+?= C
+<4/4>
+
+A:Piano@|0|{
+  <4*>
+  1 2 3 4
+}
+-> A ->#`;
+    const validResult = validateTmdCode(validTmd);
+    expect(validResult.valid).toBe(true);
+    if (validResult.valid) {
+      expect(validResult.sheet.name).toBe('Valid Song');
+    }
+
+    const invalidTmd = `::SCORE::
+** Broken Song **
+!= 120
+?= C
+<4/4>
+
+A:Piano|0|{
+  <4*>
+  1 2 3 4
+}
+-> A ->#`;
+    const invalidResult = validateTmdCode(invalidTmd);
+    expect(invalidResult.valid).toBe(false);
+    if (!invalidResult.valid) {
+      expect(invalidResult.line).toBeGreaterThan(0);
+      expect(invalidResult.message).toBeTruthy();
+      expect(typeof invalidResult.snippet).toBe('string');
+    }
+  });
+
+  it('builds diagnostic repair prompt containing line, error details, and snippet', async () => {
+    const { buildRepairPrompt } = await import('../web/src/ai/prompt.js');
+
+    const prompt = buildRepairPrompt({
+      originalPrompt: 'Compose a pop chord progression',
+      faultyTmd: `::SCORE::\n** Bad **\n!= 120\n?= C\n<4/4>\nA:Piano@|0|{ 1 2 3\n-> A ->#`,
+      errorMessage: 'Unexpected token at 6:1 (expected closeBrace)',
+      line: 6,
+      column: 1,
+      snippet: '-> A ->#',
+      expectedTokens: ['closeBrace'],
+    });
+
+    expect(prompt).toContain('TMD syntax error');
+    expect(prompt).toContain('Line 6');
+    expect(prompt).toContain('Column 1');
+    expect(prompt).toContain('Unexpected token at 6:1');
+    expect(prompt).toContain('-> A ->#');
+    expect(prompt).toContain('closeBrace');
+    expect(prompt).toContain('```tmd');
+  });
+
+  it('defines i18n keys for auto-repair status and manual retry button', async () => {
+    const { zhTW } = await import('../web/src/locales/zh-TW.js');
+    const { en } = await import('../web/src/locales/en.js');
+
+    expect((zhTW as any).aiStatusAutoRepairing).toContain('{line}');
+    expect((en as any).aiStatusAutoRepairing).toContain('{line}');
+    expect((zhTW as any).aiStatusRepaired).toBeDefined();
+    expect((en as any).aiStatusRepaired).toBeDefined();
+    expect((zhTW as any).aiValidationError).toBeDefined();
+    expect((en as any).aiValidationError).toBeDefined();
+    expect((zhTW as any).aiBtnRetryRepair).toBeDefined();
+    expect((en as any).aiBtnRetryRepair).toBeDefined();
   });
 });

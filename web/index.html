@@ -316,6 +316,11 @@
 
               <!-- Result Stream & Actions -->
               <div id="ai-result-container" class="card" style="display: none;">
+                <!-- Validation Error Banner -->
+                <div id="ai-validation-banner" class="ai-validation-banner" style="display: none; margin-bottom: 10px; padding: 8px 12px; background: rgba(248, 81, 73, 0.12); border: 1px solid var(--accent-red, #f85149); border-radius: 6px; font-size: 12px; color: var(--accent-red, #f85149); justify-content: space-between; align-items: center; gap: 8px;">
+                  <span id="ai-validation-msg" style="word-break: break-word; line-height: 1.4;"></span>
+                  <button id="btn-ai-retry-repair" class="btn btn-sm" style="flex-shrink: 0; background: var(--accent-red, #f85149); color: #fff; border: none; font-size: 11px; padding: 4px 8px; cursor: pointer;" data-i18n="aiBtnRetryRepair">🔧 請 AI 再次修復</button>
+                </div>
                 <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
                   <span>生成結果 (TMD Preview)</span>
                   <div class="ai-result-btn-row">

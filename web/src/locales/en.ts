@@ -153,5 +153,10 @@ export const en = {
   aiMissingApiKey: "Please click '⚙️ Settings' in the top right to configure your API Key first!",
   aiNoCodeFound: "No valid TMD code block found in AI response.",
   aiAppliedSuccess: "TMD score applied to editor!",
+  aiStatusAutoRepairing: "⚠️ Syntax check failed (Line {line}), auto-repairing...",
+  aiStatusRepaired: "✓ Syntax fixed successfully! Ready to preview or apply.",
+  aiValidationError: "⚠️ TMD syntax validation failed (Line {line}): {error}",
+  aiBtnRetryRepair: "🔧 Ask AI to Fix",
+  aiInvalidTmdWarning: "This score contains syntax errors and cannot be previewed. Please fix the syntax first.",
 };
 

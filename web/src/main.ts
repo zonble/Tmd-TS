@@ -31,6 +31,8 @@ import {
   looksLikeApiKey,
   callAI,
   extractTmdCode,
+  buildRepairPrompt,
+  validateTmdCode,
   MODEL_PRESETS,
   DEFAULT_MODELS,
   AIProviderType,
@@ -120,6 +122,9 @@ const btnAiPreviewPlay = document.getElementById("btn-ai-preview-play") as HTMLB
 const btnAiCopyCode = document.getElementById("btn-ai-copy-code") as HTMLButtonElement;
 const btnAiApplyReplace = document.getElementById("btn-ai-apply-replace") as HTMLButtonElement;
 const btnAiApplyInsert = document.getElementById("btn-ai-apply-insert") as HTMLButtonElement;
+const aiValidationBanner = document.getElementById("ai-validation-banner") as HTMLElement;
+const aiValidationMsg = document.getElementById("ai-validation-msg") as HTMLElement;
+const btnAiRetryRepair = document.getElementById("btn-ai-retry-repair") as HTMLButtonElement;
 
 // AI Settings Modal
 const aiSettingsModal = document.getElementById("ai-settings-modal") as HTMLDialogElement;
@@ -1080,84 +1085,236 @@ function initEvents() {
     });
   });
 
-  // AI Generation
-  btnAiGenerate?.addEventListener("click", async () => {
-    const prompt = aiPromptInput.value.trim();
-    if (!prompt) {
-      aiPromptInput.focus();
-      return;
-    }
+    let lastPromptForRepair = "";
+    let lastFaultyValidation: any = null;
 
-    aiSettings = loadAISettings();
-    const provider = aiSettings.activeProvider;
-    const config = aiSettings.providers[provider];
-
-    if (!config.apiKey.trim() && provider !== "custom") {
-      alert(t("aiMissingApiKey"));
-      aiSettingsProvider.value = provider;
-      populateModelPresets(provider);
-      aiSettingsModal.showModal();
-      return;
-    }
-
-    aiAbortController = new AbortController();
-    btnAiGenerate.style.display = "none";
-    btnAiStop.style.display = "inline-flex";
-    aiStatusText.textContent = t("aiStatusGenerating");
-    aiResultContainer.style.display = "block";
-    aiResultOutput.textContent = "";
-    aiCurrentGeneratedCode = "";
-
-    const mode = (aiPromptInput.dataset.activeMode as any) || "compose";
-    let accumulatedText = "";
-
-    try {
-      accumulatedText = await callAI(provider, config, {
-        prompt,
-        currentTmd: editor.getContent(),
-        mode,
-        signal: aiAbortController.signal,
-        onChunk: (chunk) => {
-          accumulatedText += chunk;
-          aiResultOutput.textContent = accumulatedText;
-          aiResultOutput.scrollTop = aiResultOutput.scrollHeight;
-        },
-      });
-
-      aiResultOutput.textContent = accumulatedText;
-      const extracted = extractTmdCode(accumulatedText);
-      if (extracted) {
-        aiCurrentGeneratedCode = extracted;
-        aiStatusText.textContent = t("aiStatusDone");
-      } else {
-        aiStatusText.textContent = t("aiNoCodeFound");
+    const showValidationFailure = (validation: any) => {
+      if (aiValidationBanner) {
+        aiValidationBanner.style.display = "flex";
+        if (aiValidationMsg) {
+          aiValidationMsg.textContent = t("aiValidationError")
+            .replace("{line}", String(validation.line))
+            .replace("{error}", validation.message);
+        }
       }
-    } catch (err: any) {
-      if (err.name === "AbortError") {
-        aiStatusText.textContent = "已停止生成。";
-      } else {
-        aiStatusText.textContent = `生成失敗: ${err.message}`;
+      if (btnAiPreviewPlay) {
+        btnAiPreviewPlay.disabled = true;
+        btnAiPreviewPlay.title = t("aiInvalidTmdWarning");
       }
-    } finally {
-      btnAiGenerate.style.display = "inline-flex";
-      btnAiStop.style.display = "none";
-      aiAbortController = null;
-    }
-  });
+      aiStatusText.textContent = t("aiValidationError")
+        .replace("{line}", String(validation.line))
+        .replace("{error}", validation.message);
+    };
 
-  btnAiStop?.addEventListener("click", () => {
-    if (aiAbortController) {
-      aiAbortController.abort();
-    }
-  });
+    const handleValidationAndRepair = async (
+      tmdCode: string,
+      originalPrompt: string,
+      provider: AIProviderType,
+      config: any,
+      allowAutoRepair: boolean
+    ) => {
+      aiCurrentGeneratedCode = tmdCode;
+      const validation = validateTmdCode(tmdCode);
 
-  btnAiPreviewPlay?.addEventListener("click", () => {
-    const codeToPlay = aiCurrentGeneratedCode || extractTmdCode(aiResultOutput.textContent || "");
-    if (!codeToPlay) {
-      return alert(t("aiNoCodeFound"));
-    }
-    startPlayback(codeToPlay);
-  });
+      if (validation.valid) {
+        if (aiValidationBanner) aiValidationBanner.style.display = "none";
+        if (btnAiPreviewPlay) {
+          btnAiPreviewPlay.disabled = false;
+          btnAiPreviewPlay.title = t("aiBtnPlayPreview");
+        }
+        lastFaultyValidation = null;
+        aiStatusText.textContent = allowAutoRepair ? t("aiStatusDone") : t("aiStatusRepaired");
+        return;
+      }
+
+      // Syntax error detected
+      lastFaultyValidation = validation;
+      lastPromptForRepair = originalPrompt;
+
+      if (allowAutoRepair) {
+        // Auto-Repair loop: 1 automatic retry
+        aiStatusText.textContent = t("aiStatusAutoRepairing").replace("{line}", String(validation.line));
+        const repairPrompt = buildRepairPrompt({
+          originalPrompt,
+          faultyTmd: tmdCode,
+          errorMessage: validation.message,
+          line: validation.line,
+          column: validation.column,
+          snippet: validation.snippet,
+          expectedTokens: validation.expectedTokens,
+        });
+
+        let repairAccumulated = "";
+        aiResultOutput.textContent = "";
+
+        repairAccumulated = await callAI(provider, config, {
+          prompt: repairPrompt,
+          currentTmd: tmdCode,
+          mode: "debug",
+          signal: aiAbortController?.signal,
+          onChunk: (chunk) => {
+            repairAccumulated += chunk;
+            aiResultOutput.textContent = repairAccumulated;
+            aiResultOutput.scrollTop = aiResultOutput.scrollHeight;
+          },
+        });
+
+        aiResultOutput.textContent = repairAccumulated;
+        const repairedCode = extractTmdCode(repairAccumulated);
+        if (repairedCode) {
+          await handleValidationAndRepair(repairedCode, originalPrompt, provider, config, false);
+        } else {
+          showValidationFailure(validation);
+          aiStatusText.textContent = t("aiNoCodeFound");
+        }
+      } else {
+        showValidationFailure(validation);
+      }
+    };
+
+    // AI Generation
+    btnAiGenerate?.addEventListener("click", async () => {
+      const prompt = aiPromptInput.value.trim();
+      if (!prompt) {
+        aiPromptInput.focus();
+        return;
+      }
+
+      aiSettings = loadAISettings();
+      const provider = aiSettings.activeProvider;
+      const config = aiSettings.providers[provider];
+
+      if (!config.apiKey.trim() && provider !== "custom") {
+        alert(t("aiMissingApiKey"));
+        aiSettingsProvider.value = provider;
+        populateModelPresets(provider);
+        aiSettingsModal.showModal();
+        return;
+      }
+
+      aiAbortController = new AbortController();
+      btnAiGenerate.style.display = "none";
+      btnAiStop.style.display = "inline-flex";
+      aiStatusText.textContent = t("aiStatusGenerating");
+      aiResultContainer.style.display = "block";
+      if (aiValidationBanner) aiValidationBanner.style.display = "none";
+      if (btnAiPreviewPlay) {
+        btnAiPreviewPlay.disabled = false;
+        btnAiPreviewPlay.title = t("aiBtnPlayPreview");
+      }
+      aiResultOutput.textContent = "";
+      aiCurrentGeneratedCode = "";
+
+      const mode = (aiPromptInput.dataset.activeMode as any) || "compose";
+      let accumulatedText = "";
+
+      try {
+        accumulatedText = await callAI(provider, config, {
+          prompt,
+          currentTmd: editor.getContent(),
+          mode,
+          signal: aiAbortController.signal,
+          onChunk: (chunk) => {
+            accumulatedText += chunk;
+            aiResultOutput.textContent = accumulatedText;
+            aiResultOutput.scrollTop = aiResultOutput.scrollHeight;
+          },
+        });
+
+        aiResultOutput.textContent = accumulatedText;
+        const extracted = extractTmdCode(accumulatedText);
+        if (extracted) {
+          await handleValidationAndRepair(extracted, prompt, provider, config, true);
+        } else {
+          aiStatusText.textContent = t("aiNoCodeFound");
+        }
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          aiStatusText.textContent = "已停止生成。";
+        } else {
+          aiStatusText.textContent = `生成失敗: ${err.message}`;
+        }
+      } finally {
+        btnAiGenerate.style.display = "inline-flex";
+        btnAiStop.style.display = "none";
+        aiAbortController = null;
+      }
+    });
+
+    btnAiRetryRepair?.addEventListener("click", async () => {
+      if (!aiCurrentGeneratedCode || !lastFaultyValidation) return;
+      const provider = aiSettings.activeProvider;
+      const config = aiSettings.providers[provider];
+
+      aiAbortController = new AbortController();
+      btnAiGenerate.style.display = "none";
+      btnAiStop.style.display = "inline-flex";
+      aiStatusText.textContent = t("aiStatusAutoRepairing").replace("{line}", String(lastFaultyValidation.line));
+
+      try {
+        const repairPrompt = buildRepairPrompt({
+          originalPrompt: lastPromptForRepair || "Fix TMD syntax",
+          faultyTmd: aiCurrentGeneratedCode,
+          errorMessage: lastFaultyValidation.message,
+          line: lastFaultyValidation.line,
+          column: lastFaultyValidation.column,
+          snippet: lastFaultyValidation.snippet,
+          expectedTokens: lastFaultyValidation.expectedTokens,
+        });
+
+        let repairAccumulated = "";
+        aiResultOutput.textContent = "";
+
+        repairAccumulated = await callAI(provider, config, {
+          prompt: repairPrompt,
+          currentTmd: aiCurrentGeneratedCode,
+          mode: "debug",
+          signal: aiAbortController.signal,
+          onChunk: (chunk) => {
+            repairAccumulated += chunk;
+            aiResultOutput.textContent = repairAccumulated;
+            aiResultOutput.scrollTop = aiResultOutput.scrollHeight;
+          },
+        });
+
+        aiResultOutput.textContent = repairAccumulated;
+        const repairedCode = extractTmdCode(repairAccumulated);
+        if (repairedCode) {
+          await handleValidationAndRepair(repairedCode, lastPromptForRepair, provider, config, false);
+        } else {
+          showValidationFailure(lastFaultyValidation);
+          aiStatusText.textContent = t("aiNoCodeFound");
+        }
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          aiStatusText.textContent = "已停止生成。";
+        } else {
+          aiStatusText.textContent = `生成失敗: ${err.message}`;
+        }
+      } finally {
+        btnAiGenerate.style.display = "inline-flex";
+        btnAiStop.style.display = "none";
+        aiAbortController = null;
+      }
+    });
+
+    btnAiStop?.addEventListener("click", () => {
+      if (aiAbortController) {
+        aiAbortController.abort();
+      }
+    });
+
+    btnAiPreviewPlay?.addEventListener("click", () => {
+      const codeToPlay = aiCurrentGeneratedCode || extractTmdCode(aiResultOutput.textContent || "");
+      if (!codeToPlay) {
+        return alert(t("aiNoCodeFound"));
+      }
+      const check = validateTmdCode(codeToPlay);
+      if (!check.valid) {
+        return alert(t("aiInvalidTmdWarning"));
+      }
+      startPlayback(codeToPlay);
+    });
 
   btnAiCopyCode?.addEventListener("click", async () => {
     const codeToCopy = aiCurrentGeneratedCode || extractTmdCode(aiResultOutput.textContent || "") || aiResultOutput.textContent || "";
