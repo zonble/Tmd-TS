@@ -69,4 +69,16 @@ describe('Expected tokens on TMD parse syntax errors', () => {
       expect(err.description).toContain('expected <');
     }
   });
+
+  it('TmdParser.parse throws syntax error with line:column, offending token and expected tokens', () => {
+    expect(() => TmdParser.parse('not a score')).toThrowError(
+      /Unexpected token at 1:1: `not` \(expected ::SCORE::\)/
+    );
+    expect(() => TmdParser.parse('::SCORE::\nintro')).toThrowError(
+      /Unexpected token at 2:1: `intro` \(expected :\)/
+    );
+    expect(() => TmdParser.parse('::SCORE::\nintro:Piano@|0|{\n4*>\n1 2 3 4\n}')).toThrowError(
+      /Unexpected token at 3:1: `4` \(expected <\)/
+    );
+  });
 });

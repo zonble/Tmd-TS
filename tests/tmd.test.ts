@@ -200,8 +200,8 @@ describe('TMD language edge cases', () => {
   });
 
   it('rejects malformed input with a useful error', () => {
-    expect(() => TmdParser.parse('not a score')).toThrow(/Missing ::SCORE::/);
-    expect(() => TmdParser.parse('::SCORE::\npart')).toThrow();
+    expect(() => TmdParser.parse('not a score')).toThrow(/Unexpected token at 1:1: `not` \(expected ::SCORE::\)/);
+    expect(() => TmdParser.parse('::SCORE::\npart')).toThrow(/Unexpected token at 2:1: `part` \(expected :\)/);
   });
 
   it('tracks tempo/key/time changes in playback state', () => {

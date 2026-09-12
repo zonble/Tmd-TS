@@ -428,16 +428,7 @@ export class TmdParser {
   }
 
   public static parse(input: string): Sheet {
-    const lexer = new Lexer(input);
-    const parser = new TmdParser(lexer.tokenize());
-    const sheet = parser.parseSheet();
-    if (!sheet) {
-      if (parser.expectedTokens.includes("::SCORE::")) {
-        throw new Error(`Syntax error: Missing ::SCORE:: at ${parser.currentToken().line}:${parser.currentToken().column}`);
-      }
-      throw new Error(`Syntax error: Unexpected token at position ${parser.pos}`);
-    }
-    return sheet;
+    return this.parseThrowing(input);
   }
 
   public static parseThrowing(input: string): Sheet {
@@ -480,7 +471,7 @@ export class TmdParser {
   public static parseData(data: Uint8Array): Sheet {
     const result = TextEncodingDetector.detectAndDecode(data);
     if (!result) throw new Error("Could not decode TMD input");
-    return this.parse(result.content);
+    return this.parseThrowing(result.content);
   }
   public static parseFile(filePathOrURL: string): Sheet {
     const location = FilePathNormalizer.parseLocation(filePathOrURL);
