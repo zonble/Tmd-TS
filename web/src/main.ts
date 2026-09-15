@@ -182,7 +182,9 @@ function clearShareHash() {
 }
 
 // Saves the score of a "#tmd=..." link to the library and removes the hash,
-// so a reload does not import it again. Returns null when the URL has no share link.
+// so a reload does not import it again. A saved score with the same content is
+// reused, so opening one link twice does not add a copy.
+// Returns null when the URL has no share link.
 async function importSharedScore(): Promise<SavedScore | null> {
   let text: string | null;
   try {
@@ -194,7 +196,7 @@ async function importSharedScore(): Promise<SavedScore | null> {
     return null;
   }
   if (text === null) return null;
-  const score = await TmdStorage.saveScore({ content: text });
+  const score = (await TmdStorage.findScoreByContent(text)) ?? (await TmdStorage.saveScore({ content: text }));
   // Remove the hash only after the save, so a failed save does not lose the score.
   clearShareHash();
   return score;
