@@ -40,6 +40,8 @@ import {
 } from "./ai/index.js";
 import { initTmdWebMcp } from "./mcp/webmcpIntegration.js";
 import { TmdStorage, SavedScore, extractTmdTitle } from "./storage/db.js";
+import { encodeShareHash, decodeShareHash } from "./share.js";
+import { escapeHtml } from "./html.js";
 
 let editor: TMDWebEditor;
 let currentSheet: Sheet | null = null;
@@ -69,6 +71,7 @@ const exportDropdown = document.getElementById("export-dropdown") as HTMLElement
 const btnExportMenu = document.getElementById("btn-export-menu") as HTMLButtonElement;
 const btnLangToggle = document.getElementById("btn-lang-toggle") as HTMLButtonElement;
 const btnToggleAi = document.getElementById("btn-toggle-ai") as HTMLButtonElement;
+const btnShare = document.getElementById("btn-share") as HTMLButtonElement;
 
 // Export items
 const btnExportTmd = document.getElementById("export-tmd") as HTMLButtonElement;
@@ -174,6 +177,29 @@ function downloadBlob(filename: string, blob: Blob) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function clearShareHash() {
+  history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
+// Saves the score of a "#tmd=..." link to the library and removes the hash,
+// so a reload does not import it again. Returns null when the URL has no share link.
+async function importSharedScore(): Promise<SavedScore | null> {
+  let text: string | null;
+  try {
+    text = await decodeShareHash(window.location.hash);
+  } catch (err) {
+    console.warn("Invalid share link:", err);
+    clearShareHash();
+    alert(t("shareInvalidLink"));
+    return null;
+  }
+  if (text === null) return null;
+  const score = await TmdStorage.saveScore({ content: text });
+  // Remove the hash only after the save, so a failed save does not lose the score.
+  clearShareHash();
+  return score;
+}
+
 function updateInspector(text: string) {
   try {
     currentSheet = TmdParser.parse(text);
@@ -217,11 +243,11 @@ function updateInspector(text: string) {
     inspectorOrders.innerHTML = currentSheet.orders
       .map((ord) => {
         if (ord.type === "name") {
-          return `<span class="order-tag">${ord.name}</span>`;
+          return `<span class="order-tag">${escapeHtml(ord.name)}</span>`;
         } else if (ord.type === "relative") {
-          return `<span class="order-tag" style="color: var(--accent-purple); border-color: rgba(188, 140, 255, 0.3);">{${ord.value}}</span>`;
+          return `<span class="order-tag" style="color: var(--accent-purple); border-color: rgba(188, 140, 255, 0.3);">{${escapeHtml(ord.value)}}</span>`;
         } else if (ord.type === "absolute") {
-          return `<span class="order-tag" style="color: var(--accent-yellow); border-color: rgba(210, 153, 34, 0.3);">{${ord.value}}</span>`;
+          return `<span class="order-tag" style="color: var(--accent-yellow); border-color: rgba(210, 153, 34, 0.3);">{${escapeHtml(ord.value)}}</span>`;
         }
         return "";
       })
@@ -241,7 +267,7 @@ function updateInspector(text: string) {
         const titleAttr = p.line ? `title="點擊跳轉至第 ${p.line} 行"` : "";
         return `
           <div class="track-item" ${lineAttr} ${titleAttr}>
-            <span class="track-name">${p.name}:${p.instrument}</span>
+            <span class="track-name">${escapeHtml(p.name)}:${escapeHtml(p.instrument)}</span>
             <span class="track-meta">@|${offset}| · ${totalUnits} notes</span>
           </div>
         `;
@@ -646,6 +672,25 @@ function initEvents() {
     downloadSkillFile();
   });
 
+  btnShare.addEventListener("click", async () => {
+    const url = window.location.origin + window.location.pathname + (await encodeShareHash(editor.getContent()));
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // The browser can block clipboard access. Let the user copy the link by hand.
+      prompt(t("shareCopyPrompt"), url);
+      return;
+    }
+    const icon = btnShare.querySelector(".btn-icon")!;
+    const label = btnShare.querySelector(".btn-text")!;
+    icon.textContent = "✓";
+    label.textContent = t("shareCopied");
+    setTimeout(() => {
+      icon.textContent = "🔗";
+      label.textContent = t("btnShare");
+    }, 2000);
+  });
+
 
 
   const exportAllScoresZip = async () => {
@@ -741,9 +786,9 @@ function initEvents() {
                 minute: "2-digit",
               });
               return `
-                <div class="library-item ${isActive ? "active" : ""}" data-id="${score.id}">
+                <div class="library-item ${isActive ? "active" : ""}" data-id="${escapeHtml(score.id)}">
                   <div class="library-item-content">
-                    <div class="library-item-title">${score.title}</div>
+                    <div class="library-item-title">${escapeHtml(score.title)}</div>
                     <div class="library-item-meta">
                       <span>🕒 ${dateStr}</span>
                     </div>
@@ -814,6 +859,13 @@ function initEvents() {
     } catch (err: any) {
       alert(`匯入失敗: ${err.message || String(err)}`);
     }
+  });
+
+  // A share link pasted into an open tab changes only the hash, and the page does not reload.
+  window.addEventListener("hashchange", () => {
+    importSharedScore()
+      .then((score) => score && loadScoreIntoEditor(score))
+      .catch((err) => console.error("Failed to import shared score:", err));
   });
 
   // Item clicks inside library list
@@ -1357,7 +1409,12 @@ async function init() {
   isTemplateScore = true;
   activeTemplateId = defaultSample.id;
 
+  // Apply the language first, so a message about a bad share link uses the right language.
+  applyI18n(detectLanguage());
+
   try {
+    const shared = await importSharedScore();
+    if (shared) TmdStorage.setActiveScoreId(shared.id);
     const activeId = TmdStorage.getActiveScoreId();
     if (activeId) {
       const saved = await TmdStorage.getScore(activeId);
@@ -1382,10 +1439,6 @@ async function init() {
       }
     }
   );
-
-  // Initialize Language
-  const initialLocale = detectLanguage();
-  applyI18n(initialLocale);
 
   initEvents();
   updateInspector(initialContent);
