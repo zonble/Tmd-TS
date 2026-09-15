@@ -29,6 +29,8 @@ export const zhTW = {
   shareCopied: "已複製連結",
   shareCopyPrompt: "複製這個連結來分享樂譜：",
   shareInvalidLink: "分享連結已損壞或內容過大，無法載入樂譜。",
+  shareCreateFailed: "無法建立分享連結。樂譜太大，或這個瀏覽器不支援壓縮。",
+  shareSaveFailed: "無法把分享的樂譜存進樂譜庫。請重新整理頁面再試一次。",
   exportTmd: "TMD 樂譜原始檔 (.tmd)",
   exportMidi: "Standard MIDI (.mid)",
   exportReaper: "REAPER 專案檔 (.rpp)",

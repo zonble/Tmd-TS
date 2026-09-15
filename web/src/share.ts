@@ -7,7 +7,9 @@ const PREFIX = "#tmd=";
 // A short hash can expand to a very large text. Stop before it freezes the tab.
 export const MAX_SHARED_CHARS = 1_000_000;
 
+// Throws when the text is longer than MAX_SHARED_CHARS, because decodeShareHash rejects such a link.
 export async function encodeShareHash(text: string): Promise<string> {
+  if (text.length > MAX_SHARED_CHARS) throw new Error("Shared score is too large");
   const stream = new Blob([text]).stream().pipeThrough(new CompressionStream("deflate-raw"));
   const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
   let binary = "";

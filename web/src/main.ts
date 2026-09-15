@@ -196,8 +196,17 @@ async function importSharedScore(): Promise<SavedScore | null> {
     return null;
   }
   if (text === null) return null;
-  const score = (await TmdStorage.findScoreByContent(text)) ?? (await TmdStorage.saveScore({ content: text }));
-  // Remove the hash only after the save, so a failed save does not lose the score.
+  let score: SavedScore;
+  try {
+    score = (await TmdStorage.findScoreByContent(text)) ?? (await TmdStorage.saveScore({ content: text }));
+  } catch (err) {
+    // Keep the hash, so a reload tries the import again.
+    // This app has no toast component, so the message uses alert().
+    // If a toast component is added later, show this message as a toast instead.
+    console.error("Could not save the shared score:", err);
+    alert(t("shareSaveFailed"));
+    return null;
+  }
   clearShareHash();
   return score;
 }
@@ -293,6 +302,11 @@ function handleEditorChange(text: string) {
   }, 200);
 
   // Auto-save to IndexedDB (Debounced 500ms)
+  // Known gap, not fixed: each switch to another score (a library item, a sample, New,
+  // an import, or a share link) calls editor.setContent(), which runs this function.
+  // The clearTimeout below then cancels the pending save of the previous score, so edits
+  // from the last 500 ms before the switch are lost. Fix this for all switch actions
+  // together, for example by saving the pending text before the switch.
   clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(async () => {
     try {
@@ -675,7 +689,17 @@ function initEvents() {
   });
 
   btnShare.addEventListener("click", async () => {
-    const url = window.location.origin + window.location.pathname + (await encodeShareHash(editor.getContent()));
+    let url: string;
+    try {
+      url = window.location.origin + window.location.pathname + (await encodeShareHash(editor.getContent()));
+    } catch (err) {
+      // The score is too large for a link, or the browser cannot compress it.
+      // This app has no toast component, so the message uses alert().
+      // If a toast component is added later, show this message as a toast instead.
+      console.warn("Could not create a share link:", err);
+      alert(t("shareCreateFailed"));
+      return;
+    }
     try {
       await navigator.clipboard.writeText(url);
     } catch {
@@ -1419,7 +1443,7 @@ async function init() {
     if (shared) TmdStorage.setActiveScoreId(shared.id);
     const activeId = TmdStorage.getActiveScoreId();
     if (activeId) {
-      const saved = await TmdStorage.getScore(activeId);
+      const saved = shared ?? (await TmdStorage.getScore(activeId));
       if (saved) {
         initialContent = saved.content;
         currentScoreId = saved.id;
