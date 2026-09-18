@@ -569,6 +569,18 @@ export class TMDRefactor {
   }
 }
 
+function parseTupletToken(tok: string): { inner: string; dashes: string } | null {
+  const matchWithLen = tok.match(/^\(([^)]+)\)\s*%\s*\(([-]+)\)$/);
+  if (matchWithLen) {
+    return { inner: matchWithLen[1].trim(), dashes: matchWithLen[2] };
+  }
+  const matchWithoutLen = tok.match(/^\(([^)]+)\)$/);
+  if (matchWithoutLen) {
+    return { inner: matchWithoutLen[1].trim(), dashes: "-" };
+  }
+  return null;
+}
+
 function doubleGridInLine(line: string): string {
   // Break line into tokens while preserving pipes and comments
   // Extract comment if present
@@ -587,22 +599,19 @@ function doubleGridInLine(line: string): string {
   for (const tok of tokens) {
     if (tok === "|") {
       outTokens.push("|");
-    } else if (tok.startsWith("(") && tok.includes(")%(")) {
-      // Tuplet with length: (1 2 3)%(--) -> double the dashes
-      const match = tok.match(/^\(([^)]+)\)%\(([-]+)\)$/);
-      if (match) {
-        const inner = match[1];
-        const dashes = match[2];
-        const doubledDashes = dashes + dashes;
-        outTokens.push(`(${inner})%(${doubledDashes})`);
-      } else {
-        outTokens.push(tok, "-");
-      }
-    } else {
-      // Regular unit: append a tie '-'
-      outTokens.push(tok);
-      outTokens.push("-");
+      continue;
     }
+
+    const tuplet = parseTupletToken(tok);
+    if (tuplet) {
+      const doubledDashes = tuplet.dashes + tuplet.dashes;
+      outTokens.push(`(${tuplet.inner})%(${doubledDashes})`);
+      continue;
+    }
+
+    // Regular unit: append a tie '-'
+    outTokens.push(tok);
+    outTokens.push("-");
   }
 
   return outTokens.join(" ") + commentSuffix;
@@ -624,13 +633,28 @@ function halveGridInLine(line: string): string {
   let currentMeasure: string[] = [];
 
   const processMeasure = (measureTokens: string[]) => {
-    if (measureTokens.length % 2 !== 0) {
-      throw new TMDRefactorError(
-        `Cannot halve measure with odd number of units: | ${measureTokens.join(" ")} |`
-      );
-    }
-    for (let i = 0; i < measureTokens.length; i += 2) {
+    let i = 0;
+    while (i < measureTokens.length) {
       const u1 = measureTokens[i];
+      const tuplet = parseTupletToken(u1);
+      if (tuplet) {
+        if (tuplet.dashes.length % 2 !== 0) {
+          throw new TMDRefactorError(
+            `Cannot halve tuplet with odd length: '${u1}' in | ${measureTokens.join(" ")} |`
+          );
+        }
+        const halfLen = tuplet.dashes.length / 2;
+        const halvedDashes = "-".repeat(halfLen);
+        outTokens.push(`(${tuplet.inner})%(${halvedDashes})`);
+        i++;
+        continue;
+      }
+
+      if (i + 1 >= measureTokens.length) {
+        throw new TMDRefactorError(
+          `Cannot halve measure with odd number of units: | ${measureTokens.join(" ")} |`
+        );
+      }
       const u2 = measureTokens[i + 1];
       if (u2 !== "-") {
         throw new TMDRefactorError(
@@ -638,6 +662,7 @@ function halveGridInLine(line: string): string {
         );
       }
       outTokens.push(u1);
+      i += 2;
     }
   };
 
@@ -684,15 +709,25 @@ function tokenizeMeasureLine(line: string): string[] {
       }
     }
     if (ch === "(") {
-      // Tuplet (1 2 3) or (1 2 3)%(--)
+      // Tuplet (1 2 3) or (1 2 3)%(--) or (1 2 3) % (--)
       const endParen = line.indexOf(")", i);
       if (endParen !== -1) {
-        if (line.slice(endParen + 1, endParen + 3) === "%(") {
-          const endDashes = line.indexOf(")", endParen + 3);
-          if (endDashes !== -1) {
-            tokens.push(line.slice(i, endDashes + 1));
-            i = endDashes + 1;
-            continue;
+        let afterParen = endParen + 1;
+        while (afterParen < line.length && (line[afterParen] === " " || line[afterParen] === "\t")) {
+          afterParen++;
+        }
+        if (line[afterParen] === "%") {
+          let afterPercent = afterParen + 1;
+          while (afterPercent < line.length && (line[afterPercent] === " " || line[afterPercent] === "\t")) {
+            afterPercent++;
+          }
+          if (line[afterPercent] === "(") {
+            const endDashes = line.indexOf(")", afterPercent + 1);
+            if (endDashes !== -1) {
+              tokens.push(line.slice(i, endDashes + 1));
+              i = endDashes + 1;
+              continue;
+            }
           }
         }
         tokens.push(line.slice(i, endParen + 1));

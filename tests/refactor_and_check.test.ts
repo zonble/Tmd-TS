@@ -202,6 +202,34 @@ verse:Piano@|0|{
     expect(issues).toHaveLength(0);
   });
 
+  it("doubles and halves grid resolution with tuplets and spaced %(...) syntax", () => {
+    const input = `::SCORE::
+** Tuplet Grid Test **
+!= 120
+?= C
+<4/4>
+
+Intro:vocal@|0|{
+    <4*>
+    | 1 2 3 1 | 1 2 (3 1) % (-) 1 |
+}
+
+-> Intro ->#
+`;
+
+    const doubled = TMDRefactor.doubleGrid(input);
+    expect(doubled).toContain("<8*>");
+    expect(doubled).toContain("(3 1)%(--)");
+    const doubledIssues = TMDMeasureChecker.check(doubled);
+    expect(doubledIssues).toHaveLength(0);
+
+    const halved = TMDRefactor.halveGrid(doubled);
+    expect(halved).toContain("<4*>");
+    expect(halved).toContain("(3 1)%(-)");
+    const halvedIssues = TMDMeasureChecker.check(halved);
+    expect(halvedIssues).toHaveLength(0);
+  });
+
   it("halves grid resolution (<8*> -> <4*>) when divisible", () => {
     const input = `::SCORE::
 ** Halve Test **
