@@ -2,8 +2,22 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
-import { TmdParser, formatSummary } from "./core/index.js";
-import { TMDABCGenerator, TMDLilyPondGenerator, TMDMusicXMLGenerator, TMDMIDIGenerator, TMDReaperGenerator, TMDChordProGenerator, TMDVSQGenerator, TMDVSQXGenerator } from "./exporters/index.js";
+import {
+  TmdParser,
+  formatSummary,
+  TMDMeasureChecker,
+  TMDRefactor,
+} from "./core/index.js";
+import {
+  TMDABCGenerator,
+  TMDLilyPondGenerator,
+  TMDMusicXMLGenerator,
+  TMDMIDIGenerator,
+  TMDReaperGenerator,
+  TMDChordProGenerator,
+  TMDVSQGenerator,
+  TMDVSQXGenerator,
+} from "./exporters/index.js";
 import { TMDWAVRenderer } from "./audio.js";
 import { TmdSkill } from "./skill.js";
 import { TmdMcpServer, TmdMcpInstaller } from "./mcp/index.js";
@@ -12,8 +26,14 @@ import { TMD_VERSION } from "./version.js";
 export function printHelp(): void {
   console.log(`OVERVIEW: A compiler and toolkit for TMD (Timebase Mark Down) music notation.
 
-USAGE: tmd [<options>] [<input-path>]
+USAGE: tmd [<subcommand>] [<options>] [<input-path>]
 
+SUBCOMMANDS:
+  check <input-path>       Check measure consistency and report incorrect beat counts.
+  format [<options>] <input-path> Format TMD file with standardized indentation and spacing.
+  refactor <subcommand>    Refactor TMD score (rename-instrument, rename-section, extract-instrument).
+
+OPTIONS:
   -p, --parse-only        Parse and display the score summary.
   -m, --midi-output PATH  Export Standard MIDI.
   -x, --musicxml-output PATH  Export MusicXML 4.0.
@@ -37,24 +57,434 @@ USAGE: tmd [<options>] [<input-path>]
 `);
 }
 
-export function main(argv = process.argv.slice(2)): number {
-  let input: string | undefined, parseOnly = false, play = false, installSkills = false, installMcp = false, runMcp = false, singer = "Miku";
-  const outputs: Record<string, string | undefined> = {};
+function handleCheckCommand(argv: string[]): number {
+  let inputPath: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === "-h" || arg === "--help") { printHelp(); return 0; }
-    if (arg === "--version") { console.log(`tmd-ts ${TMD_VERSION}`); return 0; }
-    if (arg === "-p" || arg === "--parse-only") { parseOnly = true; continue; }
-    if (arg === "--play") { play = true; continue; }
-    if (arg === "--mcp") { runMcp = true; continue; }
-    if (arg === "--install-mcp") { installMcp = true; continue; }
-    if (arg === "--install-skills") { installSkills = true; continue; }
-    if (arg === "--singer") { singer = argv[++i] || "Miku"; continue; }
-    const option: Record<string, string> = { "-m": "midi", "--midi-output": "midi", "-x": "musicxml", "--musicxml-output": "musicxml", "-l": "lilypond", "--lilypond-output": "lilypond", "-a": "abc", "--abc-output": "abc", "-r": "reaper", "--reaper-output": "reaper", "--rpp-output": "reaper", "-c": "chordpro", "--chordpro-output": "chordpro", "--cho-output": "chordpro", "--vsq-output": "vsq", "--vsqx-output": "vsqx", "-w": "wav", "--wav-output": "wav", "--pdf-output": "pdf" };
-    if (option[arg]) { outputs[option[arg]] = argv[++i]; continue; }
-    if (!arg.startsWith("-")) input = arg;
-    else { console.error(`Unknown option: ${arg}`); return 2; }
+    if (arg === "-h" || arg === "--help") {
+      console.log(`USAGE: tmd check <input-path>
+
+Check measure consistency and report incorrect beat counts between bar lines '|'.
+`);
+      return 0;
+    }
+    if (!arg.startsWith("-")) {
+      inputPath = arg;
+    } else {
+      console.error(`Unknown option: ${arg}`);
+      return 2;
+    }
   }
+
+  if (!inputPath) {
+    console.error("Error: Missing expected argument '<input-path>' for check");
+    return 2;
+  }
+
+  let content: string;
+  try {
+    content = fs.readFileSync(inputPath, "utf-8");
+  } catch (error: any) {
+    console.error(`Error reading ${inputPath}: ${error.message || String(error)}`);
+    return 1;
+  }
+
+  const issues = TMDMeasureChecker.check(content);
+  if (issues.length === 0) {
+    console.log(`✅ All measures in ${inputPath} conform to expected time signatures.`);
+    return 0;
+  } else {
+    console.log(
+      `❌ Found ${issues.length} measure discrepancy issue${
+        issues.length === 1 ? "" : "s"
+      } in ${inputPath}:\n`
+    );
+    for (const issue of issues) {
+      console.log(issue.description);
+    }
+    return 1;
+  }
+}
+
+function handleFormatCommand(argv: string[]): number {
+  let inputPath: string | undefined;
+  let inPlace = false;
+  let outputPath: string | undefined;
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "-h" || arg === "--help") {
+      console.log(`USAGE: tmd format [<options>] <input-path>
+
+Format a TMD file with standardized indentation, spacing, and comments preserved.
+
+OPTIONS:
+  -i, --in-place          Modify the file in-place.
+  -o, --output PATH       Output formatted score to the specified path.
+`);
+      return 0;
+    }
+    if (arg === "-i" || arg === "--in-place") {
+      inPlace = true;
+      continue;
+    }
+    if (arg === "-o" || arg === "--output") {
+      outputPath = argv[++i];
+      continue;
+    }
+    if (!arg.startsWith("-")) {
+      inputPath = arg;
+    } else {
+      console.error(`Unknown option: ${arg}`);
+      return 2;
+    }
+  }
+
+  if (!inputPath) {
+    console.error("Error: Missing expected argument '<input-path>' for format");
+    return 2;
+  }
+
+  let content: string;
+  try {
+    content = fs.readFileSync(inputPath, "utf-8");
+  } catch (error: any) {
+    console.error(`Error reading ${inputPath}: ${error.message || String(error)}`);
+    return 1;
+  }
+
+  const formatted = TMDRefactor.format(content);
+
+  if (inPlace) {
+    try {
+      fs.writeFileSync(inputPath, formatted, "utf-8");
+      console.log(`Formatted ${inputPath} in-place.`);
+      return 0;
+    } catch (error: any) {
+      console.error(`Error writing ${inputPath}: ${error.message || String(error)}`);
+      return 1;
+    }
+  } else if (outputPath) {
+    try {
+      fs.writeFileSync(outputPath, formatted, "utf-8");
+      console.log(`Formatted output written to ${outputPath}.`);
+      return 0;
+    } catch (error: any) {
+      console.error(`Error writing ${outputPath}: ${error.message || String(error)}`);
+      return 1;
+    }
+  } else {
+    process.stdout.write(formatted);
+    return 0;
+  }
+}
+
+function handleRefactorCommand(argv: string[]): number {
+  const sub = argv[0];
+  if (!sub || sub === "-h" || sub === "--help") {
+    console.log(`USAGE: tmd refactor <subcommand> [<options>] <input-path>
+
+Music score refactoring tools.
+
+SUBCOMMANDS:
+  rename-instrument       Rename all occurrences of an instrument in a score.
+  rename-section          Rename all occurrences of a section in a score.
+  extract-instrument      Extract all tracks belonging to an instrument into a separate document.
+`);
+    return 0;
+  }
+
+  const rest = argv.slice(1);
+  if (sub === "rename-instrument") {
+    let inputPath: string | undefined;
+    let from: string | undefined;
+    let to: string | undefined;
+    let inPlace = false;
+    let outputPath: string | undefined;
+
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i];
+      if (arg === "-h" || arg === "--help") {
+        console.log(`USAGE: tmd refactor rename-instrument [<options>] <input-path>`);
+        return 0;
+      }
+      if (arg === "--from") {
+        from = rest[++i];
+        continue;
+      }
+      if (arg === "--to") {
+        to = rest[++i];
+        continue;
+      }
+      if (arg === "-i" || arg === "--in-place") {
+        inPlace = true;
+        continue;
+      }
+      if (arg === "-o" || arg === "--output") {
+        outputPath = rest[++i];
+        continue;
+      }
+      if (!arg.startsWith("-")) {
+        inputPath = arg;
+      } else {
+        console.error(`Unknown option: ${arg}`);
+        return 2;
+      }
+    }
+
+    if (!inputPath || !from || !to) {
+      console.error("Error: rename-instrument requires <input-path>, --from, and --to");
+      return 2;
+    }
+
+    let content: string;
+    try {
+      content = fs.readFileSync(inputPath, "utf-8");
+    } catch (error: any) {
+      console.error(`Error reading ${inputPath}: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    let refactored: string;
+    try {
+      refactored = TMDRefactor.renameInstrument(content, from, to);
+    } catch (error: any) {
+      console.error(`Refactor error: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    if (inPlace) {
+      fs.writeFileSync(inputPath, refactored, "utf-8");
+      console.log(`Renamed instrument in ${inputPath} in-place.`);
+    } else if (outputPath) {
+      fs.writeFileSync(outputPath, refactored, "utf-8");
+      console.log(`Refactored score written to ${outputPath}.`);
+    } else {
+      process.stdout.write(refactored);
+    }
+    return 0;
+  }
+
+  if (sub === "rename-section") {
+    let inputPath: string | undefined;
+    let from: string | undefined;
+    let to: string | undefined;
+    let inPlace = false;
+    let outputPath: string | undefined;
+
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i];
+      if (arg === "-h" || arg === "--help") {
+        console.log(`USAGE: tmd refactor rename-section [<options>] <input-path>`);
+        return 0;
+      }
+      if (arg === "--from") {
+        from = rest[++i];
+        continue;
+      }
+      if (arg === "--to") {
+        to = rest[++i];
+        continue;
+      }
+      if (arg === "-i" || arg === "--in-place") {
+        inPlace = true;
+        continue;
+      }
+      if (arg === "-o" || arg === "--output") {
+        outputPath = rest[++i];
+        continue;
+      }
+      if (!arg.startsWith("-")) {
+        inputPath = arg;
+      } else {
+        console.error(`Unknown option: ${arg}`);
+        return 2;
+      }
+    }
+
+    if (!inputPath || !from || !to) {
+      console.error("Error: rename-section requires <input-path>, --from, and --to");
+      return 2;
+    }
+
+    let content: string;
+    try {
+      content = fs.readFileSync(inputPath, "utf-8");
+    } catch (error: any) {
+      console.error(`Error reading ${inputPath}: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    let refactored: string;
+    try {
+      refactored = TMDRefactor.renameSection(content, from, to);
+    } catch (error: any) {
+      console.error(`Refactor error: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    if (inPlace) {
+      fs.writeFileSync(inputPath, refactored, "utf-8");
+      console.log(`Renamed section in ${inputPath} in-place.`);
+    } else if (outputPath) {
+      fs.writeFileSync(outputPath, refactored, "utf-8");
+      console.log(`Refactored score written to ${outputPath}.`);
+    } else {
+      process.stdout.write(refactored);
+    }
+    return 0;
+  }
+
+  if (sub === "extract-instrument") {
+    let inputPath: string | undefined;
+    let instrument: string | undefined;
+    let outputPath: string | undefined;
+
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i];
+      if (arg === "-h" || arg === "--help") {
+        console.log(`USAGE: tmd refactor extract-instrument [<options>] <input-path>`);
+        return 0;
+      }
+      if (arg === "--instrument") {
+        instrument = rest[++i];
+        continue;
+      }
+      if (arg === "-o" || arg === "--output") {
+        outputPath = rest[++i];
+        continue;
+      }
+      if (!arg.startsWith("-")) {
+        inputPath = arg;
+      } else {
+        console.error(`Unknown option: ${arg}`);
+        return 2;
+      }
+    }
+
+    if (!inputPath || !instrument) {
+      console.error("Error: extract-instrument requires <input-path> and --instrument");
+      return 2;
+    }
+
+    let content: string;
+    try {
+      content = fs.readFileSync(inputPath, "utf-8");
+    } catch (error: any) {
+      console.error(`Error reading ${inputPath}: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    let extracted: string;
+    try {
+      extracted = TMDRefactor.extractInstrument(content, instrument);
+    } catch (error: any) {
+      console.error(`Refactor error: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    if (outputPath) {
+      fs.writeFileSync(outputPath, extracted, "utf-8");
+      console.log(`Extracted instrument '${instrument}' to ${outputPath}.`);
+    } else {
+      process.stdout.write(extracted);
+    }
+    return 0;
+  }
+
+  console.error(`Unknown refactor subcommand: ${sub}`);
+  return 2;
+}
+
+export function main(argv = process.argv.slice(2)): number {
+  if (argv.length > 0) {
+    const first = argv[0];
+    if (first === "check") {
+      return handleCheckCommand(argv.slice(1));
+    }
+    if (first === "format") {
+      return handleFormatCommand(argv.slice(1));
+    }
+    if (first === "refactor") {
+      return handleRefactorCommand(argv.slice(1));
+    }
+  }
+
+  let input: string | undefined,
+    parseOnly = false,
+    play = false,
+    installSkills = false,
+    installMcp = false,
+    runMcp = false,
+    singer = "Miku";
+  const outputs: Record<string, string | undefined> = {};
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "-h" || arg === "--help") {
+      printHelp();
+      return 0;
+    }
+    if (arg === "--version") {
+      console.log(`tmd-ts ${TMD_VERSION}`);
+      return 0;
+    }
+    if (arg === "-p" || arg === "--parse-only") {
+      parseOnly = true;
+      continue;
+    }
+    if (arg === "--play") {
+      play = true;
+      continue;
+    }
+    if (arg === "--mcp") {
+      runMcp = true;
+      continue;
+    }
+    if (arg === "--install-mcp") {
+      installMcp = true;
+      continue;
+    }
+    if (arg === "--install-skills") {
+      installSkills = true;
+      continue;
+    }
+    if (arg === "--singer") {
+      singer = argv[++i] || "Miku";
+      continue;
+    }
+    const option: Record<string, string> = {
+      "-m": "midi",
+      "--midi-output": "midi",
+      "-x": "musicxml",
+      "--musicxml-output": "musicxml",
+      "-l": "lilypond",
+      "--lilypond-output": "lilypond",
+      "-a": "abc",
+      "--abc-output": "abc",
+      "-r": "reaper",
+      "--reaper-output": "reaper",
+      "--rpp-output": "reaper",
+      "-c": "chordpro",
+      "--chordpro-output": "chordpro",
+      "--cho-output": "chordpro",
+      "--vsq-output": "vsq",
+      "--vsqx-output": "vsqx",
+      "-w": "wav",
+      "--wav-output": "wav",
+      "--pdf-output": "pdf",
+    };
+    if (option[arg]) {
+      outputs[option[arg]] = argv[++i];
+      continue;
+    }
+    if (!arg.startsWith("-")) input = arg;
+    else {
+      console.error(`Unknown option: ${arg}`);
+      return 2;
+    }
+  }
+
   if (runMcp) {
     TmdMcpServer.run().catch((err) => {
       console.error("Fatal error running TMD MCP Server:", err);
@@ -64,32 +494,85 @@ export function main(argv = process.argv.slice(2)): number {
   }
   if (installMcp) {
     const results = TmdMcpInstaller.installAll();
-    results.forEach(result => console.log(`${result.installed ? "Installed" : "Failed"} TMD MCP config: ${result.path}${result.error ? ` (${result.error})` : ""}`));
-    if (!input) return results.every(result => result.installed) ? 0 : 1;
+    results.forEach((result) =>
+      console.log(
+        `${result.installed ? "Installed" : "Failed"} TMD MCP config: ${result.path}${
+          result.error ? ` (${result.error})` : ""
+        }`
+      )
+    );
+    if (!input) return results.every((result) => result.installed) ? 0 : 1;
   }
   if (installSkills) {
     const results = TmdSkill.installSkills();
-    results.forEach(result => console.log(`${result.installed ? "Installed" : "Failed"} TMD skill: ${result.path}${result.error ? ` (${result.error})` : ""}`));
-    if (!input) return results.every(result => result.installed) ? 0 : 1;
+    results.forEach((result) =>
+      console.log(
+        `${result.installed ? "Installed" : "Failed"} TMD skill: ${result.path}${
+          result.error ? ` (${result.error})` : ""
+        }`
+      )
+    );
+    if (!input) return results.every((result) => result.installed) ? 0 : 1;
   }
-  if (!input) { console.error("Error: Missing expected argument '<input-path>'"); return 2; }
+  if (!input) {
+    console.error("Error: Missing expected argument '<input-path>'");
+    return 2;
+  }
   let sheet;
-  try { sheet = TmdParser.parseFile(input); }
-  catch (error) { console.error(`Error: Could not parse TMD file at ${input}: ${error instanceof Error ? error.message : String(error)}`); return 1; }
+  try {
+    sheet = TmdParser.parseFile(input);
+  } catch (error) {
+    console.error(
+      `Error: Could not parse TMD file at ${input}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+    return 1;
+  }
   console.log(`tmd-ts ${TMD_VERSION} - In memory of Chen, Chih-Han / aguai (阿怪, 1974–2019).`);
-  console.log(`Successfully parsed TMD file: ${input}\n----------------------------------------\n${formatSummary(sheet)}\n----------------------------------------`);
+  console.log(
+    `Successfully parsed TMD file: ${input}\n----------------------------------------\n${formatSummary(
+      sheet
+    )}\n----------------------------------------`
+  );
   if (parseOnly) return 0;
   try {
     if (outputs.midi) fs.writeFileSync(outputs.midi, TMDMIDIGenerator.generateMIDI(sheet));
-    if (outputs.musicxml) fs.writeFileSync(outputs.musicxml, TMDMusicXMLGenerator.generateMusicXML(sheet));
-    if (outputs.lilypond) fs.writeFileSync(outputs.lilypond, TMDLilyPondGenerator.generateLilyPond(sheet));
+    if (outputs.musicxml)
+      fs.writeFileSync(outputs.musicxml, TMDMusicXMLGenerator.generateMusicXML(sheet));
+    if (outputs.lilypond)
+      fs.writeFileSync(outputs.lilypond, TMDLilyPondGenerator.generateLilyPond(sheet));
     if (outputs.abc) fs.writeFileSync(outputs.abc, TMDABCGenerator.generateABC(sheet));
-    if (outputs.reaper) fs.writeFileSync(outputs.reaper, TMDReaperGenerator.generateRPP(sheet));
-    if (outputs.chordpro) fs.writeFileSync(outputs.chordpro, TMDChordProGenerator.generateChordPro(sheet));
-    if (outputs.vsq) fs.writeFileSync(outputs.vsq, TMDVSQGenerator.generateVSQ(sheet, { singerName: singer }));
-    if (outputs.vsqx) fs.writeFileSync(outputs.vsqx, TMDVSQXGenerator.generateVSQX(sheet, { singerName: singer }));
-    if (outputs.pdf) { const temp = path.join(os.tmpdir(), `tmd-${Date.now()}.ly`); fs.writeFileSync(temp, TMDLilyPondGenerator.generateLilyPond(sheet)); execFileSync("lilypond", ["--pdf", "-o", outputs.pdf.replace(/\.pdf$/, ""), temp], { stdio: "inherit" }); fs.rmSync(temp, { force: true }); }
-    if (outputs.wav || play) { const temp = outputs.wav || path.join(os.tmpdir(), `tmd-${Date.now()}.wav`); fs.writeFileSync(temp, TMDWAVRenderer.renderWAV(sheet)); if (play) execFileSync(process.platform === "darwin" ? "afplay" : "aplay", [temp], { stdio: "inherit" }); if (!outputs.wav) fs.rmSync(temp, { force: true }); }
-  } catch (error) { console.error(`Error exporting TMD: ${error instanceof Error ? error.message : String(error)}`); return 1; }
+    if (outputs.reaper)
+      fs.writeFileSync(outputs.reaper, TMDReaperGenerator.generateRPP(sheet));
+    if (outputs.chordpro)
+      fs.writeFileSync(outputs.chordpro, TMDChordProGenerator.generateChordPro(sheet));
+    if (outputs.vsq)
+      fs.writeFileSync(outputs.vsq, TMDVSQGenerator.generateVSQ(sheet, { singerName: singer }));
+    if (outputs.vsqx)
+      fs.writeFileSync(outputs.vsqx, TMDVSQXGenerator.generateVSQX(sheet, { singerName: singer }));
+    if (outputs.pdf) {
+      const temp = path.join(os.tmpdir(), `tmd-${Date.now()}.ly`);
+      fs.writeFileSync(temp, TMDLilyPondGenerator.generateLilyPond(sheet));
+      execFileSync("lilypond", ["--pdf", "-o", outputs.pdf.replace(/\.pdf$/, ""), temp], {
+        stdio: "inherit",
+      });
+      fs.rmSync(temp, { force: true });
+    }
+    if (outputs.wav || play) {
+      const temp = outputs.wav || path.join(os.tmpdir(), `tmd-${Date.now()}.wav`);
+      fs.writeFileSync(temp, TMDWAVRenderer.renderWAV(sheet));
+      if (play)
+        execFileSync(process.platform === "darwin" ? "afplay" : "aplay", [temp], {
+          stdio: "inherit",
+        });
+      if (!outputs.wav) fs.rmSync(temp, { force: true });
+    }
+  } catch (error) {
+    console.error(
+      `Error exporting TMD: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return 1;
+  }
   return 0;
 }

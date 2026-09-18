@@ -4,7 +4,15 @@ import * as path from "node:path";
 
 export class TmdSkill {
   static readonly skillName = "tmd";
-  static readonly skillMarkdown = `# TMD (Timebase Mark Down) Music Score Specification & Guide
+  static readonly skillMarkdown = `---
+name: tmd
+description: >-
+  Comprehensive guide and reference for writing, parsing, and exporting music scores using TMD (Timebase Mark Down).
+  Use this skill whenever you need to create, edit, debug, or generate .tmd music scores, lead sheets, chord progressions,
+  numbered musical notation (jianpu), multi-track arrangements, or compile them with the tmd CLI tool.
+---
+
+# TMD (Timebase Mark Down) Music Score Specification & Guide
 
 TMD is a plain-text musical notation DSL designed by Taiwanese composer and music producer Chen, Chih-Han / aguai (阿怪, 1974–2019, composer of A-Mei's "Three Days and Three Nights").
 It allows musicians and arrangers to describe multi-track songs, numbered musical notation (jianpu / movable-do solfege), chord progressions, tuplets, and playback arrangements in a concise, human-readable text format.
@@ -263,7 +271,155 @@ A:CHORD@|0|{
 
 -> intro -> A -> {?-3} -> A -> {?+3} -> ending ->#
 \`\`\`
+
+---
+
+## 9. Using the \`tmd\` CLI Tool
+
+Compile and verify TMD files:
+\`\`\`bash
+# 1. Parse and print score summary
+tmd score.tmd -p
+
+# 2. Export to Standard MIDI file (.mid)
+tmd score.tmd -m score.mid
+
+# 3. Export to MusicXML (.musicxml) for MuseScore/Sibelius
+tmd score.tmd -x score.musicxml
+
+# 4. Export to LilyPond (.ly) or render PDF
+tmd score.tmd -l score.ly
+tmd score.tmd --pdf-output score.pdf
+
+# 5. Export to ABC notation (.abc) for web sheets (abcjs)
+tmd score.tmd -a score.abc
+
+# 6. Export to ChordPro (.cho) lead sheet
+tmd score.tmd -c score.cho
+
+# 7. Render offline WAV audio (macOS DLS / SoundFont)
+tmd score.tmd -w output.wav
+
+# 8. Export vocal track to VOCALOID (.vsq, .vsqx)
+tmd score.tmd --vsq-output vocal.vsq --singer Miku
+tmd score.tmd --vsqx-output vocal.vsqx --singer Miku
+
+# 9. Export vocal track to UTAU / OpenUtau (.ust)
+tmd score.tmd -u vocal.ust
+
+# 10. Check measure consistency and beat accuracy (Essential for AI self-verification)
+tmd check score.tmd
+
+# 11. Format document layout and indentation
+tmd format score.tmd -i
+
+# 12. Install this skill into AI agent directories
+tmd --install-skills
+\`\`\`
+
+---
+
+## 10. AI Composition Methodology: Modular Section-Based Chunking
+
+Unlike unstructured audio waveforms (e.g. Suno/Udio) or monolithic continuous notation (e.g. monolithic ABC/MusicXML files), TMD is built on **Modular Section-Based Chunking**. This provides critical advantages for AI-assisted music generation:
+
+1. **Local Context Encapsulation**:
+   - Each section (\`intro\`, \`verse\`, \`chorus\`, \`A1\`, \`B1\`) is an isolated, self-contained block.
+   - When generating, editing, or orchestrating a specific section (e.g. expanding an 8-measure Chorus to 13 orchestral tracks), the AI only needs to focus on that specific section block, avoiding attention decay across long song timelines.
+
+2. **Error Isolation (No Measure Clock Drift)**:
+   - Rhythmic errors or miscalculations within one paragraph block are strictly localized. They do not cascade or offset measure alignment across subsequent sections.
+   - The AI can inspect compiler diagnostic messages (e.g. \`tmd score.tmd -p\`) and fix a single paragraph in isolation.
+
+3. **Progressive Layering and Orchestration**:
+   - Start with a single lead track (\`verse:Vocal@|0|\`), then layer accompanying instruments into the same section (\`verse:CHORD@|0|\`, \`verse:Bass@|0|\`, \`verse:Drums@|+2|\`) without altering the original melody.
+
+---
+
+## 11. Human Composition Principles & AI Co-Composing Patterns
+
+When assisting human composers or generating new arrangements, follow genuine **Human Composition Principles** rather than random note generation or style-collage diffusion:
+
+### 1. Motif-Driven Architecture
+- **Establish a Core Motif**: Begin by identifying or asking for the central melodic or rhythmic motif (usually 2 to 4 bars).
+- **Develop, Don't Discard**: Carry the motif across sections through genuine compositional techniques:
+  - *Sequence / Transposition*: Repeat the motif on higher or lower scale degrees.
+  - *Inversion*: Flip interval directions.
+  - *Augmentation & Diminution*: Double or halve rhythmic durations for contrasting sections.
+  - *Antecedent-Consequent Phrasing*: Frame phrases as question-and-answer pairs resolving on tonic or dominant degrees.
+
+### 2. Voice Leading and Texture Balance
+- Maintain clear roles across tracks:
+  - **Melody / Lead**: Clear vocal line or solo instrument.
+  - **Counter-Melody**: Secondary line filling pauses in the main melody.
+  - **Harmonic Pads & Fillers**: Sustained chords or arpeggiated movement.
+  - **Bass Line**: Root notes, inversions, and step-wise walking notes anchoring the harmony.
+  - **Rhythm Section**: Metric groove establishing tempo and dynamic drive.
+
+### 3. Practical AI Co-Composing Patterns
+AI agents should assist human composers through these distinct collaborative patterns:
+- **Pattern A: Lead-to-Arrangement**: Given a human melody, generate multi-track accompaniment (chords, bassline, percussion).
+- **Pattern B: Motif Continuation**: Given a 2-bar or 4-bar human idea, develop it into a complete structured A/B section.
+- **Pattern C: Re-Harmonization**: Propose alternative chord progressions (e.g., standard pop, secondary dominants, modal mixture, or jazz extensions like \`[Cmaj9]\`, \`[Am7]\`, \`[6m]\`, \`[2m7-5]\`).
+- **Pattern D: Style Transformation**: Convert a pop/folk lead sheet into multi-part strings, big band brass, or a full symphony orchestra.
+- **Pattern E: Automated Self-Verification & Ear Check Loop**:
+  1. **Measure Consistency Check**: Always run \`tmd check <file.tmd>\`. If any measure length discrepancy is reported (e.g. \`verse:Piano (line 12, measure 3): Expected 4 units, found 3 units (-1 units)\`), immediately locate the line and add or remove rhythm units/dashes \`-\`/rests \`0\` until all measures pass.
+  2. **Auto-Formatting**: Run \`tmd format <file.tmd> -i\` to clean up block indentation and spacing.
+  3. **Syntax & Structure Verification**: Run \`tmd <file.tmd> -p\` to verify execution flow and track summary.
+  4. **Audio Ear Check**: Render audio via \`tmd <file.tmd> -w preview.wav\` so the human composer can immediately audition counterpoint, voice leading, and rhythmic balance.
+
+---
+
+## 12. Contrapuntal Techniques: Canon and Fugue
+
+Writing contrapuntal and polyphonic forms requires strict temporal synchronization and voice independence. TMD's track offset syntax (\`@|+N|\`) makes constructing canons and fugues deterministic and token-efficient for AI agents:
+
+### 1. Strict Canon with Measure Offsets
+In traditional notation, writing a canon requires manually filling preceding rests in entering voices. In TMD, use \`@|+N|\` to delay entering voices without padding rest tokens:
+
+\`\`\`tmd
+/* Two-Voice Canon at the Octave, 2 measures delayed */
+canon:Violin1@|0|{
+    <4*>
+    1 2 3 1 | 3 4 5 - | 5 6 5 4 | 3 - 1 - |
+    2 5_ 1 - | - - - - |
+}
+
+canon:Violin2@|+2|{
+    <4*>
+    1 2 3 1 | 3 4 5 - | 5 6 5 4 | 3 - 1 - |
+    2 5_ 1 - | - - - - |
+}
+\`\`\`
+
+For a **Canon at the Fifth**, transpose the melody by 4 scale degrees (or use \`{?+7}\` directives) when authoring the follower voice.
+
+### 2. Fugue Architecture
+Follow standard classical/baroque fugal exposition principles:
+- **Subject (Dux)**: The primary theme stated alone by Voice 1 (\`@|0|\`) in the tonic key.
+- **Answer (Comes)**: Voice 2 enters at \`@|+2|\` or \`@|+4|\`, transposed to the dominant (5th above / 4th below).
+- **Countersubject**: While Voice 2 plays the Answer, Voice 1 continues with a contrasting counter-melody, maintaining complementary rhythmic motion (e.g., when one voice sustains, the other moves).
+- **Episode**: Modulating passages using fragments of the Subject with motivic sequencing.
+- **Stretto**: In climactic sections, introduce successive voice entries at narrower measure offsets (e.g., \`@|+1|\` instead of \`@|+4|\`) before previous statements finish, intensifying dramatic tension.
 `;
-  static defaultInstallPaths(): string[] { return [".codex", ".gemini", ".gemini/config", ".claude", ".agent", ".agents"].map(root => path.join(os.homedir(), root, "skills", "tmd")); }
-  static installSkills(paths = this.defaultInstallPaths()): { path: string; installed: boolean; error?: string }[] { return paths.map(p => { try { fs.mkdirSync(p, { recursive: true }); fs.writeFileSync(path.join(p, "SKILL.md"), this.skillMarkdown); return { path: p, installed: true }; } catch (e) { return { path: p, installed: false, error: String(e) }; } }); }
+
+  static defaultInstallPaths(): string[] {
+    return [".codex", ".gemini", ".gemini/config", ".claude", ".agent", ".agents"].map((root) =>
+      path.join(os.homedir(), root, "skills", "tmd")
+    );
+  }
+
+  static installSkills(
+    paths = this.defaultInstallPaths()
+  ): { path: string; installed: boolean; error?: string }[] {
+    return paths.map((p) => {
+      try {
+        fs.mkdirSync(p, { recursive: true });
+        fs.writeFileSync(path.join(p, "SKILL.md"), this.skillMarkdown);
+        return { path: p, installed: true };
+      } catch (e) {
+        return { path: p, installed: false, error: String(e) };
+      }
+    });
+  }
 }
