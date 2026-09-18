@@ -861,21 +861,36 @@ verse:Lead@|0|{
             <div class="form-group">
               <label for="hum-grid" data-i18n="humGrid">時間網格：</label>
               <select id="hum-grid" class="text-control">
-                <option value="8" selected>8 分音符 (&lt;8*&gt;)</option>
-                <option value="4">4 分音符 (&lt;4*&gt;)</option>
-                <option value="16">16 分音符 (&lt;16*&gt;)</option>
+                <option value="8" data-i18n="humGrid8" selected>8 分音符 (&lt;8*&gt;)</option>
+                <option value="4" data-i18n="humGrid4">4 分音符 (&lt;4*&gt;)</option>
+                <option value="16" data-i18n="humGrid16">16 分音符 (&lt;16*&gt;)</option>
               </select>
             </div>
           </div>
 
-          <div class="form-group" style="display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 16px; text-align: left; width: 100%;">
-            <input type="checkbox" id="hum-snap-scale" checked style="cursor: pointer; width: 16px; height: 16px; margin: 0; flex-shrink: 0;" />
-            <label for="hum-snap-scale" data-i18n="humSnapScale" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal; color: var(--text-primary); text-align: left; user-select: none;">吸附至自然音階（過濾微走音與跑調怪音）</label>
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; text-align: left; width: 100%;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="hum-snap-scale" checked style="cursor: pointer; width: 16px; height: 16px; margin: 0; flex-shrink: 0;" />
+              <label for="hum-snap-scale" data-i18n="humSnapScale" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal; color: var(--text-primary); text-align: left; user-select: none;">吸附至自然音階（過濾微走音與跑調怪音）</label>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="hum-enable-metronome" checked style="cursor: pointer; width: 16px; height: 16px; margin: 0; flex-shrink: 0;" />
+                <label for="hum-enable-metronome" data-i18n="humEnableMetronome" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal; color: var(--text-primary); user-select: none;">啟用節拍器 (Metronome)</label>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="hum-enable-countin" checked style="cursor: pointer; width: 16px; height: 16px; margin: 0; flex-shrink: 0;" />
+                <label for="hum-enable-countin" data-i18n="humEnableCountIn" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal; color: var(--text-primary); user-select: none;">4 拍預備倒數 (Count-in)</label>
+              </div>
+              <div style="font-size: 12px; color: var(--accent-orange, #d29922); display: flex; align-items: center; gap: 4px;">
+                <span>🎧</span> <span data-i18n="humHeadphoneHint">建議配戴耳機哼唱，避免節拍器被麥克風錄入</span>
+              </div>
+            </div>
           </div>
 
           <div class="form-group">
-            <label for="hum-result-code">TMD 簡譜產生結果預覽 (Preview)：</label>
-            <textarea id="hum-result-code" class="text-control" rows="7" style="font-family: var(--font-mono); font-size: 13px; line-height: 1.5; white-space: pre;" placeholder="錄音辨識後的 TMD 代碼將顯示於此..."></textarea>
+            <label for="hum-result-code" data-i18n="humResultCodePreview">TMD 簡譜產生結果預覽 (Preview)：</label>
+            <textarea id="hum-result-code" class="text-control" rows="7" style="font-family: var(--font-mono); font-size: 13px; line-height: 1.5; white-space: pre;" data-i18n-placeholder="humPlaceholderResult" placeholder="錄音辨識後的 TMD 代碼將顯示於此..."></textarea>
           </div>
         </div>
         <div class="modal-footer" style="display: flex; justify-content: space-between;">

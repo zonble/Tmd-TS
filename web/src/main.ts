@@ -238,6 +238,8 @@ const humKey = document.getElementById("hum-key") as HTMLSelectElement;
 const humBpm = document.getElementById("hum-bpm") as HTMLInputElement;
 const humGrid = document.getElementById("hum-grid") as HTMLSelectElement;
 const humSnapScale = document.getElementById("hum-snap-scale") as HTMLInputElement;
+const humEnableMetronome = document.getElementById("hum-enable-metronome") as HTMLInputElement;
+const humEnableCountIn = document.getElementById("hum-enable-countin") as HTMLInputElement;
 const humResultCode = document.getElementById("hum-result-code") as HTMLTextAreaElement;
 const humBtnPlayPreview = document.getElementById("hum-btn-play-preview") as HTMLButtonElement;
 const humBtnApply = document.getElementById("hum-btn-apply") as HTMLButtonElement;
@@ -1757,7 +1759,59 @@ function initEvents() {
   let mediaRecorder: MediaRecorder | null = null;
   let audioChunks: Blob[] = [];
   let isHumRecording = false;
+  let isCountIn = false;
+  let countInTimer: any = null;
+  let metronomeTimer: any = null;
+  let humAudioCtx: AudioContext | null = null;
   let humTranscribedSnippet = "";
+
+  const playClickSound = (isFirstBeat: boolean) => {
+    try {
+      if (!humAudioCtx) {
+        humAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      if (humAudioCtx.state === "suspended") {
+        humAudioCtx.resume();
+      }
+      const osc = humAudioCtx.createOscillator();
+      const gain = humAudioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = isFirstBeat ? 880 : 440; // High beep on first beat, standard beep on others
+      gain.gain.setValueAtTime(0.3, humAudioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, humAudioCtx.currentTime + 0.05);
+      osc.connect(gain);
+      gain.connect(humAudioCtx.destination);
+      osc.start();
+      osc.stop(humAudioCtx.currentTime + 0.05);
+    } catch {
+      // Ignore audio synthesis error if user interacted restricted
+    }
+  };
+
+  const stopMetronome = () => {
+    if (metronomeTimer) {
+      clearInterval(metronomeTimer);
+      metronomeTimer = null;
+    }
+    if (countInTimer) {
+      clearTimeout(countInTimer);
+      countInTimer = null;
+    }
+    isCountIn = false;
+  };
+
+  const startMetronomeClicks = (bpm: number, beatsPerMeasure: number = 4) => {
+    stopMetronome();
+    const intervalMs = (60.0 / bpm) * 1000;
+    let currentBeat = 0;
+    playClickSound(true); // First beat immediately
+    currentBeat = 1;
+    metronomeTimer = setInterval(() => {
+      const isFirst = currentBeat % beatsPerMeasure === 0;
+      playClickSound(isFirst);
+      currentBeat = (currentBeat + 1) % beatsPerMeasure;
+    }, intervalMs);
+  };
 
   const openHumModal = () => {
     if (currentSheet) {
@@ -1777,7 +1831,24 @@ function initEvents() {
     openHumModal();
   });
 
+  humModal?.addEventListener("close", () => {
+    stopMetronome();
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+    }
+    isHumRecording = false;
+  });
+
   humBtnRecord?.addEventListener("click", async () => {
+    if (isCountIn) {
+      // Cancel count in
+      stopMetronome();
+      if (humRecordIcon) humRecordIcon.textContent = "🔴";
+      if (humRecordText) humRecordText.textContent = t("humBtnRecord");
+      if (humStatusIndicator) humStatusIndicator.textContent = t("humStatusIdle");
+      return;
+    }
+
     if (!isHumRecording) {
       // Start Recording
       try {
@@ -1792,6 +1863,8 @@ function initEvents() {
         };
 
         mediaRecorder.onstop = async () => {
+          // Stop metronome if running
+          stopMetronome();
           // Stop stream tracks
           stream.getTracks().forEach((track) => track.stop());
 
@@ -1897,16 +1970,57 @@ function initEvents() {
           }
         };
 
-        mediaRecorder.start();
-        isHumRecording = true;
-        if (humRecordIcon) humRecordIcon.textContent = "⏹️";
-        if (humRecordText) humRecordText.textContent = t("humBtnStop");
-        if (humStatusIndicator) humStatusIndicator.textContent = t("humStatusRecording");
+        const bpm = parseInt(humBpm?.value || "120", 10) || 120;
+        const enableMetronome = humEnableMetronome ? humEnableMetronome.checked : true;
+        const enableCountIn = humEnableCountIn ? humEnableCountIn.checked : true;
+
+        const actuallyStartRecording = () => {
+          mediaRecorder?.start();
+          isHumRecording = true;
+          isCountIn = false;
+          if (humRecordIcon) humRecordIcon.textContent = "⏹️";
+          if (humRecordText) humRecordText.textContent = t("humBtnStop");
+          if (humStatusIndicator) humStatusIndicator.textContent = t("humStatusRecording");
+          if (enableMetronome) {
+            startMetronomeClicks(bpm, currentSheet?.beat?.count || 4);
+          }
+        };
+
+        if (enableCountIn) {
+          // 4-beat count in
+          isCountIn = true;
+          if (humRecordIcon) humRecordIcon.textContent = "⏳";
+          if (humRecordText) humRecordText.textContent = t("btnCancel");
+          let count = 1;
+          const countInBeatInterval = (60.0 / bpm) * 1000;
+
+          const runCount = () => {
+            if (!isCountIn) return;
+            playClickSound(count === 1);
+            if (humStatusIndicator) {
+              humStatusIndicator.textContent = t("humStatusCountIn").replace("{count}", String(count));
+            }
+            if (count >= 4) {
+              countInTimer = setTimeout(() => {
+                if (isCountIn) {
+                  actuallyStartRecording();
+                }
+              }, countInBeatInterval);
+            } else {
+              count++;
+              countInTimer = setTimeout(runCount, countInBeatInterval);
+            }
+          };
+          runCount();
+        } else {
+          actuallyStartRecording();
+        }
       } catch (err: any) {
         alert(`無法存取麥克風: ${err.message}`);
       }
     } else {
       // Stop Recording
+      stopMetronome();
       if (mediaRecorder && mediaRecorder.state !== "inactive") {
         mediaRecorder.stop();
       }
@@ -2412,12 +2526,12 @@ function initEvents() {
     try {
       await navigator.clipboard.writeText(codeToCopy);
       const prev = btnAiCopyCode.textContent;
-      btnAiCopyCode.textContent = "✓ 已複製";
+      btnAiCopyCode.textContent = "✓";
       setTimeout(() => {
         btnAiCopyCode.textContent = prev;
       }, 2000);
     } catch {
-      alert("已複製代碼！");
+      alert(t("codeCopied"));
     }
   });
 

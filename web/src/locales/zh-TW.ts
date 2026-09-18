@@ -192,6 +192,7 @@ export const zhTW = {
   aiBtnApplyInsert: "插入游標處",
   aiBtnPlayPreview: "▶️ 試聽這段",
   aiBtnCopyCode: "複製代碼",
+  codeCopied: "已複製代碼！",
   aiProviderSelect: "AI 提供商",
   aiModelSelect: "模型",
   aiCustomModelInput: "或自訂模型名稱 (Free Text)",
@@ -242,5 +243,14 @@ export const zhTW = {
   humBtnApply: "置入編輯器 (Insert Section)",
   humBtnClose: "關閉",
   humSnapScale: "吸附至自然音階（過濾微走音與跑調怪音）",
+  humEnableMetronome: "啟用節拍器 (Metronome)",
+  humEnableCountIn: "4 拍預備倒數 (Count-in)",
+  humHeadphoneHint: "建議配戴耳機哼唱，避免節拍器被麥克風錄入",
+  humResultCodePreview: "TMD 簡譜產生結果預覽 (Preview)：",
+  humPlaceholderResult: "錄音辨識後的 TMD 代碼將顯示於此...",
+  humGrid8: "8 分音符 (<8*>)",
+  humGrid4: "4 分音符 (<4*>)",
+  humGrid16: "16 分音符 (<16*>)",
+  humStatusCountIn: "🔔 預備倒數：第 {count} 拍...",
 };
 

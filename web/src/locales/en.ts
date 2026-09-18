@@ -192,6 +192,7 @@ export const en = {
   aiBtnApplyInsert: "Insert at Cursor",
   aiBtnPlayPreview: "▶️ Preview This",
   aiBtnCopyCode: "Copy Code",
+  codeCopied: "Code copied to clipboard!",
   aiProviderSelect: "AI Provider",
   aiModelSelect: "Model",
   aiCustomModelInput: "Or Custom Model Name (Free Text)",
@@ -242,5 +243,14 @@ export const en = {
   humBtnApply: "Insert Section into Editor",
   humBtnClose: "Close",
   humSnapScale: "Snap to Natural Diatonic Scale (eliminate microtonal glitches)",
+  humEnableMetronome: "Enable Metronome",
+  humEnableCountIn: "4-Beat Count-in",
+  humHeadphoneHint: "Headphones recommended to avoid click bleed into mic",
+  humResultCodePreview: "Transcribed TMD Section Preview:",
+  humPlaceholderResult: "Transcribed TMD code will appear here after recording...",
+  humGrid8: "8th Notes (<8*>)",
+  humGrid4: "Quarter Notes (<4*>)",
+  humGrid16: "16th Notes (<16*>)",
+  humStatusCountIn: "🔔 Count-in: Beat {count}...",
 };
 

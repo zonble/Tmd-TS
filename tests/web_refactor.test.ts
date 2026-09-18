@@ -162,7 +162,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect((zhTW as any).humModalTitle).toBeDefined();
     expect((en as any).humModalTitle).toBeDefined();
 
-    // index.html modal and menu buttons
+    // index.html modal, metronome controls, and menu buttons
     const htmlPath = path.join(__dirname, "../web/index.html");
     const html = fs.readFileSync(htmlPath, "utf-8");
     expect(html).toContain('id="tool-hum-recording"');
@@ -170,11 +170,15 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(html).toContain('id="hum-modal"');
     expect(html).toContain('id="hum-btn-record"');
     expect(html).toContain('id="hum-btn-apply"');
+    expect(html).toContain('id="hum-enable-metronome"');
+    expect(html).toContain('id="hum-enable-countin"');
 
-    // main.ts audio module and quantizer wiring
+    // main.ts audio module, metronome, and quantizer wiring
     const mainPath = path.join(__dirname, "../web/src/main.ts");
     const mainContent = fs.readFileSync(mainPath, "utf-8");
     expect(mainContent).toContain("quantizeNoteEventsToTmdSection");
     expect(mainContent).toContain("hum-modal");
+    expect(mainContent).toContain("startMetronomeClicks");
+    expect(mainContent).toContain("playClickSound");
   });
 });
