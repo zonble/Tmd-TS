@@ -156,6 +156,7 @@ const toolInlineOrders = document.getElementById("tool-inline-orders") as HTMLBu
 const toolRenameInstrument = document.getElementById("tool-rename-instrument") as HTMLButtonElement;
 const toolRenameSection = document.getElementById("tool-rename-section") as HTMLButtonElement;
 const toolExtractInstrument = document.getElementById("tool-extract-instrument") as HTMLButtonElement;
+const toolInsertSection = document.getElementById("tool-insert-section") as HTMLButtonElement;
 
 // Problems Panel elements
 const problemsPanel = document.getElementById("problems-panel") as HTMLElement;
@@ -198,11 +199,20 @@ const refactorHarmScopeGlobal = document.getElementById("refactor-harm-scope-glo
 const refactorHarmScopeSectionLabel = document.getElementById("refactor-harm-scope-section-label") as HTMLElement;
 const btnConfirmHarmony = document.getElementById("btn-confirm-harmony") as HTMLButtonElement;
 
+// Insert Section Modal
+const insertSectionModal = document.getElementById("insert-section-modal") as HTMLDialogElement;
+const insertSecName = document.getElementById("insert-sec-name") as HTMLInputElement;
+const insertSecInst = document.getElementById("insert-sec-inst") as HTMLInputElement;
+const insertSecTemplate = document.getElementById("insert-sec-template") as HTMLSelectElement;
+const insertSecMeasures = document.getElementById("insert-sec-measures") as HTMLSelectElement;
+const btnConfirmInsertSec = document.getElementById("btn-confirm-insert-sec") as HTMLButtonElement;
+
 // Context Menu elements
 const editorContextMenu = document.getElementById("editor-context-menu") as HTMLElement;
 const ctxHeaderInfo = document.getElementById("ctx-header-info") as HTMLElement;
 const ctxFormat = document.getElementById("ctx-format") as HTMLButtonElement;
 const ctxFormatLabel = document.getElementById("ctx-format-label") as HTMLElement;
+const ctxInsertSection = document.getElementById("ctx-insert-section") as HTMLButtonElement;
 const ctxDoubleGrid = document.getElementById("ctx-double-grid") as HTMLButtonElement;
 const ctxHalveGrid = document.getElementById("ctx-halve-grid") as HTMLButtonElement;
 const ctxDuplicateTrack = document.getElementById("ctx-duplicate-track") as HTMLButtonElement;
@@ -1425,6 +1435,7 @@ function initEvents() {
       refactorExtractModal?.close();
       refactorDuplicateModal?.close();
       refactorHarmonyModal?.close();
+      insertSectionModal?.close();
     });
   });
 
@@ -1499,6 +1510,93 @@ function initEvents() {
   ctxHalveGrid?.addEventListener("click", () => {
     closeContextMenu();
     toolHalveGrid.click();
+  });
+
+  // Insert Section Modal & Snippet Generation
+  const openInsertSectionModal = () => {
+    toolsDropdown?.classList.remove("open");
+    closeContextMenu();
+    const ctx = editor.getCursorContext();
+    if (ctx.section) {
+      insertSecName.value = `${ctx.section}_new`;
+    } else {
+      insertSecName.value = "verse2";
+    }
+    if (ctx.instrument) {
+      insertSecInst.value = ctx.instrument;
+    } else {
+      insertSecInst.value = "Lead";
+    }
+    insertSectionModal.showModal();
+  };
+
+  toolInsertSection?.addEventListener("click", () => {
+    openInsertSectionModal();
+  });
+
+  ctxInsertSection?.addEventListener("click", () => {
+    openInsertSectionModal();
+  });
+
+  btnConfirmInsertSec?.addEventListener("click", () => {
+    const secName = insertSecName.value.trim() || "verse";
+    const instName = insertSecInst.value.trim() || "Lead";
+    const templateType = insertSecTemplate.value;
+    const measures = parseInt(insertSecMeasures.value, 10) || 4;
+
+    let bars = "";
+    if (templateType === "melody") {
+      const barPatterns = [
+        "| 1 2 3 5 |",
+        "| 6 5 3 - |",
+        "| 2 3 2 1 |",
+        "| 2 - - - |",
+        "| 1 2 3 5 |",
+        "| 6 1^ 6 5 |",
+        "| 3 5 2 3 |",
+        "| 1 - - - |",
+      ];
+      bars = Array.from({ length: measures }, (_, i) => barPatterns[i % barPatterns.length]).join("\n  ");
+    } else if (templateType === "chords") {
+      const chordPatterns = [
+        "| [1] - - - |",
+        "| [5] - - - |",
+        "| [6m] - - - |",
+        "| [4] - - - |",
+        "| [1] - - - |",
+        "| [4] - - - |",
+        "| [5] - - - |",
+        "| [1] - - - |",
+      ];
+      bars = Array.from({ length: measures }, (_, i) => chordPatterns[i % chordPatterns.length]).join("\n  ");
+    } else if (templateType === "drums") {
+      const drumPatterns = [
+        "| D - S - |",
+        "| D D S - |",
+        "| D - S - |",
+        "| D - (xxxx) - |",
+      ];
+      bars = Array.from({ length: measures }, (_, i) => drumPatterns[i % drumPatterns.length]).join("\n  ");
+    } else if (templateType === "bass") {
+      const bassPatterns = [
+        "| 1_ - - - |",
+        "| 5_ - - - |",
+        "| 6_ - - - |",
+        "| 4_ - - - |",
+      ];
+      bars = Array.from({ length: measures }, (_, i) => bassPatterns[i % bassPatterns.length]).join("\n  ");
+    }
+
+    const snippet = `\n${secName}:${instName}@|0|{\n  <4*>\n  ${bars}\n}\n`;
+
+    // Also update order if section not present in order sequence
+    let currentScore = editor.getContent();
+    editor.insertAtCursor(snippet);
+    const updated = editor.getContent();
+    updateInspector(updated);
+    updateProblems(updated);
+    insertSectionModal.close();
+    showToast(t("toastInsertedSection"));
   });
 
   ctxDuplicateTrack?.addEventListener("click", () => {

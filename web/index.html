@@ -115,6 +115,10 @@
               <button class="dropdown-item" id="tool-extract-instrument">
                 <span>🎼</span> <span data-i18n="toolExtractInstrument">抽取樂器音軌...</span>
               </button>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" id="tool-insert-section">
+                <span>➕</span> <span data-i18n="toolInsertSection">插入新段落範本 (Insert Section)...</span>
+              </button>
             </div>
           </div>
 
@@ -766,11 +770,54 @@ verse:Lead@|0|{
         </div>
       </dialog>
 
+      <!-- Insert Section Modal -->
+      <dialog id="insert-section-modal" class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title" data-i18n="insertSectionTitle">插入新段落範本 (Section Snippet)</h2>
+          <button class="btn btn-icon-only btn-close-modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="insert-sec-name" data-i18n="labelNewSection">段落名稱：</label>
+            <input type="text" id="insert-sec-name" class="text-control" value="verse2" placeholder="e.g. verse2, bridge" />
+          </div>
+          <div class="form-group">
+            <label for="insert-sec-inst" data-i18n="labelNewInstrument">樂器名稱：</label>
+            <input type="text" id="insert-sec-inst" class="text-control" value="Lead" placeholder="e.g. Lead, Piano, Guitar, Drums" />
+          </div>
+          <div class="form-group">
+            <label for="insert-sec-template" data-i18n="labelSectionType">段落範本類型：</label>
+            <select id="insert-sec-template" class="text-control">
+              <option value="melody" data-i18n="insertSnippetMelody">主旋律範本 (Melody - Lead, 4/4)</option>
+              <option value="chords" data-i18n="insertSnippetChords">和弦伴奏範本 (Chords - Piano, 4/4)</option>
+              <option value="drums" data-i18n="insertSnippetDrums">標準流行節奏鼓組 (Drums - 4/4 Kick & Snare)</option>
+              <option value="bass" data-i18n="insertSnippetBass">貝斯走音根音範本 (Bass - Root Notes)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="insert-sec-measures" data-i18n="labelInsertMeasureCount">小節數量 (Measures)：</label>
+            <select id="insert-sec-measures" class="text-control">
+              <option value="4" selected>4 小節 (4 Measures)</option>
+              <option value="8">8 小節 (8 Measures)</option>
+              <option value="2">2 小節 (2 Measures)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-confirm-insert-sec" class="btn btn-primary" data-i18n="btnConfirm">確認插入</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+        </div>
+      </dialog>
+
       <!-- Custom Editor Context Menu -->
       <div id="editor-context-menu" class="context-menu" style="display: none;">
         <div id="ctx-header-info" class="context-menu-header" style="display: none;"></div>
         <button class="context-menu-item" id="ctx-format">
           <span>🪄</span> <span id="ctx-format-label" data-i18n="toolFormatDocument">格式化樂譜 (Shift+Alt+F)</span>
+        </button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" id="ctx-insert-section">
+          <span>➕</span> <span data-i18n="toolInsertSection">插入新段落範本 (Insert Section)...</span>
         </button>
         <div class="context-menu-divider"></div>
         <button class="context-menu-item" id="ctx-double-grid">

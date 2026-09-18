@@ -115,6 +115,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(html).toContain('id="ctx-duplicate-track"');
     expect(html).toContain('id="ctx-generate-harmony"');
     expect(html).toContain('id="ctx-extract-instrument"');
+    expect(html).toContain('id="ctx-insert-section"');
     expect(html).toContain('id="ctx-rename-instrument"');
     expect(html).toContain('id="ctx-rename-section"');
 
@@ -123,9 +124,10 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(html).toContain('id="refactor-dup-scope-global"');
     expect(html).toContain('id="refactor-harm-scope-section"');
     expect(html).toContain('id="refactor-harm-scope-global"');
+    expect(html).toContain('id="insert-section-modal"');
   });
 
-  it("binds context menu events and section-scoped refactor in web/src/main.ts", () => {
+  it("binds context menu events, snippet insertion, and section-scoped refactor in web/src/main.ts", () => {
     const mainPath = path.join(__dirname, "../web/src/main.ts");
     const mainContent = fs.readFileSync(mainPath, "utf-8");
 
@@ -134,5 +136,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(mainContent).toContain("contextmenu");
     expect(mainContent).toContain("refactor-dup-scope-section");
     expect(mainContent).toContain("refactor-harm-scope-section");
+    expect(mainContent).toContain("ctx-insert-section");
+    expect(mainContent).toContain("insert-section-modal");
   });
 });
