@@ -154,4 +154,26 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     // main.ts should handle onPlaySection and generate/play scoped MIDI
     expect(mainContent).toContain("playSectionOrTrack");
   });
+
+  it("supports Humming to TMD section (Spotify Basic Pitch) in web UI and i18n", () => {
+    // i18n translations
+    expect((zhTW as any).toolHumToTmd).toBeDefined();
+    expect((en as any).toolHumToTmd).toBeDefined();
+    expect((zhTW as any).humModalTitle).toBeDefined();
+    expect((en as any).humModalTitle).toBeDefined();
+
+    // index.html modal and button
+    const htmlPath = path.join(__dirname, "../web/index.html");
+    const html = fs.readFileSync(htmlPath, "utf-8");
+    expect(html).toContain('id="btn-hum-recording"');
+    expect(html).toContain('id="hum-modal"');
+    expect(html).toContain('id="hum-btn-record"');
+    expect(html).toContain('id="hum-btn-apply"');
+
+    // main.ts audio module and quantizer wiring
+    const mainPath = path.join(__dirname, "../web/src/main.ts");
+    const mainContent = fs.readFileSync(mainPath, "utf-8");
+    expect(mainContent).toContain("quantizeNoteEventsToTmdSection");
+    expect(mainContent).toContain("hum-modal");
+  });
 });

@@ -119,8 +119,16 @@
               <button class="dropdown-item" id="tool-insert-section">
                 <span>➕</span> <span data-i18n="toolInsertSection">插入新段落範本 (Insert Section)...</span>
               </button>
+              <button class="dropdown-item" id="tool-hum-recording">
+                <span>🎤</span> <span data-i18n="toolHumToTmd">哼唱轉記為樂段 (Hum to TMD)...</span>
+              </button>
             </div>
           </div>
+
+          <button id="btn-hum-recording" class="btn" title="哼唱麥克風錄音並轉為 TMD 樂段" data-i18n-title="toolHumToTmd">
+            <span class="btn-icon">🎤</span>
+            <span class="btn-text" data-i18n="toolHumToTmd">哼唱錄音</span>
+          </button>
 
           <button id="btn-share" class="btn" title="複製含有這份樂譜的分享連結" data-i18n-title="btnShareTitle">
             <span class="btn-icon">🔗</span>
@@ -806,6 +814,80 @@ verse:Lead@|0|{
         <div class="modal-footer">
           <button id="btn-confirm-insert-sec" class="btn btn-primary" data-i18n="btnConfirm">確認插入</button>
           <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+        </div>
+      </dialog>
+
+      <!-- Humming to TMD Dialog (Spotify Basic Pitch) -->
+      <dialog id="hum-modal" class="modal modal-lg">
+        <div class="modal-header">
+          <div class="modal-title" data-i18n="humModalTitle">🎤 哼唱轉記為 TMD 樂段 (Spotify Basic Pitch)</div>
+          <button class="btn-close-modal">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-desc" data-i18n="humModalDesc">對著麥克風哼唱旋律，系統將透過 Spotify Basic Pitch 模型在本機即時辨識音高與時值，並自動量化為 TMD 簡譜樂段（完全本機運算，無音訊上傳）。</p>
+          
+          <div style="display: flex; gap: 12px; align-items: center; margin: 16px 0;">
+            <button id="hum-btn-record" class="btn btn-primary" style="padding: 10px 20px; font-size: 14px;">
+              <span id="hum-record-icon">🔴</span> <span id="hum-record-text" data-i18n="humBtnRecord">開始錄音</span>
+            </button>
+            <div id="hum-status-indicator" style="font-size: 13px; color: var(--text-secondary);" data-i18n="humStatusIdle">點擊上方按鈕開始錄音，哼唱你的旋律（建議 2~8 小節）...</div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px;">
+            <div class="form-group">
+              <label for="hum-section-name" data-i18n="humSectionName">段落名稱：</label>
+              <input type="text" id="hum-section-name" class="text-control" value="hummed" />
+            </div>
+            <div class="form-group">
+              <label for="hum-instrument" data-i18n="humInstrument">樂器：</label>
+              <input type="text" id="hum-instrument" class="text-control" value="Vocal" />
+            </div>
+            <div class="form-group">
+              <label for="hum-key" data-i18n="humKey">預期調性：</label>
+              <select id="hum-key" class="text-control">
+                <option value="C" selected>C</option>
+                <option value="D">D</option>
+                <option value="E">E</option>
+                <option value="F">F</option>
+                <option value="G">G</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="F#">F# / Gb</option>
+                <option value="Bb">Bb / A#</option>
+                <option value="Eb">Eb / D#</option>
+                <option value="Ab">Ab / G#</option>
+                <option value="Db">Db / C#</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="hum-bpm" data-i18n="humBpm">參考速度 (BPM)：</label>
+              <input type="number" id="hum-bpm" class="text-control" value="120" min="40" max="240" />
+            </div>
+            <div class="form-group">
+              <label for="hum-grid" data-i18n="humGrid">時間網格：</label>
+              <select id="hum-grid" class="text-control">
+                <option value="8" selected>8 分音符 (&lt;8*&gt;)</option>
+                <option value="4">4 分音符 (&lt;4*&gt;)</option>
+                <option value="16">16 分音符 (&lt;16*&gt;)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="hum-result-code">TMD 簡譜產生結果預覽 (Preview)：</label>
+            <textarea id="hum-result-code" class="text-control" rows="7" style="font-family: var(--font-mono); font-size: 13px; line-height: 1.5; white-space: pre;" placeholder="錄音辨識後的 TMD 代碼將顯示於此..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between;">
+          <div>
+            <button id="hum-btn-play-preview" class="btn" style="display: none;">
+              <span>▶️</span> <span data-i18n="humBtnPlayPreview">試聽辨識結果</span>
+            </button>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button id="hum-btn-apply" class="btn btn-primary" data-i18n="humBtnApply" disabled>置入編輯器 (Insert Section)</button>
+            <button class="btn btn-close-modal" data-i18n="humBtnClose">關閉</button>
+          </div>
         </div>
       </dialog>
 

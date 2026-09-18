@@ -45,6 +45,7 @@ import { initTmdWebMcp } from "./mcp/webmcpIntegration.js";
 import { TmdStorage, SavedScore, extractTmdTitle } from "./storage/db.js";
 import { encodeShareHash, decodeShareHash } from "./share.js";
 import { escapeHtml } from "./html.js";
+import { quantizeNoteEventsToTmdSection, TmdNoteEventTime } from "./audio/quantizer.js";
 
 let editor: TMDWebEditor;
 let currentSheet: Sheet | null = null;
@@ -222,6 +223,23 @@ const ctxExtractInstrument = document.getElementById("ctx-extract-instrument") a
 const ctxRenameInstrument = document.getElementById("ctx-rename-instrument") as HTMLButtonElement;
 const ctxRenameSection = document.getElementById("ctx-rename-section") as HTMLButtonElement;
 const aiSettingsBaseUrlGroup = document.getElementById("ai-settings-baseurl-group") as HTMLElement;
+
+// Hum to TMD elements
+const btnHumRecording = document.getElementById("btn-hum-recording") as HTMLButtonElement;
+const toolHumRecording = document.getElementById("tool-hum-recording") as HTMLButtonElement;
+const humModal = document.getElementById("hum-modal") as HTMLDialogElement;
+const humBtnRecord = document.getElementById("hum-btn-record") as HTMLButtonElement;
+const humRecordIcon = document.getElementById("hum-record-icon") as HTMLElement;
+const humRecordText = document.getElementById("hum-record-text") as HTMLElement;
+const humStatusIndicator = document.getElementById("hum-status-indicator") as HTMLElement;
+const humSectionName = document.getElementById("hum-section-name") as HTMLInputElement;
+const humInstrument = document.getElementById("hum-instrument") as HTMLInputElement;
+const humKey = document.getElementById("hum-key") as HTMLSelectElement;
+const humBpm = document.getElementById("hum-bpm") as HTMLInputElement;
+const humGrid = document.getElementById("hum-grid") as HTMLSelectElement;
+const humResultCode = document.getElementById("hum-result-code") as HTMLTextAreaElement;
+const humBtnPlayPreview = document.getElementById("hum-btn-play-preview") as HTMLButtonElement;
+const humBtnApply = document.getElementById("hum-btn-apply") as HTMLButtonElement;
 
 // Player Bar (Matching zago)
 const tmdPlayerBar = document.getElementById("tmd-player-bar") as HTMLElement;
@@ -1730,6 +1748,149 @@ function initEvents() {
     updateInspector(updated);
     updateProblems(updated);
     insertSectionModal.close();
+    showToast(t("toastInsertedSection"));
+  });
+
+  // Hum to TMD Modal & Recording
+  let mediaRecorder: MediaRecorder | null = null;
+  let audioChunks: Blob[] = [];
+  let isHumRecording = false;
+  let humTranscribedSnippet = "";
+
+  const openHumModal = () => {
+    if (currentSheet) {
+      if (humBpm) humBpm.value = currentSheet.speed > 0 ? String(currentSheet.speed) : "120";
+      if (humKey) humKey.value = currentSheet.keySignature ? currentSheet.keySignature.toString().replace("'", "#") : "C";
+    }
+    if (humResultCode) humResultCode.value = "";
+    if (humBtnApply) humBtnApply.disabled = true;
+    if (humBtnPlayPreview) humBtnPlayPreview.style.display = "none";
+    if (humStatusIndicator) humStatusIndicator.textContent = t("humStatusIdle");
+    humModal?.showModal();
+  };
+
+  btnHumRecording?.addEventListener("click", openHumModal);
+  toolHumRecording?.addEventListener("click", openHumModal);
+
+  humBtnRecord?.addEventListener("click", async () => {
+    if (!isHumRecording) {
+      // Start Recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunks.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          // Stop stream tracks
+          stream.getTracks().forEach((track) => track.stop());
+
+          if (humStatusIndicator) humStatusIndicator.textContent = t("humStatusProcessing");
+          if (humRecordIcon) humRecordIcon.textContent = "⏳";
+          if (humRecordText) humRecordText.textContent = t("humStatusProcessing");
+          humBtnRecord.disabled = true;
+
+          try {
+            const audioBlob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || "audio/webm" });
+            const arrayBuffer = await audioBlob.arrayBuffer();
+            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+            // Dynamically import @spotify/basic-pitch to avoid loading tensorflow at startup
+            const { BasicPitch, noteFramesToTime, outputToNotesPoly } = await import("@spotify/basic-pitch");
+            const basicPitch = new BasicPitch("https://unpkg.com/@spotify/basic-pitch@1.0.1/model/model.json");
+
+            const frames: number[][] = [];
+            const onsets: number[][] = [];
+            const contours: number[][] = [];
+
+            await basicPitch.evaluateModel(
+              audioBuffer,
+              (f: number[][], o: number[][], c: number[][]) => {
+                frames.push(...f);
+                onsets.push(...o);
+                contours.push(...c);
+              },
+              (_pct: number) => {}
+            );
+
+            const notes = outputToNotesPoly(frames, onsets, 0.25, 0.25, 5);
+            const noteEvents = noteFramesToTime(notes);
+
+            const bpm = parseInt(humBpm?.value || "120", 10) || 120;
+            const grid = parseInt(humGrid?.value || "8", 10) || 8;
+            const key = humKey?.value || "C";
+            const secName = humSectionName?.value.trim() || "hummed";
+            const instName = humInstrument?.value.trim() || "Vocal";
+
+            const tmdSnippet = quantizeNoteEventsToTmdSection(noteEvents, {
+              sectionName: secName,
+              instrument: instName,
+              bpm,
+              grid,
+              key,
+              beatsPerMeasure: currentSheet?.beat?.count || 4,
+            });
+
+            humTranscribedSnippet = tmdSnippet;
+            if (humResultCode) humResultCode.value = tmdSnippet;
+            if (humStatusIndicator) humStatusIndicator.textContent = t("humStatusSuccess");
+            if (humBtnApply) humBtnApply.disabled = false;
+            if (humBtnPlayPreview) humBtnPlayPreview.style.display = "inline-flex";
+          } catch (err: any) {
+            console.error("Basic Pitch error:", err);
+            if (humStatusIndicator) {
+              humStatusIndicator.textContent = t("humStatusError").replace("{error}", err.message || String(err));
+            }
+          } finally {
+            humBtnRecord.disabled = false;
+            if (humRecordIcon) humRecordIcon.textContent = "🔴";
+            if (humRecordText) humRecordText.textContent = t("humBtnRecord");
+          }
+        };
+
+        mediaRecorder.start();
+        isHumRecording = true;
+        if (humRecordIcon) humRecordIcon.textContent = "⏹️";
+        if (humRecordText) humRecordText.textContent = t("humBtnStop");
+        if (humStatusIndicator) humStatusIndicator.textContent = t("humStatusRecording");
+      } catch (err: any) {
+        alert(`無法存取麥克風: ${err.message}`);
+      }
+    } else {
+      // Stop Recording
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+      }
+      isHumRecording = false;
+    }
+  });
+
+  humBtnPlayPreview?.addEventListener("click", () => {
+    const code = humResultCode?.value || humTranscribedSnippet;
+    if (!code) return;
+    const secName = humSectionName?.value.trim() || "hummed";
+    const instName = humInstrument?.value.trim() || "Vocal";
+    const key = humKey?.value || "C";
+    const bpm = humBpm?.value || "120";
+
+    const previewTmd = `::SCORE::\n** Hummed Preview **\n!= ${bpm}\n?= ${key}\n<4/4>\n\n${code}\n\n-> ${secName} ->#\n`;
+    startPlayback(previewTmd);
+  });
+
+  humBtnApply?.addEventListener("click", () => {
+    const code = humResultCode?.value || humTranscribedSnippet;
+    if (!code) return;
+    editor.insertAtCursor(`\n${code}\n`);
+    const updated = editor.getContent();
+    updateInspector(updated);
+    updateProblems(updated);
+    humModal.close();
     showToast(t("toastInsertedSection"));
   });
 
