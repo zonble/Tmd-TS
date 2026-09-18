@@ -223,11 +223,11 @@ export const en = {
   aiValidationError: "⚠️ TMD syntax validation failed (Line {line}): {error}",
   aiBtnRetryRepair: "🔧 Ask AI to Fix",
   aiInvalidTmdWarning: "This score contains syntax errors and cannot be previewed. Please fix the syntax first.",
-  toolHumToTmd: "🎤 Hum to TMD Section (Basic Pitch)...",
+  toolHumToTmd: "Hum to TMD Section (Basic Pitch)...",
   humModalTitle: "🎤 Hum to TMD Section (Spotify Basic Pitch)",
   humModalDesc: "Hum or sing a melody into your microphone. Spotify Basic Pitch model will transcribe notes and quantize them into a clean TMD Jianpu section in real-time (entirely local processing, no audio uploaded).",
-  humBtnRecord: "🔴 Start Recording",
-  humBtnStop: "⏹️ Stop & Transcribe",
+  humBtnRecord: "Start Recording",
+  humBtnStop: "Stop & Transcribe",
   humStatusIdle: "Click the button above and hum your melody (2~8 measures recommended)...",
   humStatusRecording: "🎙️ Recording in progress... Click Stop when finished",
   humStatusProcessing: "⏳ Transcribing pitch and quantizing via Spotify Basic Pitch...",
@@ -241,5 +241,6 @@ export const en = {
   humBtnPlayPreview: "▶️ Preview Result",
   humBtnApply: "Insert Section into Editor",
   humBtnClose: "Close",
+  humSnapScale: "Snap to Natural Diatonic Scale (eliminate microtonal glitches)",
 };
 

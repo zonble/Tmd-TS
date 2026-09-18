@@ -222,10 +222,10 @@ const ctxGenerateHarmony = document.getElementById("ctx-generate-harmony") as HT
 const ctxExtractInstrument = document.getElementById("ctx-extract-instrument") as HTMLButtonElement;
 const ctxRenameInstrument = document.getElementById("ctx-rename-instrument") as HTMLButtonElement;
 const ctxRenameSection = document.getElementById("ctx-rename-section") as HTMLButtonElement;
+const ctxHumRecording = document.getElementById("ctx-hum-recording") as HTMLButtonElement;
 const aiSettingsBaseUrlGroup = document.getElementById("ai-settings-baseurl-group") as HTMLElement;
 
 // Hum to TMD elements
-const btnHumRecording = document.getElementById("btn-hum-recording") as HTMLButtonElement;
 const toolHumRecording = document.getElementById("tool-hum-recording") as HTMLButtonElement;
 const humModal = document.getElementById("hum-modal") as HTMLDialogElement;
 const humBtnRecord = document.getElementById("hum-btn-record") as HTMLButtonElement;
@@ -237,6 +237,7 @@ const humInstrument = document.getElementById("hum-instrument") as HTMLInputElem
 const humKey = document.getElementById("hum-key") as HTMLSelectElement;
 const humBpm = document.getElementById("hum-bpm") as HTMLInputElement;
 const humGrid = document.getElementById("hum-grid") as HTMLSelectElement;
+const humSnapScale = document.getElementById("hum-snap-scale") as HTMLInputElement;
 const humResultCode = document.getElementById("hum-result-code") as HTMLTextAreaElement;
 const humBtnPlayPreview = document.getElementById("hum-btn-play-preview") as HTMLButtonElement;
 const humBtnApply = document.getElementById("hum-btn-apply") as HTMLButtonElement;
@@ -1588,6 +1589,7 @@ function initEvents() {
       refactorDuplicateModal?.close();
       refactorHarmonyModal?.close();
       insertSectionModal?.close();
+      humModal?.close();
     });
   });
 
@@ -1769,8 +1771,11 @@ function initEvents() {
     humModal?.showModal();
   };
 
-  btnHumRecording?.addEventListener("click", openHumModal);
   toolHumRecording?.addEventListener("click", openHumModal);
+  ctxHumRecording?.addEventListener("click", () => {
+    closeContextMenu();
+    openHumModal();
+  });
 
   humBtnRecord?.addEventListener("click", async () => {
     if (!isHumRecording) {
@@ -1821,21 +1826,57 @@ function initEvents() {
               (_pct: number) => {}
             );
 
-            const notes = outputToNotesPoly(frames, onsets, 0.25, 0.25, 5);
-            const noteEvents = noteFramesToTime(notes);
+            // For humming/singing vocal lines:
+            // 1. onsetThreshold = 0.5 (filters out breath/glottal noise)
+            // 2. frameThreshold = 0.35 (keeps solid sustained notes)
+            // 3. minNoteLength = 11 frames (~120ms, eliminates ultra-short ghost blips)
+            const notes = outputToNotesPoly(frames, onsets, 0.5, 0.35, 11);
+            const rawEvents = noteFramesToTime(notes);
+
+            // Monophonic Vocal Filter:
+            // Humming is monophonic. If multiple notes overlap in time, keep the one with higher amplitude.
+            const sortedEvents = [...rawEvents].sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
+            const monophonicEvents: typeof rawEvents = [];
+
+            for (const ev of sortedEvents) {
+              if (monophonicEvents.length === 0) {
+                monophonicEvents.push(ev);
+                continue;
+              }
+              const prev = monophonicEvents[monophonicEvents.length - 1];
+              const prevEnd = prev.startTimeSeconds + prev.durationSeconds;
+
+              // Check if overlapping significantly (> 0.08s)
+              if (ev.startTimeSeconds < prevEnd - 0.08) {
+                if (ev.amplitude > prev.amplitude) {
+                  // Replace previous weaker note or truncate previous
+                  if (ev.startTimeSeconds <= prev.startTimeSeconds + 0.08) {
+                    monophonicEvents[monophonicEvents.length - 1] = ev;
+                  } else {
+                    prev.durationSeconds = Math.max(0.08, ev.startTimeSeconds - prev.startTimeSeconds);
+                    monophonicEvents.push(ev);
+                  }
+                }
+                // If current note is weaker, ignore ghost resonance
+              } else {
+                monophonicEvents.push(ev);
+              }
+            }
 
             const bpm = parseInt(humBpm?.value || "120", 10) || 120;
             const grid = parseInt(humGrid?.value || "8", 10) || 8;
             const key = humKey?.value || "C";
+            const snapToScale = humSnapScale ? humSnapScale.checked : true;
             const secName = humSectionName?.value.trim() || "hummed";
             const instName = humInstrument?.value.trim() || "Vocal";
 
-            const tmdSnippet = quantizeNoteEventsToTmdSection(noteEvents, {
+            const tmdSnippet = quantizeNoteEventsToTmdSection(monophonicEvents, {
               sectionName: secName,
               instrument: instName,
               bpm,
               grid,
               key,
+              snapToScale,
               beatsPerMeasure: currentSheet?.beat?.count || 4,
             });
 

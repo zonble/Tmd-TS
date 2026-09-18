@@ -223,11 +223,11 @@ export const zhTW = {
   aiValidationError: "⚠️ TMD 語法檢驗未通過 (第 {line} 行)：{error}",
   aiBtnRetryRepair: "🔧 請 AI 再次修復",
   aiInvalidTmdWarning: "此樂譜包含語法錯誤，無法直接試聽。請先修復語法。",
-  toolHumToTmd: "🎤 哼唱轉記為樂段 (Hum to TMD)...",
+  toolHumToTmd: "哼唱轉記為樂段 (Hum to TMD)...",
   humModalTitle: "🎤 哼唱轉記為 TMD 樂段 (Spotify Basic Pitch)",
   humModalDesc: "對著麥克風哼唱旋律，系統將透過 Spotify Basic Pitch 模型在本機即時辨識音高與時值，並自動量化為 TMD 簡譜樂段（完全本機運算，無音訊上傳）。",
-  humBtnRecord: "🔴 開始錄音",
-  humBtnStop: "⏹️ 停止並辨識",
+  humBtnRecord: "開始錄音",
+  humBtnStop: "停止並辨識",
   humStatusIdle: "點擊上方按鈕開始錄音，哼唱你的旋律（建議 2~8 小節）...",
   humStatusRecording: "🎙️ 正在錄音中... 唱完請點擊停止",
   humStatusProcessing: "⏳ 正在透過 Spotify Basic Pitch 辨識音高與量化...",
@@ -241,5 +241,6 @@ export const zhTW = {
   humBtnPlayPreview: "▶️ 試聽辨識結果",
   humBtnApply: "置入編輯器 (Insert Section)",
   humBtnClose: "關閉",
+  humSnapScale: "吸附至自然音階（過濾微走音與跑調怪音）",
 };
 

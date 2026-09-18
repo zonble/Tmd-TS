@@ -162,10 +162,11 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect((zhTW as any).humModalTitle).toBeDefined();
     expect((en as any).humModalTitle).toBeDefined();
 
-    // index.html modal and button
+    // index.html modal and menu buttons
     const htmlPath = path.join(__dirname, "../web/index.html");
     const html = fs.readFileSync(htmlPath, "utf-8");
-    expect(html).toContain('id="btn-hum-recording"');
+    expect(html).toContain('id="tool-hum-recording"');
+    expect(html).toContain('id="ctx-hum-recording"');
     expect(html).toContain('id="hum-modal"');
     expect(html).toContain('id="hum-btn-record"');
     expect(html).toContain('id="hum-btn-apply"');

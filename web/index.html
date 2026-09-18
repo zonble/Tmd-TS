@@ -125,11 +125,6 @@
             </div>
           </div>
 
-          <button id="btn-hum-recording" class="btn" title="哼唱麥克風錄音並轉為 TMD 樂段" data-i18n-title="toolHumToTmd">
-            <span class="btn-icon">🎤</span>
-            <span class="btn-text" data-i18n="toolHumToTmd">哼唱錄音</span>
-          </button>
-
           <button id="btn-share" class="btn" title="複製含有這份樂譜的分享連結" data-i18n-title="btnShareTitle">
             <span class="btn-icon">🔗</span>
             <span class="btn-text" data-i18n="btnShare">分享</span>
@@ -873,6 +868,11 @@ verse:Lead@|0|{
             </div>
           </div>
 
+          <div class="form-group" style="display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 16px; text-align: left; width: 100%;">
+            <input type="checkbox" id="hum-snap-scale" checked style="cursor: pointer; width: 16px; height: 16px; margin: 0; flex-shrink: 0;" />
+            <label for="hum-snap-scale" data-i18n="humSnapScale" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal; color: var(--text-primary); text-align: left; user-select: none;">吸附至自然音階（過濾微走音與跑調怪音）</label>
+          </div>
+
           <div class="form-group">
             <label for="hum-result-code">TMD 簡譜產生結果預覽 (Preview)：</label>
             <textarea id="hum-result-code" class="text-control" rows="7" style="font-family: var(--font-mono); font-size: 13px; line-height: 1.5; white-space: pre;" placeholder="錄音辨識後的 TMD 代碼將顯示於此..."></textarea>
@@ -900,6 +900,9 @@ verse:Lead@|0|{
         <div class="context-menu-divider"></div>
         <button class="context-menu-item" id="ctx-insert-section">
           <span>➕</span> <span data-i18n="toolInsertSection">插入新段落範本 (Insert Section)...</span>
+        </button>
+        <button class="context-menu-item" id="ctx-hum-recording">
+          <span>🎤</span> <span data-i18n="toolHumToTmd">哼唱轉記為樂段 (Hum to TMD)...</span>
         </button>
         <div class="context-menu-divider"></div>
         <button class="context-menu-item" id="ctx-double-grid">
