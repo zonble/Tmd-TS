@@ -199,6 +199,32 @@ verse:Piano@|0|{
     expect(issues).toHaveLength(0);
   });
 
+  it("recognizes percussion tokens and groups like (xxxx) in measure check", () => {
+    const input = `::SCORE::
+** Drum Song **
+!= 120
+?= C
+<4/4>
+
+v2:Drum-Kick@|0| {
+    <4*>
+    | D - - - | D - - - | D - - - | D - - - |
+    | D - - - | D - - - | D - - - | D - x X |
+}
+
+intro:Drum@|0| {
+    <4*>
+    | - - - - |
+    | (xxxx) - - - |
+}
+
+-> v2 ->#
+`;
+
+    const issues = TMDMeasureChecker.check(input);
+    expect(issues).toHaveLength(0);
+  });
+
   it("reports measure issue with incorrect beats", () => {
     const input = `::SCORE::
 ** Mismatched Measure Song **

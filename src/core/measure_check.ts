@@ -277,7 +277,7 @@ export class TMDMeasureChecker {
             continue;
           }
 
-          // Check for standard units: note, chord, tie, percussion, rest
+          // Check for standard units: note, chord, tie, percussion, rest, drum identifiers
           switch (item.token.type) {
             case "note":
             case "chord":
@@ -290,6 +290,20 @@ export class TMDMeasureChecker {
                 currentMeasureSnippet.push(item.text);
               }
               break;
+            case "identifier": {
+              const val = typeof item.token.value === "string" ? item.token.value : item.text;
+              if (val.length > 0 && /^[XxTtSsDdBbOoCc]+$/.test(val)) {
+                advance();
+                paragraphQuarterNotes += unitQuarterNotes;
+                if (insideBar) {
+                  currentMeasureUnits += 1;
+                  currentMeasureSnippet.push(item.text);
+                }
+              } else {
+                advance();
+              }
+              break;
+            }
             case "number":
               advance();
               paragraphQuarterNotes += unitQuarterNotes;
