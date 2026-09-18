@@ -129,6 +129,7 @@ export interface TMDWebEditor {
   getSelection(): string;
   replaceSelection(text: string): void;
   scrollToLine(line: number): void;
+  scrollToRange(startLine: number, startCol: number, endLine: number, endCol: number): void;
   getCursorContext(): CursorContext;
   focus(): void;
 }
