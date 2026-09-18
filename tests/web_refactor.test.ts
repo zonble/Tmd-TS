@@ -96,10 +96,43 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(mainContent).toContain("problems-list");
   });
 
-  it("editor.ts supports onFormat hotkey extension (Shift-Alt-F / Shift-Option-F)", () => {
+  it("editor.ts supports onFormat hotkey extension (Shift-Alt-F / Shift-Option-F) and getCursorContext()", () => {
     const editorPath = path.join(__dirname, "../web/src/editor.ts");
     const editorContent = fs.readFileSync(editorPath, "utf-8");
 
     expect(editorContent).toContain("onFormat");
+    expect(editorContent).toContain("getCursorContext");
+  });
+
+  it("includes editor context menu element in web/index.html", () => {
+    const htmlPath = path.join(__dirname, "../web/index.html");
+    const html = fs.readFileSync(htmlPath, "utf-8");
+
+    expect(html).toContain('id="editor-context-menu"');
+    expect(html).toContain('id="ctx-format"');
+    expect(html).toContain('id="ctx-double-grid"');
+    expect(html).toContain('id="ctx-halve-grid"');
+    expect(html).toContain('id="ctx-duplicate-track"');
+    expect(html).toContain('id="ctx-generate-harmony"');
+    expect(html).toContain('id="ctx-extract-instrument"');
+    expect(html).toContain('id="ctx-rename-instrument"');
+    expect(html).toContain('id="ctx-rename-section"');
+
+    // Section scope controls in duplicate & harmony modals
+    expect(html).toContain('id="refactor-dup-scope-section"');
+    expect(html).toContain('id="refactor-dup-scope-global"');
+    expect(html).toContain('id="refactor-harm-scope-section"');
+    expect(html).toContain('id="refactor-harm-scope-global"');
+  });
+
+  it("binds context menu events and section-scoped refactor in web/src/main.ts", () => {
+    const mainPath = path.join(__dirname, "../web/src/main.ts");
+    const mainContent = fs.readFileSync(mainPath, "utf-8");
+
+    expect(mainContent).toContain("editor-context-menu");
+    expect(mainContent).toContain("getCursorContext");
+    expect(mainContent).toContain("contextmenu");
+    expect(mainContent).toContain("refactor-dup-scope-section");
+    expect(mainContent).toContain("refactor-harm-scope-section");
   });
 });

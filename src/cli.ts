@@ -476,6 +476,7 @@ SUBCOMMANDS:
     let inputPath: string | undefined;
     let source: string | undefined;
     let target: string | undefined;
+    let section: string | undefined;
     let octaveShift = 0;
     let inPlace = false;
     let outputPath: string | undefined;
@@ -492,6 +493,10 @@ SUBCOMMANDS:
       }
       if (arg === "--target") {
         target = rest[++i];
+        continue;
+      }
+      if (arg === "--section") {
+        section = rest[++i];
         continue;
       }
       if (arg === "--octave") {
@@ -529,7 +534,7 @@ SUBCOMMANDS:
 
     let transformed: string;
     try {
-      transformed = TMDRefactor.duplicateTrack(content, source, target, { octaveShift });
+      transformed = TMDRefactor.duplicateTrack(content, source, target, { section, octaveShift });
     } catch (error: any) {
       console.error(`Refactor error: ${error.message || String(error)}`);
       return 1;
@@ -551,6 +556,7 @@ SUBCOMMANDS:
     let inputPath: string | undefined;
     let source: string | undefined;
     let target: string | undefined;
+    let section: string | undefined;
     let intervalSteps = 2; // Default parallel 3rd
     let inPlace = false;
     let outputPath: string | undefined;
@@ -567,6 +573,10 @@ SUBCOMMANDS:
       }
       if (arg === "--target") {
         target = rest[++i];
+        continue;
+      }
+      if (arg === "--section") {
+        section = rest[++i];
         continue;
       }
       if (arg === "--interval") {
@@ -604,7 +614,7 @@ SUBCOMMANDS:
 
     let transformed: string;
     try {
-      transformed = TMDRefactor.generateHarmony(content, source, target, { intervalSteps });
+      transformed = TMDRefactor.generateHarmony(content, source, target, { section, intervalSteps });
     } catch (error: any) {
       console.error(`Refactor error: ${error.message || String(error)}`);
       return 1;

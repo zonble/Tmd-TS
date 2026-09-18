@@ -264,11 +264,17 @@ export class TMDRefactor {
     source: string,
     sourceInstrument: string,
     targetInstrument: string,
-    options?: { octaveShift?: number }
+    options?: { section?: string; octaveShift?: number }
   ): string {
     const sheet = TmdParser.parseThrowing(source);
-    const matching = sheet.paragraphs.filter((p) => p.instrument === sourceInstrument);
+    let matching = sheet.paragraphs.filter((p) => p.instrument === sourceInstrument);
+    if (options?.section) {
+      matching = matching.filter((p) => p.name === options.section);
+    }
     if (matching.length === 0) {
+      if (options?.section) {
+        throw new TMDRefactorError(`Track '${options.section}:${sourceInstrument}' not found in score`);
+      }
       throw new TMDRefactorError(`Instrument '${sourceInstrument}' not found in score`);
     }
 
@@ -318,11 +324,17 @@ export class TMDRefactor {
     source: string,
     sourceInstrument: string,
     harmonyInstrument: string,
-    options: { intervalSteps: number }
+    options: { section?: string; intervalSteps: number }
   ): string {
     const sheet = TmdParser.parseThrowing(source);
-    const matching = sheet.paragraphs.filter((p) => p.instrument === sourceInstrument);
+    let matching = sheet.paragraphs.filter((p) => p.instrument === sourceInstrument);
+    if (options?.section) {
+      matching = matching.filter((p) => p.name === options.section);
+    }
     if (matching.length === 0) {
+      if (options?.section) {
+        throw new TMDRefactorError(`Track '${options.section}:${sourceInstrument}' not found in score`);
+      }
       throw new TMDRefactorError(`Instrument '${sourceInstrument}' not found in score`);
     }
 

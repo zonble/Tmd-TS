@@ -182,13 +182,34 @@ const refactorDuplicateModal = document.getElementById("refactor-duplicate-modal
 const refactorDupSource = document.getElementById("refactor-dup-source") as HTMLSelectElement;
 const refactorDupTarget = document.getElementById("refactor-dup-target") as HTMLInputElement;
 const refactorDupOctave = document.getElementById("refactor-dup-octave") as HTMLSelectElement;
+const refactorDupScopeGroup = document.getElementById("refactor-dup-scope-group") as HTMLElement;
+const refactorDupScopeSection = document.getElementById("refactor-dup-scope-section") as HTMLInputElement;
+const refactorDupScopeGlobal = document.getElementById("refactor-dup-scope-global") as HTMLInputElement;
+const refactorDupScopeSectionLabel = document.getElementById("refactor-dup-scope-section-label") as HTMLElement;
 const btnConfirmDuplicate = document.getElementById("btn-confirm-duplicate") as HTMLButtonElement;
 
 const refactorHarmonyModal = document.getElementById("refactor-harmony-modal") as HTMLDialogElement;
 const refactorHarmSource = document.getElementById("refactor-harm-source") as HTMLSelectElement;
 const refactorHarmTarget = document.getElementById("refactor-harm-target") as HTMLInputElement;
 const refactorHarmInterval = document.getElementById("refactor-harm-interval") as HTMLSelectElement;
+const refactorHarmScopeGroup = document.getElementById("refactor-harm-scope-group") as HTMLElement;
+const refactorHarmScopeSection = document.getElementById("refactor-harm-scope-section") as HTMLInputElement;
+const refactorHarmScopeGlobal = document.getElementById("refactor-harm-scope-global") as HTMLInputElement;
+const refactorHarmScopeSectionLabel = document.getElementById("refactor-harm-scope-section-label") as HTMLElement;
 const btnConfirmHarmony = document.getElementById("btn-confirm-harmony") as HTMLButtonElement;
+
+// Context Menu elements
+const editorContextMenu = document.getElementById("editor-context-menu") as HTMLElement;
+const ctxHeaderInfo = document.getElementById("ctx-header-info") as HTMLElement;
+const ctxFormat = document.getElementById("ctx-format") as HTMLButtonElement;
+const ctxFormatLabel = document.getElementById("ctx-format-label") as HTMLElement;
+const ctxDoubleGrid = document.getElementById("ctx-double-grid") as HTMLButtonElement;
+const ctxHalveGrid = document.getElementById("ctx-halve-grid") as HTMLButtonElement;
+const ctxDuplicateTrack = document.getElementById("ctx-duplicate-track") as HTMLButtonElement;
+const ctxGenerateHarmony = document.getElementById("ctx-generate-harmony") as HTMLButtonElement;
+const ctxExtractInstrument = document.getElementById("ctx-extract-instrument") as HTMLButtonElement;
+const ctxRenameInstrument = document.getElementById("ctx-rename-instrument") as HTMLButtonElement;
+const ctxRenameSection = document.getElementById("ctx-rename-section") as HTMLButtonElement;
 const aiSettingsBaseUrlGroup = document.getElementById("ai-settings-baseurl-group") as HTMLElement;
 
 // Player Bar (Matching zago)
@@ -1265,9 +1286,12 @@ function initEvents() {
     }
   });
 
-  // Duplicate Track Modal
-  toolDuplicateTrack?.addEventListener("click", () => {
+  // Context-aware modal openers
+  let activeContextSection: string | undefined;
+
+  const openDuplicateModal = (initialSection?: string, initialInstrument?: string) => {
     toolsDropdown?.classList.remove("open");
+    closeContextMenu();
     const text = editor.getContent();
     let sheet: Sheet | null = null;
     try {
@@ -1277,21 +1301,70 @@ function initEvents() {
     }
     const instruments = Array.from(new Set(sheet?.paragraphs.map((p) => p.instrument) || []));
     refactorDupSource.innerHTML = instruments
-      .map((inst) => `<option value="${escapeHtml(inst)}">${escapeHtml(inst)}</option>`)
+      .map((inst) => `<option value="${escapeHtml(inst)}" ${inst === initialInstrument ? "selected" : ""}>${escapeHtml(inst)}</option>`)
       .join("");
     refactorDupTarget.value = "";
     refactorDupOctave.value = "0";
+
+    activeContextSection = initialSection;
+    if (initialSection) {
+      refactorDupScopeGroup.style.display = "block";
+      refactorDupScopeSection.checked = true;
+      refactorDupScopeSectionLabel.textContent = t("scopeSectionOnly").replace("{section}", initialSection);
+    } else {
+      refactorDupScopeGroup.style.display = "none";
+      refactorDupScopeGlobal.checked = true;
+    }
+
     refactorDuplicateModal.showModal();
+  };
+
+  const openHarmonyModal = (initialSection?: string, initialInstrument?: string) => {
+    toolsDropdown?.classList.remove("open");
+    closeContextMenu();
+    const text = editor.getContent();
+    let sheet: Sheet | null = null;
+    try {
+      sheet = TmdParser.parse(text);
+    } catch (e) {
+      // ignore
+    }
+    const instruments = Array.from(new Set(sheet?.paragraphs.map((p) => p.instrument) || []));
+    refactorHarmSource.innerHTML = instruments
+      .map((inst) => `<option value="${escapeHtml(inst)}" ${inst === initialInstrument ? "selected" : ""}>${escapeHtml(inst)}</option>`)
+      .join("");
+    refactorHarmTarget.value = "";
+    refactorHarmInterval.value = "2";
+
+    activeContextSection = initialSection;
+    if (initialSection) {
+      refactorHarmScopeGroup.style.display = "block";
+      refactorHarmScopeSection.checked = true;
+      refactorHarmScopeSectionLabel.textContent = t("scopeSectionOnly").replace("{section}", initialSection);
+    } else {
+      refactorHarmScopeGroup.style.display = "none";
+      refactorHarmScopeGlobal.checked = true;
+    }
+
+    refactorHarmonyModal.showModal();
+  };
+
+  // Duplicate Track Modal
+  toolDuplicateTrack?.addEventListener("click", () => {
+    openDuplicateModal();
   });
 
   btnConfirmDuplicate?.addEventListener("click", () => {
     const source = refactorDupSource.value;
     const target = refactorDupTarget.value.trim();
     const octaveShift = parseInt(refactorDupOctave.value, 10) || 0;
+    const isSectionOnly = refactorDupScopeSection.checked && activeContextSection;
+    const section = isSectionOnly ? activeContextSection : undefined;
+
     if (!source || !target) return;
     try {
       const text = editor.getContent();
-      const refactored = TMDRefactor.duplicateTrack(text, source, target, { octaveShift });
+      const refactored = TMDRefactor.duplicateTrack(text, source, target, { section, octaveShift });
       editor.setContent(refactored);
       updateInspector(refactored);
       updateProblems(refactored);
@@ -1304,31 +1377,20 @@ function initEvents() {
 
   // Generate Harmony Modal
   toolGenerateHarmony?.addEventListener("click", () => {
-    toolsDropdown?.classList.remove("open");
-    const text = editor.getContent();
-    let sheet: Sheet | null = null;
-    try {
-      sheet = TmdParser.parse(text);
-    } catch (e) {
-      // ignore
-    }
-    const instruments = Array.from(new Set(sheet?.paragraphs.map((p) => p.instrument) || []));
-    refactorHarmSource.innerHTML = instruments
-      .map((inst) => `<option value="${escapeHtml(inst)}">${escapeHtml(inst)}</option>`)
-      .join("");
-    refactorHarmTarget.value = "";
-    refactorHarmInterval.value = "2";
-    refactorHarmonyModal.showModal();
+    openHarmonyModal();
   });
 
   btnConfirmHarmony?.addEventListener("click", () => {
     const source = refactorHarmSource.value;
     const target = refactorHarmTarget.value.trim();
     const intervalSteps = parseInt(refactorHarmInterval.value, 10) || 0;
+    const isSectionOnly = refactorHarmScopeSection.checked && activeContextSection;
+    const section = isSectionOnly ? activeContextSection : undefined;
+
     if (!source || !target) return;
     try {
       const text = editor.getContent();
-      const refactored = TMDRefactor.generateHarmony(text, source, target, { intervalSteps });
+      const refactored = TMDRefactor.generateHarmony(text, source, target, { section, intervalSteps });
       editor.setContent(refactored);
       updateInspector(refactored);
       updateProblems(refactored);
@@ -1364,6 +1426,104 @@ function initEvents() {
       refactorDuplicateModal?.close();
       refactorHarmonyModal?.close();
     });
+  });
+
+  // Context Menu Handling
+  const closeContextMenu = () => {
+    if (editorContextMenu) {
+      editorContextMenu.style.display = "none";
+    }
+  };
+
+  window.addEventListener("click", (e) => {
+    if (!editorContextMenu.contains(e.target as Node)) {
+      closeContextMenu();
+    }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeContextMenu();
+    }
+  });
+
+  const editorContainerEl = document.getElementById("editor-container")!;
+  editorContainerEl.addEventListener("contextmenu", (e: MouseEvent) => {
+    e.preventDefault();
+    const ctx = editor.getCursorContext();
+
+    if (ctx.section && ctx.instrument) {
+      ctxHeaderInfo.style.display = "block";
+      ctxHeaderInfo.textContent = `📍 [${ctx.section}:${ctx.instrument}]`;
+    } else if (ctx.section) {
+      ctxHeaderInfo.style.display = "block";
+      ctxHeaderInfo.textContent = `📍 Section: [${ctx.section}]`;
+    } else {
+      ctxHeaderInfo.style.display = "none";
+    }
+
+    if (ctx.hasSelection) {
+      ctxFormatLabel.textContent = "格式化選取範圍 (Format Selection)";
+    } else {
+      ctxFormatLabel.textContent = t("toolFormatDocument");
+    }
+
+    // Position menu safely inside viewport
+    editorContextMenu.style.display = "flex";
+    const menuWidth = 220;
+    const menuHeight = 280;
+    let x = e.clientX;
+    let y = e.clientY;
+
+    if (x + menuWidth > window.innerWidth) {
+      x = Math.max(10, window.innerWidth - menuWidth - 10);
+    }
+    if (y + menuHeight > window.innerHeight) {
+      y = Math.max(10, window.innerHeight - menuHeight - 10);
+    }
+
+    editorContextMenu.style.left = `${x}px`;
+    editorContextMenu.style.top = `${y}px`;
+  });
+
+  ctxFormat?.addEventListener("click", () => {
+    closeContextMenu();
+    handleFormatDocument();
+  });
+
+  ctxDoubleGrid?.addEventListener("click", () => {
+    closeContextMenu();
+    toolDoubleGrid.click();
+  });
+
+  ctxHalveGrid?.addEventListener("click", () => {
+    closeContextMenu();
+    toolHalveGrid.click();
+  });
+
+  ctxDuplicateTrack?.addEventListener("click", () => {
+    const ctx = editor.getCursorContext();
+    openDuplicateModal(ctx.section, ctx.instrument);
+  });
+
+  ctxGenerateHarmony?.addEventListener("click", () => {
+    const ctx = editor.getCursorContext();
+    openHarmonyModal(ctx.section, ctx.instrument);
+  });
+
+  ctxExtractInstrument?.addEventListener("click", () => {
+    closeContextMenu();
+    toolExtractInstrument.click();
+  });
+
+  ctxRenameInstrument?.addEventListener("click", () => {
+    closeContextMenu();
+    toolRenameInstrument.click();
+  });
+
+  ctxRenameSection?.addEventListener("click", () => {
+    closeContextMenu();
+    toolRenameSection.click();
   });
 
   // Problems Panel Toggle and Jump

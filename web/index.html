@@ -703,6 +703,19 @@ verse:Lead@|0|{
               <option value="-2">-2 (低兩個八度 __)</option>
             </select>
           </div>
+          <div class="form-group" id="refactor-dup-scope-group">
+            <label data-i18n="labelScope">套用範圍 (Scope)：</label>
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px; font-size: 13px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="refactor-dup-scope" id="refactor-dup-scope-section" value="section" checked />
+                <span id="refactor-dup-scope-section-label" data-i18n="scopeSectionOnly">僅套用於目前段落</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="refactor-dup-scope" id="refactor-dup-scope-global" value="global" />
+                <span data-i18n="scopeGlobal">整首樂譜中所有同名音軌 (Global)</span>
+              </label>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button id="btn-confirm-duplicate" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
@@ -733,12 +746,57 @@ verse:Lead@|0|{
               <option value="-5" data-i18n="harmonySixthDown">下行六度 (-6th, -5 scale degrees)</option>
             </select>
           </div>
+          <div class="form-group" id="refactor-harm-scope-group">
+            <label data-i18n="labelScope">套用範圍 (Scope)：</label>
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px; font-size: 13px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="refactor-harm-scope" id="refactor-harm-scope-section" value="section" checked />
+                <span id="refactor-harm-scope-section-label" data-i18n="scopeSectionOnly">僅套用於目前段落</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="refactor-harm-scope" id="refactor-harm-scope-global" value="global" />
+                <span data-i18n="scopeGlobal">整首樂譜中所有同名音軌 (Global)</span>
+              </label>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button id="btn-confirm-harmony" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
           <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
         </div>
       </dialog>
+
+      <!-- Custom Editor Context Menu -->
+      <div id="editor-context-menu" class="context-menu" style="display: none;">
+        <div id="ctx-header-info" class="context-menu-header" style="display: none;"></div>
+        <button class="context-menu-item" id="ctx-format">
+          <span>🪄</span> <span id="ctx-format-label" data-i18n="toolFormatDocument">格式化樂譜 (Shift+Alt+F)</span>
+        </button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" id="ctx-double-grid">
+          <span>⏩</span> <span data-i18n="toolDoubleGrid">細分網格時值 (Double Grid: &lt;4*&gt; ➔ &lt;8*&gt;)</span>
+        </button>
+        <button class="context-menu-item" id="ctx-halve-grid">
+          <span>⏪</span> <span data-i18n="toolHalveGrid">減半網格時值 (Halve Grid: &lt;8*&gt; ➔ &lt;4*&gt;)</span>
+        </button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" id="ctx-duplicate-track">
+          <span>👯</span> <span data-i18n="toolDuplicateTrack">複製音軌 (Duplicate Track)...</span>
+        </button>
+        <button class="context-menu-item" id="ctx-generate-harmony">
+          <span>🎶</span> <span data-i18n="toolGenerateHarmony">自動二部和聲 (Generate Harmony)...</span>
+        </button>
+        <button class="context-menu-item" id="ctx-extract-instrument">
+          <span>🎼</span> <span data-i18n="toolExtractInstrument">抽取樂器音軌...</span>
+        </button>
+        <div class="context-menu-divider"></div>
+        <button class="context-menu-item" id="ctx-rename-instrument">
+          <span>🏷️</span> <span data-i18n="toolRenameInstrument">重新命名樂器...</span>
+        </button>
+        <button class="context-menu-item" id="ctx-rename-section">
+          <span>📑</span> <span data-i18n="toolRenameSection">重新命名段落...</span>
+        </button>
+      </div>
 
     </div>
 

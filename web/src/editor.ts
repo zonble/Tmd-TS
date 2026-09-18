@@ -114,6 +114,13 @@ export const tmdLanguage = StreamLanguage.define<TMDParserState>({
   }
 });
 
+export interface CursorContext {
+  section?: string;
+  instrument?: string;
+  hasSelection: boolean;
+  selectionText: string;
+}
+
 export interface TMDWebEditor {
   view: EditorView;
   getContent(): string;
@@ -122,6 +129,7 @@ export interface TMDWebEditor {
   getSelection(): string;
   replaceSelection(text: string): void;
   scrollToLine(line: number): void;
+  getCursorContext(): CursorContext;
   focus(): void;
 }
 
@@ -246,6 +254,35 @@ export function createTmdEditor(
         scrollIntoView: true,
       });
       view.focus();
+    },
+    getCursorContext() {
+      const selection = view.state.selection.main;
+      const hasSelection = !selection.empty;
+      const doc = view.state.doc;
+      const currentLineNum = doc.lineAt(selection.head).number;
+
+      // Scan backwards from current line to find the enclosing paragraph header e.g. "verse:Guitar@|0|{"
+      let section: string | undefined;
+      let instrument: string | undefined;
+
+      for (let l = currentLineNum; l >= 1; l--) {
+        const lineText = doc.line(l).text.trim();
+        // Match paragraph header like `verse:Guitar@|0|{` or `verse:Guitar{`
+        const match = lineText.match(/^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/);
+        if (match) {
+          section = match[1];
+          instrument = match[2];
+          break;
+        }
+        // If we hit another block closing before opening, we stop or continue scanning
+      }
+
+      return {
+        section,
+        instrument,
+        hasSelection,
+        selectionText: hasSelection ? view.state.sliceDoc(selection.from, selection.to) : "",
+      };
     },
     focus() {
       view.focus();

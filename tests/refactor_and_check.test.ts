@@ -270,6 +270,37 @@ verse:Lead@|0|{
     expect(issues).toHaveLength(0);
   });
 
+  it("duplicates a track restricted to a specific section", () => {
+    const input = `::SCORE::
+** Multi-Section Dup Test **
+!= 120
+?= C
+<4/4>
+
+verse:Lead@|0|{
+    <4*>
+    | 1 2 3 4 |
+}
+
+chorus:Lead@|0|{
+    <4*>
+    | 5 6 7 1^ |
+}
+
+-> verse -> chorus ->#
+`;
+
+    // Duplicate Lead -> Synth only in chorus
+    const duped = TMDRefactor.duplicateTrack(input, "Lead", "Synth", { section: "chorus", octaveShift: 1 });
+    expect(duped).toContain("chorus:Synth@|0|{");
+    expect(duped).toContain("5^ 6^ 7^ 1^^");
+    // verse should NOT have Synth
+    expect(duped).not.toContain("verse:Synth@");
+
+    const issues = TMDMeasureChecker.check(duped);
+    expect(issues).toHaveLength(0);
+  });
+
   it("generates diatonic harmony (e.g. parallel 3rd up or down)", () => {
     const input = `::SCORE::
 ** Harmony Test **
@@ -292,6 +323,36 @@ verse:Vocal@|0|{
     expect(harmonized).toContain("3 4 5 3");
     // Chords / ties are preserved
     expect(harmonized).toContain("[C] - - -");
+
+    const issues = TMDMeasureChecker.check(harmonized);
+    expect(issues).toHaveLength(0);
+  });
+
+  it("generates diatonic harmony restricted to a specific section", () => {
+    const input = `::SCORE::
+** Multi-Section Harmony Test **
+!= 120
+?= C
+<4/4>
+
+verse:Vocal@|0|{
+    <4*>
+    | 1 2 3 1 |
+}
+
+chorus:Vocal@|0|{
+    <4*>
+    | 5 5 6 6 |
+}
+
+-> verse -> chorus ->#
+`;
+
+    // Generate harmony only in verse
+    const harmonized = TMDRefactor.generateHarmony(input, "Vocal", "Harmony", { section: "verse", intervalSteps: 2 });
+    expect(harmonized).toContain("verse:Harmony@|0|{");
+    expect(harmonized).toContain("3 4 5 3");
+    expect(harmonized).not.toContain("chorus:Harmony@");
 
     const issues = TMDMeasureChecker.check(harmonized);
     expect(issues).toHaveLength(0);
