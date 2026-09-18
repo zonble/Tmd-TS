@@ -313,5 +313,61 @@ describe('TMD language edge cases', () => {
       expect(groups[6].units[0]).toEqual({ type: 'note', note: { degree: 3, accidental: Accidental.Natural, octave: 0 } });
       expect(groups[7].units[0]).toEqual({ type: 'tie' });
     });
+
+    it('parses negative transposition {?-1} correctly in orders and applies playback shift', () => {
+      const score = `::SCORE::
+** Transpose Repro **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    1 2 3 4
+}
+
+-> verse -> {?-1} -> verse -> {?+2} -> verse ->#
+`;
+      const sheet = TmdParser.parse(score);
+      expect(sheet.orders).toHaveLength(5);
+      expect(sheet.orders[1]).toEqual({ type: 'relative', value: '-1' });
+      expect(sheet.orders[3]).toEqual({ type: 'relative', value: '+2' });
+
+      const timeline = TMDPlaybackRenderer.render(sheet, 'Piano');
+      expect(timeline.events).toHaveLength(12);
+      // First verse (C major: keyOffset = 0)
+      expect(timeline.events[0].state.keyOffset).toBe(0);
+      // Second verse after {?-1} (B: keyOffset = -1)
+      expect(timeline.events[4].state.keyOffset).toBe(-1);
+      // Third verse after {?+2} (C#: keyOffset = 1)
+      expect(timeline.events[8].state.keyOffset).toBe(1);
+    });
+
+    it('extends duration of last note in tuplet when followed by tie outside tuplet', () => {
+      // (1 2 3 4 5 6)%(--) - : 6 notes over 2 beats (each 2/6 = 1/3 beat), followed by 1-beat tie.
+      // The last note (6) should have duration 1/3 + 1 = 4/3 beats!
+      const score = `::SCORE::
+** Tuplet Tie Test **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    (1 2 3 4 5 6)%(--) - 1 -
+}
+
+-> verse ->#
+`;
+      const sheet = TmdParser.parse(score);
+      const timeline = TMDPlaybackRenderer.render(sheet, 'Piano');
+      // Should have 6 notes from tuplet + 1 note from '1', total 7 notes (no extra note from tie)
+      expect(timeline.events).toHaveLength(7);
+      // Note 6 (index 5) should have duration 1/3 + 1 = 4/3 beats
+      expect(timeline.events[5].duration).toBeCloseTo(4.0 / 3.0, 4);
+      // Note 1 (index 6) starts at position 3.0 with duration 2.0 (1 beat + 1 tie)
+      expect(timeline.events[6].position).toBeCloseTo(3.0, 4);
+      expect(timeline.events[6].duration).toBeCloseTo(2.0, 4);
+    });
   });
 });

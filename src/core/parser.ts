@@ -607,7 +607,15 @@ export class TmdParser {
             let val = "";
             while ((this.currentToken().type as string) !== "closeBrace" && (this.currentToken().type as string) !== "eof") {
               const t = this.advance();
-              val += t.type === "positiveNumber" ? `+${t.value}` : t.value !== undefined ? String(t.value) : t.text;
+              if (t.type === "positiveNumber") {
+                val += `+${t.value}`;
+              } else if (t.type === "note") {
+                val += String(t.value.degree);
+              } else if (typeof t.value === "number" || typeof t.value === "string") {
+                val += String(t.value);
+              } else {
+                val += t.text;
+              }
             }
             this.match("closeBrace");
             orders.push({ type: "relative", value: val });
@@ -616,7 +624,15 @@ export class TmdParser {
             let val = "";
             while ((this.currentToken().type as string) !== "closeBrace" && (this.currentToken().type as string) !== "eof") {
               const t = this.advance();
-              val += t.type === "positiveNumber" ? `+${t.value}` : t.value !== undefined ? String(t.value) : t.text;
+              if (t.type === "positiveNumber") {
+                val += `+${t.value}`;
+              } else if (t.type === "note") {
+                val += String(t.value.degree);
+              } else if (typeof t.value === "number" || typeof t.value === "string") {
+                val += String(t.value);
+              } else {
+                val += t.text;
+              }
             }
             this.match("closeBrace");
             orders.push({ type: "absolute", value: val });
@@ -869,7 +885,15 @@ export class TmdParser {
       let val = "";
       while (this.current.type !== "closeBrace" && this.current.type !== "eof") {
         const t = this.advance();
-        val += t.type === "positiveNumber" ? `+${t.value}` : t.value !== undefined ? String(t.value) : t.text;
+        if (t.type === "positiveNumber") {
+          val += `+${t.value}`;
+        } else if (t.type === "note") {
+          val += String(t.value.degree);
+        } else if (typeof t.value === "number" || typeof t.value === "string") {
+          val += String(t.value);
+        } else {
+          val += t.text;
+        }
       }
       const num = parseInt(val, 10);
       if (!isNaN(num)) {
@@ -880,7 +904,15 @@ export class TmdParser {
       let val = "";
       while (this.current.type !== "closeBrace" && this.current.type !== "eof") {
         const t = this.advance();
-        val += t.value !== undefined ? String(t.value) : t.text;
+        if (t.type === "positiveNumber") {
+          val += `+${t.value}`;
+        } else if (t.type === "note") {
+          val += String(t.value.degree);
+        } else if (typeof t.value === "number" || typeof t.value === "string") {
+          val += String(t.value);
+        } else {
+          val += t.text;
+        }
       }
       result = { position, kind: { type: "absoluteKey", key: val } };
     } else if ((this.current.type as string) === "openAngle") {

@@ -149,16 +149,34 @@ export class TMDPlaybackRenderer {
             events.push({ position, duration: groupDuration, content: { type: "rest" }, state });
           }
         } else {
-          const eventDuration = groupDuration / activeUnits.length;
-          activeUnits.forEach((unit, idx) => {
-            const content = TMDPlaybackRenderer.contentOf(unit);
-            if (content) {
-              events.push({
-                position: position + idx * eventDuration,
-                duration: eventDuration,
-                content,
-                state
-              });
+          // If the group contains internal ties (e.g. (1 2 3 -)%(--)), calculate slots based on total units
+          // Each slot in the tuplet has baseSlotDuration = groupDuration / group.units.length
+          const baseSlotDuration = groupDuration / Math.max(1, group.units.length);
+          let currentEventIndex = -1;
+
+          group.units.forEach((unit, idx) => {
+            if (unit.type === "tie") {
+              if (currentEventIndex >= 0) {
+                events[currentEventIndex].duration += baseSlotDuration;
+              } else if (events.length > 0) {
+                // Leading tie inside group extends last event from preceding group
+                const last = events[events.length - 1];
+                last.duration += baseSlotDuration;
+              } else {
+                events.push({ position: position + idx * baseSlotDuration, duration: baseSlotDuration, content: { type: "rest" }, state });
+                currentEventIndex = events.length - 1;
+              }
+            } else {
+              const content = TMDPlaybackRenderer.contentOf(unit);
+              if (content) {
+                events.push({
+                  position: position + idx * baseSlotDuration,
+                  duration: baseSlotDuration,
+                  content,
+                  state,
+                });
+                currentEventIndex = events.length - 1;
+              }
             }
           });
         }
