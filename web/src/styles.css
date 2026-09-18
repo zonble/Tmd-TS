@@ -858,6 +858,141 @@ html, body {
   color: var(--text-secondary);
 }
 
+/* ==========================================================================
+   Outline Tree View in Inspector
+   ========================================================================== */
+
+.outline-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.outline-section-node {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.outline-section-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+  user-select: none;
+  list-style: none;
+}
+
+.outline-section-summary::-webkit-details-marker {
+  display: none;
+}
+
+.outline-section-summary:hover {
+  background: rgba(88, 166, 255, 0.1);
+  color: var(--accent-blue);
+}
+
+.outline-node-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+}
+
+.outline-chevron {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform 0.15s ease;
+  color: var(--text-secondary);
+}
+
+details[open] > summary .outline-chevron {
+  transform: rotate(90deg);
+}
+
+.outline-badge {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.outline-tracks-container {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 6px 6px 12px;
+  gap: 4px;
+}
+
+.outline-track-node {
+  border-left: 2px solid rgba(88, 166, 255, 0.2);
+  padding-left: 6px;
+}
+
+.outline-track-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  user-select: none;
+  list-style: none;
+}
+
+.outline-track-summary::-webkit-details-marker {
+  display: none;
+}
+
+.outline-track-summary:hover {
+  background: rgba(88, 166, 255, 0.08);
+  color: var(--accent-blue);
+}
+
+.outline-measures-container {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0 2px 14px;
+  gap: 2px;
+}
+
+.outline-measure-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 6px;
+  font-size: 11px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.outline-measure-item:hover {
+  background: rgba(88, 166, 255, 0.15);
+  color: var(--accent-blue);
+}
+
+.outline-measure-name {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.outline-measure-snippet {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted, #8b949e);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;

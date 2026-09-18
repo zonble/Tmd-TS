@@ -2,6 +2,7 @@ import { TmdParser } from "../../src/core/parser.js";
 import { Sheet, scaleDegreeLetter, accidentalToSemitone } from "../../src/core/types.js";
 import { TMDRefactor } from "../../src/core/refactor.js";
 import { TMDMeasureChecker, TMDMeasureIssue } from "../../src/core/measure_check.js";
+import { TMDOutlineGenerator, TMDOutlineNode } from "../../src/core/outline.js";
 import {
   TMDMIDIGenerator,
   TMDMusicXMLGenerator,
@@ -408,16 +409,88 @@ function updateInspector(text: string) {
     inspectorOrders.innerHTML = `<span class="stat-label">${t("noOrders")}</span>`;
   }
 
-  // Tracks
-  if (currentSheet.paragraphs && currentSheet.paragraphs.length > 0) {
+  // Tracks / Outline Hierarchy (Sections -> Tracks -> Measures)
+  const outlineNodes = TMDOutlineGenerator.generate(text);
+  const sectionsNode = outlineNodes.find((n) => n.name === "Sections");
+
+  if (sectionsNode && sectionsNode.children && sectionsNode.children.length > 0) {
+    inspectorTracks.innerHTML = `
+      <div class="outline-tree">
+        ${sectionsNode.children
+          .map((secNode) => {
+            const secRangeAttrs = `data-start-line="${secNode.range.startLine}" data-start-col="${secNode.range.startColumn}" data-end-line="${secNode.range.endLine}" data-end-col="${secNode.range.endColumn}"`;
+            const trackChildren = secNode.children || [];
+
+            const tracksHtml = trackChildren
+              .map((trkNode) => {
+                const trkRangeAttrs = `data-start-line="${trkNode.range.startLine}" data-start-col="${trkNode.range.startColumn}" data-end-line="${trkNode.range.endLine}" data-end-col="${trkNode.range.endColumn}"`;
+                const measureChildren = trkNode.children || [];
+
+                if (measureChildren.length === 0) {
+                  return `
+                    <div class="track-item outline-track-item" ${trkRangeAttrs} title="L${trkNode.range.startLine}:C${trkNode.range.startColumn}">
+                      <span class="track-name">${escapeHtml(trkNode.name)}</span>
+                      ${trkNode.detail ? `<span class="track-meta">${escapeHtml(trkNode.detail)}</span>` : ""}
+                    </div>
+                  `;
+                }
+
+                const measuresHtml = measureChildren
+                  .map((mNode) => {
+                    const mRangeAttrs = `data-start-line="${mNode.range.startLine}" data-start-col="${mNode.range.startColumn}" data-end-line="${mNode.range.endLine}" data-end-col="${mNode.range.endColumn}"`;
+                    return `
+                      <div class="outline-measure-item" ${mRangeAttrs} title="L${mNode.range.startLine}:C${mNode.range.startColumn}">
+                        <span class="outline-measure-name">${escapeHtml(mNode.name)}</span>
+                        ${mNode.detail ? `<span class="outline-measure-snippet">${escapeHtml(mNode.detail)}</span>` : ""}
+                      </div>
+                    `;
+                  })
+                  .join("");
+
+                return `
+                  <details class="outline-track-node" open>
+                    <summary class="outline-track-summary" ${trkRangeAttrs} title="L${trkNode.range.startLine}:C${trkNode.range.startColumn}">
+                      <span class="outline-node-title">
+                        <span class="outline-chevron">▶</span>
+                        <span class="track-name">${escapeHtml(trkNode.name)}</span>
+                      </span>
+                      <span class="outline-badge">${measureChildren.length} bar${measureChildren.length === 1 ? "" : "s"}</span>
+                    </summary>
+                    <div class="outline-measures-container">
+                      ${measuresHtml}
+                    </div>
+                  </details>
+                `;
+              })
+              .join("");
+
+            return `
+              <details class="outline-section-node" open>
+                <summary class="outline-section-summary" ${secRangeAttrs} title="L${secNode.range.startLine}:C${secNode.range.startColumn}">
+                  <span class="outline-node-title">
+                    <span class="outline-chevron">▶</span>
+                    <span>${escapeHtml(secNode.name)}</span>
+                  </span>
+                  <span class="outline-badge">${trackChildren.length} track${trackChildren.length === 1 ? "" : "s"}</span>
+                </summary>
+                <div class="outline-tracks-container">
+                  ${tracksHtml}
+                </div>
+              </details>
+            `;
+          })
+          .join("")}
+      </div>
+    `;
+  } else if (currentSheet.paragraphs && currentSheet.paragraphs.length > 0) {
+    // Fallback if AST has paragraphs but outline nodes failed
     inspectorTracks.innerHTML = currentSheet.paragraphs
       .map((p) => {
         const offset = p.start ? (p.start > 0 ? `+${p.start}` : `${p.start}`) : "0";
         const totalUnits = p.sections.reduce((acc, s) => acc + s.unitGroups.reduce((uAcc, g) => uAcc + g.units.length, 0), 0);
-        const lineAttr = p.line ? `data-line="${p.line}"` : "";
-        const titleAttr = p.line ? `title="點擊跳轉至第 ${p.line} 行"` : "";
+        const lineAttr = p.line ? `data-start-line="${p.line}" data-start-col="1" data-end-line="${p.line}" data-end-col="1"` : "";
         return `
-          <div class="track-item" ${lineAttr} ${titleAttr}>
+          <div class="track-item" ${lineAttr}>
             <span class="track-name">${escapeHtml(p.name)}:${escapeHtml(p.instrument)}</span>
             <span class="track-meta">@|${offset}| · ${totalUnits} notes</span>
           </div>
@@ -1104,13 +1177,21 @@ function initEvents() {
     inspectorPanel.classList.add("hidden");
   });
 
-  // Track item click -> Jump to editor line
+  // Outline / Track item click -> Jump to editor range or line
   inspectorTracks?.addEventListener("click", (e) => {
-    const target = (e.target as HTMLElement).closest(".track-item") as HTMLElement | null;
-    if (target && target.dataset.line) {
-      const line = parseInt(target.dataset.line, 10);
-      if (!isNaN(line) && line > 0) {
-        editor.scrollToLine(line);
+    const clickable = (e.target as HTMLElement).closest("[data-start-line]") as HTMLElement | null;
+    if (clickable && clickable.dataset.startLine) {
+      const sLine = parseInt(clickable.dataset.startLine, 10);
+      const sCol = clickable.dataset.startCol ? parseInt(clickable.dataset.startCol, 10) : 1;
+      const eLine = clickable.dataset.endLine ? parseInt(clickable.dataset.endLine, 10) : sLine;
+      const eCol = clickable.dataset.endCol ? parseInt(clickable.dataset.endCol, 10) : sCol;
+
+      if (!isNaN(sLine) && sLine > 0) {
+        if (typeof (editor as any).scrollToRange === "function") {
+          editor.scrollToRange(sLine, sCol, eLine, eCol);
+        } else {
+          editor.scrollToLine(sLine);
+        }
       }
     }
   });

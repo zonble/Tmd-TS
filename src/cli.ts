@@ -7,6 +7,8 @@ import {
   formatSummary,
   TMDMeasureChecker,
   TMDRefactor,
+  TMDOutlineGenerator,
+  TMDOutlineNode,
 } from "./core/index.js";
 import {
   TMDABCGenerator,
@@ -31,6 +33,7 @@ USAGE: tmd [<subcommand>] [<options>] [<input-path>]
 SUBCOMMANDS:
   check <input-path>       Check measure consistency and report incorrect beat counts.
   format [<options>] <input-path> Format TMD file with standardized indentation and spacing.
+  outline [--json] <input-path> Generate a document symbol outline of a TMD score.
   refactor <subcommand>    Refactor TMD score (rename-instrument, rename-section, extract-instrument).
 
 OPTIONS:
@@ -104,6 +107,74 @@ Check measure consistency and report incorrect beat counts between bar lines '|'
     }
     return 1;
   }
+}
+
+function handleOutlineCommand(argv: string[]): number {
+  let inputPath: string | undefined;
+  let json = false;
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "-h" || arg === "--help") {
+      console.log(`USAGE: tmd outline [--json] <input-path>
+
+Generate a document symbol outline of a TMD score.
+
+OPTIONS:
+  --json                  Output outline as JSON.
+`);
+      return 0;
+    }
+    if (arg === "--json") {
+      json = true;
+      continue;
+    }
+    if (!arg.startsWith("-")) {
+      inputPath = arg;
+    } else {
+      console.error(`Unknown option: ${arg}`);
+      return 2;
+    }
+  }
+
+  if (!inputPath) {
+    console.error("Error: Missing expected argument '<input-path>' for outline");
+    return 2;
+  }
+
+  let content: string;
+  try {
+    content = fs.readFileSync(inputPath, "utf-8");
+  } catch (error: any) {
+    console.error(`Error reading ${inputPath}: ${error.message || String(error)}`);
+    return 1;
+  }
+
+  const nodes = TMDOutlineGenerator.generate(content);
+
+  if (json) {
+    console.log(JSON.stringify(nodes, null, 2));
+  } else {
+    function printNode(node: TMDOutlineNode, indent: number) {
+      const pad = "  ".repeat(indent);
+      let line = `${pad}- [${node.kind}] ${node.name}`;
+      if (node.detail) {
+        line += ` (${node.detail})`;
+      }
+      line += ` [L${node.range.startLine}:C${node.range.startColumn} - L${node.range.endLine}:C${node.range.endColumn}]`;
+      console.log(line);
+      if (node.children) {
+        for (const child of node.children) {
+          printNode(child, indent + 1);
+        }
+      }
+    }
+
+    for (const node of nodes) {
+      printNode(node, 0);
+    }
+  }
+  return 0;
 }
 
 function handleFormatCommand(argv: string[]): number {
@@ -704,6 +775,9 @@ export function main(argv = process.argv.slice(2)): number {
     }
     if (first === "format") {
       return handleFormatCommand(argv.slice(1));
+    }
+    if (first === "outline") {
+      return handleOutlineCommand(argv.slice(1));
     }
     if (first === "refactor") {
       return handleRefactorCommand(argv.slice(1));

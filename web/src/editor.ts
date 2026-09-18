@@ -255,6 +255,20 @@ export function createTmdEditor(
       });
       view.focus();
     },
+    scrollToRange(startLine: number, startCol: number, endLine: number, endCol: number) {
+      const doc = view.state.doc;
+      const sLine = Math.max(1, Math.min(startLine, doc.lines));
+      const eLine = Math.max(1, Math.min(endLine, doc.lines));
+      const sLineObj = doc.line(sLine);
+      const eLineObj = doc.line(eLine);
+      const from = Math.min(sLineObj.from + Math.max(0, startCol - 1), sLineObj.to);
+      const to = Math.min(eLineObj.from + Math.max(0, endCol - 1), eLineObj.to);
+      view.dispatch({
+        selection: { anchor: from, head: Math.max(from, to) },
+        scrollIntoView: true,
+      });
+      view.focus();
+    },
     getCursorContext() {
       const selection = view.state.selection.main;
       const hasSelection = !selection.empty;
