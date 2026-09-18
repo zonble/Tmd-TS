@@ -48,6 +48,9 @@ function formatIssueDescription(issue: {
   beat: Beat;
   snippet: string;
 }): string {
+  if (issue.instrument === "Order") {
+    return `Order (line ${issue.lineNumber}): Undefined section '${issue.paragraphName}' in playback order (${issue.snippet})`;
+  }
   const diffStr = issue.deltaUnits > 0 ? `+${issue.deltaUnits}` : `${issue.deltaUnits}`;
   if (issue.measureIndex === 0) {
     return `${issue.paragraphName}:${issue.instrument} (line ${issue.lineNumber}): Expected ${issue.expectedUnits} measures (${issue.snippet}), found ${issue.actualUnits} measures (${diffStr} measures)`;
@@ -84,6 +87,7 @@ export class TMDMeasureChecker {
 
     const issues: TMDMeasureIssue[] = [];
     const paragraphInfos: ParagraphSpanInfo[] = [];
+    const orderSections: { name: string; line: number }[] = [];
     let pos = 0;
 
     function current(): LexedToken | undefined {
@@ -343,8 +347,40 @@ export class TMDMeasureChecker {
           quarterNotes: paragraphQuarterNotes,
           endQuarterNotes: positiveQuarterNotes,
         });
+      } else if (tok.token.type === "arrow") {
+        const arrowLine = tok.range.start.line;
+        advance(); // ->
+        const nextTok = current();
+        if (nextTok && nextTok.token.type === "identifier") {
+          const orderSecName = nextTok.token.value as string;
+          orderSections.push({ name: orderSecName, line: nextTok.range.start.line || arrowLine });
+          advance();
+        }
       } else {
         advance();
+      }
+    }
+
+    // Check for undefined sections referenced in execution orders (-> section)
+    const definedSectionNames = new Set(paragraphInfos.map((p) => p.paragraphName));
+    for (const order of orderSections) {
+      if (!definedSectionNames.has(order.name)) {
+        const issueObj = {
+          paragraphName: order.name,
+          instrument: "Order",
+          lineNumber: order.line,
+          measureIndex: 0,
+          expectedUnits: 0,
+          actualUnits: 0,
+          deltaUnits: 0,
+          noteLength: 4,
+          beat,
+          snippet: `-> ${order.name}`,
+        };
+        issues.push({
+          ...issueObj,
+          description: formatIssueDescription(issueObj),
+        });
       }
     }
 

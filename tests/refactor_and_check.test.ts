@@ -608,6 +608,29 @@ verse:Piano@|0|{
     const issues = TMDMeasureChecker.check(input);
     expect(issues).toHaveLength(0);
   });
+
+  it("reports issue when execution order refers to undefined section", () => {
+    const input = `::SCORE::
+** Undefined Order Section Song **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    | 1 2 3 4 |
+}
+
+-> verse -> chorus ->#
+`;
+
+    const issues = TMDMeasureChecker.check(input);
+    expect(issues).toHaveLength(1);
+    const issue = issues[0];
+    expect(issue.paragraphName).toBe("chorus");
+    expect(issue.measureIndex).toBe(0);
+    expect(issue.description).toContain("Undefined section 'chorus' in playback order");
+  });
 });
 
 describe("TMD CLI subcommands check, format, and refactor (TDD)", () => {
