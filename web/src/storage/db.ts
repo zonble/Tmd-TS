@@ -77,6 +77,12 @@ export class TmdStorage {
     });
   }
 
+  // Returns the newest saved score whose content is exactly `content`, or null.
+  public static async findScoreByContent(content: string): Promise<SavedScore | null> {
+    const scores = await this.listScores();
+    return scores.find((score) => score.content === content) || null;
+  }
+
   public static async saveScore(input: {
     id?: string;
     title?: string;

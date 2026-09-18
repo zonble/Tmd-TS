@@ -74,6 +74,18 @@ describe("TMD IndexedDB Storage (TDD)", () => {
     expect(all.length).toBe(2);
   });
 
+  it("finds a saved score by exact content, newest first", async () => {
+    const content = "::SCORE::\n** 分享曲 **\n!= 100\n";
+    await TmdStorage.saveScore({ id: "older", content });
+    await TmdStorage.saveScore({ id: "other", content: content + "\n" });
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    await TmdStorage.saveScore({ id: "newer", content });
+
+    expect((await TmdStorage.findScoreByContent(content))?.id).toBe("newer");
+    expect((await TmdStorage.findScoreByContent(content + "\n"))?.id).toBe("other");
+    expect(await TmdStorage.findScoreByContent("::SCORE::\n** 沒有這首 **\n")).toBeNull();
+  });
+
   it("handles last active score session state", () => {
     // Initially null
     TmdStorage.setActiveScoreId(null);
