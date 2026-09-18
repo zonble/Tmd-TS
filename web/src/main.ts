@@ -539,6 +539,90 @@ function handleEditorChange(text: string) {
 }
 
 // Playback handling
+async function playSectionOrTrack(sectionName: string, instrumentName?: string) {
+  const text = editor.getContent();
+  let sheet: Sheet | null = null;
+  try {
+    sheet = TmdParser.parse(text);
+  } catch (err: any) {
+    alert(`${t("alertCannotPlaySyntax")}\n${err.message}`);
+    return;
+  }
+
+  if (!sheet) {
+    alert(t("alertCannotPlayMissingHeader"));
+    return;
+  }
+
+  const title = instrumentName
+    ? `${sheet.name || "score"} - ${sectionName} (${instrumentName})`
+    : `${sheet.name || "score"} - ${sectionName}`;
+
+  let midiBytes: Uint8Array;
+  try {
+    midiBytes = TMDMIDIGenerator.generateMIDI(sheet, undefined, {
+      targetParagraph: sectionName,
+      targetInstrument: instrumentName,
+    });
+  } catch (err: any) {
+    alert(`${t("alertMidiFailed")}: ${err.message}`);
+    return;
+  }
+
+  if (playerTitle) playerTitle.textContent = title;
+  if (playerTime) playerTime.textContent = "00:00 / 00:00";
+  if (playerProgress) {
+    playerProgress.value = "0";
+    playerProgress.max = "100";
+  }
+  if (tmdPlayerBar) tmdPlayerBar.style.display = "flex";
+  if (playerBtnPause) playerBtnPause.textContent = "⏸";
+
+  await tmdPlayer.play(midiBytes, title, {
+    onStart: (_title, durationSec) => {
+      if (playerProgress) {
+        playerProgress.max = Math.max(1, durationSec).toString();
+        playerProgress.value = "0";
+      }
+      if (playerTime) {
+        playerTime.textContent = `00:00 / ${formatTime(durationSec)}`;
+      }
+    },
+    onProgress: (currentSec, totalSec) => {
+      if (playerTime) {
+        playerTime.textContent = `${formatTime(currentSec)} / ${formatTime(totalSec)}`;
+      }
+      if (playerProgress && !isSeeking) {
+        if (playerProgress.max !== totalSec.toString()) {
+          playerProgress.max = Math.max(1, totalSec).toString();
+        }
+        playerProgress.value = currentSec.toString();
+      }
+    },
+    onPause: () => {
+      if (playerBtnPause) playerBtnPause.textContent = "▶";
+    },
+    onResume: () => {
+      if (playerBtnPause) playerBtnPause.textContent = "⏸";
+    },
+    onLoadingStatus: (status) => {
+      if (status && playerTime) {
+        playerTime.textContent = status;
+      }
+    },
+    onStop: () => {
+      if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
+      if (playerBtnPause) playerBtnPause.textContent = "⏸";
+      if (playerProgress) playerProgress.value = "0";
+    },
+    onEnd: () => {
+      if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
+      if (playerBtnPause) playerBtnPause.textContent = "⏸";
+      if (playerProgress) playerProgress.value = "0";
+    },
+  });
+}
+
 async function startPlayback(customText?: string) {
   const text = customText !== undefined ? customText : editor.getContent();
   let sheet: Sheet | null = null;
@@ -2199,6 +2283,9 @@ async function init() {
       } catch (err: any) {
         showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
       }
+    },
+    (section, instrument) => {
+      playSectionOrTrack(section, instrument);
     }
   );
 

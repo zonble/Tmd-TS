@@ -2,7 +2,7 @@ import { EditorView, basicSetup } from "codemirror";
 import { EditorState, Compartment } from "@codemirror/state";
 import { StreamLanguage, StringStream } from "@codemirror/language";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { keymap } from "@codemirror/view";
+import { keymap, gutter, GutterMarker, BlockInfo } from "@codemirror/view";
 
 interface TMDParserState {
   inComment: boolean;
@@ -134,12 +134,38 @@ export interface TMDWebEditor {
   focus(): void;
 }
 
+class SectionPlayGutterMarker extends GutterMarker {
+  constructor(
+    private readonly sectionName: string,
+    private readonly instrumentName: string,
+    private readonly onPlaySection?: (section: string, instrument: string) => void
+  ) {
+    super();
+  }
+
+  toDOM() {
+    const btn = document.createElement("span");
+    btn.className = "cm-section-play-btn";
+    btn.title = `試聽段落: ${this.sectionName} (${this.instrumentName})`;
+    btn.textContent = "▶";
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (this.onPlaySection) {
+        this.onPlaySection(this.sectionName, this.instrumentName);
+      }
+    });
+    return btn;
+  }
+}
+
 export function createTmdEditor(
   container: HTMLElement,
   initialContent: string,
   onChange?: (content: string) => void,
   onCursorActivity?: (line: number, col: number) => void,
-  onFormat?: () => void
+  onFormat?: () => void,
+  onPlaySection?: (section: string, instrument: string) => void
 ): TMDWebEditor {
   const languageCompartment = new Compartment();
 
@@ -168,10 +194,24 @@ export function createTmdEditor(
     },
   ]);
 
+  const sectionPlayGutter = gutter({
+    class: "cm-section-play-gutter",
+    lineMarker(view: EditorView, line: BlockInfo) {
+      const lineText = view.state.doc.lineAt(line.from).text.trim();
+      const match = lineText.match(/^([a-zA-Z0-9_\u4e00-\u9fa5-]+):([a-zA-Z0-9_\u4e00-\u9fa5-]+)(?:@\|?[+-]?\d+\|?)?\s*\{/);
+      if (match) {
+        return new SectionPlayGutterMarker(match[1], match[2], onPlaySection);
+      }
+      return null;
+    },
+    initialSpacer: () => new SectionPlayGutterMarker("", ""),
+  });
+
   const state = EditorState.create({
     doc: initialContent,
     extensions: [
       basicSetup,
+      sectionPlayGutter,
       oneDark,
       languageCompartment.of(tmdLanguage),
       updateListener,

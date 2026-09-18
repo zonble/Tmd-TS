@@ -369,5 +369,26 @@ verse:Piano@|0|{
       expect(timeline.events[6].position).toBeCloseTo(3.0, 4);
       expect(timeline.events[6].duration).toBeCloseTo(2.0, 4);
     });
+
+    it('supports generating MIDI for a single target paragraph and/or instrument', () => {
+      const sheet = TmdParser.parse(sampleTMD);
+      // Full score has 1 conductor track + 2 instrument tracks (Piano, Guitar) = 3 tracks
+      const fullMidi = TMDMIDIGenerator.generateMIDI(sheet);
+      const fullTracks = (fullMidi[10] << 8) | fullMidi[11];
+      expect(fullTracks).toBe(3);
+
+      // Generate MIDI for only verse: 1 conductor track + 2 instrument tracks = 3 tracks
+      const verseMidi = TMDMIDIGenerator.generateMIDI(sheet, undefined, { targetParagraph: 'verse' });
+      const verseTracks = (verseMidi[10] << 8) | verseMidi[11];
+      expect(verseTracks).toBe(3);
+
+      // Generate MIDI for only verse with Piano: 1 conductor track + 1 instrument track = 2 tracks
+      const versePianoMidi = TMDMIDIGenerator.generateMIDI(sheet, undefined, {
+        targetParagraph: 'verse',
+        targetInstrument: 'Piano',
+      });
+      const versePianoTracks = (versePianoMidi[10] << 8) | versePianoMidi[11];
+      expect(versePianoTracks).toBe(2);
+    });
   });
 });

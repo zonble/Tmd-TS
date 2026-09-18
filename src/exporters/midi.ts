@@ -960,27 +960,47 @@ export class TMDMIDIEncoder {
   }
 }
 
+export interface TMDMIDIGeneratorOptions {
+  targetParagraph?: string;
+  targetInstrument?: string;
+}
+
 export class TMDMIDIGenerator {
   public static readonly defaultTicksPerQuarterNote = 480;
 
   public static generateMIDI(
     sheet: Sheet,
-    ticksPerQuarter: number = TMDMIDIGenerator.defaultTicksPerQuarterNote
+    ticksPerQuarter: number = TMDMIDIGenerator.defaultTicksPerQuarterNote,
+    options?: TMDMIDIGeneratorOptions
   ): Uint8Array {
-    const distinctInstruments = Array.from(
-      new Set(sheet.paragraphs.map(p => p.instrument))
+    let effectiveSheet = sheet;
+    if (options?.targetParagraph) {
+      const filteredParagraphs = sheet.paragraphs.filter(p => p.name === options.targetParagraph);
+      effectiveSheet = {
+        ...sheet,
+        paragraphs: filteredParagraphs,
+        orders: [{ type: 'name', name: options.targetParagraph }],
+      };
+    }
+
+    let distinctInstruments = Array.from(
+      new Set(effectiveSheet.paragraphs.map(p => p.instrument))
     ).sort();
 
+    if (options?.targetInstrument) {
+      distinctInstruments = distinctInstruments.filter(inst => inst === options.targetInstrument);
+    }
+
     const timelineInstrument =
-      sheet.paragraphs.find(p => p.sections.some(s => s.directives.length > 0))
+      effectiveSheet.paragraphs.find(p => p.sections.some(s => s.directives.length > 0))
         ?.instrument ??
       distinctInstruments[0] ??
       'Piano';
 
-    const timeline = TMDPlaybackRenderer.render(sheet, timelineInstrument);
+    const timeline = TMDPlaybackRenderer.render(effectiveSheet, timelineInstrument);
     const trackData: Uint8Array[] = [
       TMDMIDIEncoder.encodeTrack(
-        this.conductorEvents(sheet, timeline, ticksPerQuarter)
+        this.conductorEvents(effectiveSheet, timeline, ticksPerQuarter)
       ),
     ];
 
@@ -998,7 +1018,7 @@ export class TMDMIDIGenerator {
         melodyChannel += 1;
       }
 
-      const instTimeline = TMDPlaybackRenderer.render(sheet, instrument);
+      const instTimeline = TMDPlaybackRenderer.render(effectiveSheet, instrument);
       trackData.push(
         TMDMIDIEncoder.encodeTrack(
           this.instrumentEvents(

@@ -139,4 +139,19 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(mainContent).toContain("ctx-insert-section");
     expect(mainContent).toContain("insert-section-modal");
   });
+
+  it("supports playing individual section/track from editor line gutter in web/src/editor.ts and main.ts", () => {
+    const editorPath = path.join(__dirname, "../web/src/editor.ts");
+    const editorContent = fs.readFileSync(editorPath, "utf-8");
+
+    // editor should support onPlaySection callback and section play gutter
+    expect(editorContent).toContain("onPlaySection");
+    expect(editorContent).toContain("cm-section-play-btn");
+
+    const mainPath = path.join(__dirname, "../web/src/main.ts");
+    const mainContent = fs.readFileSync(mainPath, "utf-8");
+
+    // main.ts should handle onPlaySection and generate/play scoped MIDI
+    expect(mainContent).toContain("playSectionOrTrack");
+  });
 });
