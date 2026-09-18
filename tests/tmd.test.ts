@@ -16,6 +16,7 @@ import {
   TextEncodingDetector,
   TmdSkill,
   TMD_VERSION,
+  Accidental,
 } from '../src/index.js';
 import { Lexer } from '../src/core/parser.js';
 
@@ -212,5 +213,105 @@ describe('TMD language edge cases', () => {
     expect(timeline.events[2].state.keyOffset).toBe(2);
     expect(timeline.events[3].state.timeSignature).toEqual({ count: 3, noteValue: 4 });
     expect(timeline.duration).toBeGreaterThan(0);
+  });
+
+  describe('Issue #1: spacing forms from original TMD syntax', () => {
+    const makeScore = (body: string) => `::SCORE::\n** Repro **\n!= 100\n<4/4>\n\nm:piano@|0|{\n    <4*>\n    ${body}\n}\n\n-> m ->#\n`;
+
+    it('parses tuplets with whitespace between % and ( correctly (length = 2 beats)', () => {
+      const sheet = TmdParser.parse(makeScore('(1 2 5 1 2 5) % (--) 4 3'));
+      const groups = sheet.paragraphs[0].sections[0].unitGroups;
+      const beats = groups.reduce((sum, g) => sum + g.length, 0);
+      expect(beats).toBe(4);
+      expect(groups).toHaveLength(3);
+      // First group should be tuplet with 6 units and length 2
+      expect(groups[0].units).toHaveLength(6);
+      expect(groups[0].length).toBe(2);
+      expect(groups[1].length).toBe(1);
+      expect(groups[2].length).toBe(1);
+    });
+
+    it('parses unspaced digits inside and outside tuplets as individual notes', () => {
+      const sheet = TmdParser.parse(makeScore('(125125)%(--) 43'));
+      const groups = sheet.paragraphs[0].sections[0].unitGroups;
+      const beats = groups.reduce((sum, g) => sum + g.length, 0);
+      expect(beats).toBe(4);
+      expect(groups).toHaveLength(3);
+      expect(groups[0].units).toHaveLength(6);
+      expect(groups[0].length).toBe(2);
+      // groups[1] should be note '4', groups[2] should be note '3'
+      expect(groups[1].units[0].type).toBe('note');
+      if (groups[1].units[0].type === 'note') {
+        expect(groups[1].units[0].note.degree).toBe(4);
+      }
+      expect(groups[2].units[0].type).toBe('note');
+      if (groups[2].units[0].type === 'note') {
+        expect(groups[2].units[0].note.degree).toBe(3);
+      }
+    });
+
+    it('parses unspaced digits with spaces in tuplet: (125125) % (--) 43', () => {
+      const sheet = TmdParser.parse(makeScore('(125125) % (--) 43'));
+      const groups = sheet.paragraphs[0].sections[0].unitGroups;
+      const beats = groups.reduce((sum, g) => sum + g.length, 0);
+      expect(beats).toBe(4);
+      expect(groups).toHaveLength(3);
+      expect(groups[0].units).toHaveLength(6);
+      expect(groups[0].length).toBe(2);
+    });
+
+    it('parses consecutive unspaced ties (---, ----) following notes and rests', () => {
+      // 1--- is a whole note (1 beat of note + 3 beats of ties)
+      // 0--- is a whole rest (1 beat of rest + 3 beats of ties)
+      const sheet = TmdParser.parse(makeScore('1--- 0--- 5-- 1-'));
+      const groups = sheet.paragraphs[0].sections[0].unitGroups;
+      const beats = groups.reduce((sum, g) => sum + g.length, 0);
+      expect(beats).toBe(13); // 1--- (4) + 0--- (4) + 5-- (3) + 1- (2) = 13
+      expect(groups).toHaveLength(13);
+      expect(groups[0].units[0]).toEqual({ type: 'note', note: { degree: 1, accidental: Accidental.Natural, octave: 0 } });
+      expect(groups[1].units[0]).toEqual({ type: 'tie' });
+      expect(groups[2].units[0]).toEqual({ type: 'tie' });
+      expect(groups[3].units[0]).toEqual({ type: 'tie' });
+      expect(groups[4].units[0]).toEqual({ type: 'rest' });
+      expect(groups[5].units[0]).toEqual({ type: 'tie' });
+      expect(groups[6].units[0]).toEqual({ type: 'tie' });
+      expect(groups[7].units[0]).toEqual({ type: 'tie' });
+    });
+
+    it('parses tuplets with various dash lengths and internal consecutive ties or notes', () => {
+      // (1 2 3)% (---) -> 3-tuplet over 3 beats
+      // (123)%(----) -> 3-tuplet over 4 beats
+      const sheet = TmdParser.parse(makeScore('(1 2 3)% (---) (123)%(----)'));
+      const groups = sheet.paragraphs[0].sections[0].unitGroups;
+      expect(groups).toHaveLength(2);
+      expect(groups[0].units).toHaveLength(3);
+      expect(groups[0].length).toBe(3);
+      expect(groups[1].units).toHaveLength(3);
+      expect(groups[1].length).toBe(4);
+    });
+
+    it('parses unspaced notes with octave and accidental modifiers mixed with consecutive ties', () => {
+      // 1'^2,_3^-- 43-
+      // 1'^ : sharp do, octave up (1 beat)
+      // 2,_ : flat re, octave down (1 beat)
+      // 3^ : mi, octave up (1 beat)
+      // -- : two ties (2 beats)
+      // 4 : fa (1 beat)
+      // 3 : mi (1 beat)
+      // - : one tie (1 beat)
+      const sheet = TmdParser.parse(makeScore("1'^2,_3^-- 43-"));
+      const groups = sheet.paragraphs[0].sections[0].unitGroups;
+      const beats = groups.reduce((sum, g) => sum + g.length, 0);
+      expect(beats).toBe(8);
+      expect(groups).toHaveLength(8);
+      expect(groups[0].units[0]).toEqual({ type: 'note', note: { degree: 1, accidental: Accidental.Sharp, octave: 1 } });
+      expect(groups[1].units[0]).toEqual({ type: 'note', note: { degree: 2, accidental: Accidental.Flat, octave: -1 } });
+      expect(groups[2].units[0]).toEqual({ type: 'note', note: { degree: 3, accidental: Accidental.Natural, octave: 1 } });
+      expect(groups[3].units[0]).toEqual({ type: 'tie' });
+      expect(groups[4].units[0]).toEqual({ type: 'tie' });
+      expect(groups[5].units[0]).toEqual({ type: 'note', note: { degree: 4, accidental: Accidental.Natural, octave: 0 } });
+      expect(groups[6].units[0]).toEqual({ type: 'note', note: { degree: 3, accidental: Accidental.Natural, octave: 0 } });
+      expect(groups[7].units[0]).toEqual({ type: 'tie' });
+    });
   });
 });

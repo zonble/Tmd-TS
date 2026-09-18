@@ -289,9 +289,13 @@ export class Lexer {
     }
 
     // %(
-    if (c === "%" && this.peek(1) === "(") {
-      this.advance(); this.advance();
-      return { type: "percentOpenParen", text: "%(", line, column: col };
+    if (c === "%") {
+      let offset = 1;
+      while (this.peek(offset) === " " || this.peek(offset) === "\t") offset++;
+      if (this.peek(offset) === "(") {
+        for (let i = 0; i <= offset; i++) this.advance();
+        return { type: "percentOpenParen", text: "%(", line, column: col };
+      }
     }
 
     // != or !+
@@ -743,8 +747,8 @@ export class TmdParser {
             while (this.current.type !== "closeParen" && this.current.type !== "eof") {
               this.skipPipes();
               if (this.current.type === "closeParen") break;
-              const u = this.parseUnit();
-              if (u) groupUnits.push(u);
+              const units = this.parseUnits();
+              if (units.length > 0) groupUnits.push(...units);
               else this.advance();
             }
             this.match("closeParen");
@@ -759,9 +763,14 @@ export class TmdParser {
             }
             unitGroups.push({ units: groupUnits, length });
           } else {
-            const u = this.parseUnit();
-            if (u) unitGroups.push({ units: [u], length: 1 });
-            else this.advance();
+            const units = this.parseUnits();
+            if (units.length > 0) {
+              for (const u of units) {
+                unitGroups.push({ units: [u], length: 1 });
+              }
+            } else {
+              this.advance();
+            }
           }
         }
         sections.push({ noteLength, unitGroups, directives });
@@ -773,6 +782,35 @@ export class TmdParser {
     this.match("closeBrace");
 
     return { name, instrument, start, sections, executionTime, line: startLine, column: startCol };
+  }
+
+  private parseUnits(): Unit[] {
+    this.skipPipes();
+    if (this.current.type === "number") {
+      const text = this.current.text;
+      const units: Unit[] = [];
+      let allValid = true;
+      for (const ch of text) {
+        if (ch >= "1" && ch <= "7") {
+          const degree = parseInt(ch, 10) as ScaleDegree;
+          units.push({
+            type: "note",
+            note: { degree, accidental: Accidental.Natural, octave: 0 }
+          });
+        } else if (ch === "0") {
+          units.push({ type: "rest" });
+        } else {
+          allValid = false;
+          break;
+        }
+      }
+      if (allValid && units.length > 0) {
+        this.advance();
+        return units;
+      }
+    }
+    const single = this.parseUnit();
+    return single ? [single] : [];
   }
 
   private parseUnit(): Unit | null {
