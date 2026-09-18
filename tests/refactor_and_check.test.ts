@@ -175,6 +175,159 @@ XsTt
       { type: "name", name: "verse" },
     ]);
   });
+
+  it("doubles grid resolution (<4*> -> <8*>) padding units with ties", () => {
+    const input = `::SCORE::
+** Grid Test **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    | 1 2 3 4 |
+    | [C] - 0 D |
+}
+
+-> verse ->#
+`;
+
+    const doubled = TMDRefactor.doubleGrid(input);
+    expect(doubled).toContain("<8*>");
+    expect(doubled).toContain("| 1 - 2 - 3 - 4 - |");
+    expect(doubled).toContain("| [C] - - - 0 - D - |");
+
+    // Must be valid TMD and pass measure checks
+    const issues = TMDMeasureChecker.check(doubled);
+    expect(issues).toHaveLength(0);
+  });
+
+  it("halves grid resolution (<8*> -> <4*>) when divisible", () => {
+    const input = `::SCORE::
+** Halve Test **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <8*>
+    | 1 - 2 - 3 - 4 - |
+    | [C] - - - 0 - D - |
+}
+
+-> verse ->#
+`;
+
+    const halved = TMDRefactor.halveGrid(input);
+    expect(halved).toContain("<4*>");
+    expect(halved).toContain("| 1 2 3 4 |");
+    expect(halved).toContain("| [C] - 0 D |");
+
+    const issues = TMDMeasureChecker.check(halved);
+    expect(issues).toHaveLength(0);
+  });
+
+  it("throws error when trying to halve indivisible grid", () => {
+    const input = `::SCORE::
+** Indivisible Test **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <8*>
+    | 1 2 3 4 5 6 7 8 |
+}
+
+-> verse ->#
+`;
+
+    expect(() => TMDRefactor.halveGrid(input)).toThrow();
+  });
+
+  it("duplicates a track with new instrument name and optional octave shift", () => {
+    const input = `::SCORE::
+** Dup Test **
+!= 120
+?= C
+<4/4>
+
+verse:Lead@|0|{
+    <4*>
+    | 1 2 3 5 |
+}
+
+-> verse ->#
+`;
+
+    // Duplicate Lead -> Synth with octave shift -1
+    const duped = TMDRefactor.duplicateTrack(input, "Lead", "Synth", { octaveShift: -1 });
+    expect(duped).toContain("verse:Lead@|0|{");
+    expect(duped).toContain("verse:Synth@|0|{");
+    expect(duped).toContain("1_ 2_ 3_ 5_");
+
+    const issues = TMDMeasureChecker.check(duped);
+    expect(issues).toHaveLength(0);
+  });
+
+  it("generates diatonic harmony (e.g. parallel 3rd up or down)", () => {
+    const input = `::SCORE::
+** Harmony Test **
+!= 120
+?= C
+<4/4>
+
+verse:Vocal@|0|{
+    <4*>
+    | 1 2 3 1 | [C] - - - |
+}
+
+-> verse ->#
+`;
+
+    // Add parallel third up (+3rd = interval: 2 diatonic steps up: 1 -> 3, 2 -> 4, 3 -> 5)
+    const harmonized = TMDRefactor.generateHarmony(input, "Vocal", "Harmony", { intervalSteps: 2 });
+    expect(harmonized).toContain("verse:Vocal@|0|{");
+    expect(harmonized).toContain("verse:Harmony@|0|{");
+    expect(harmonized).toContain("3 4 5 3");
+    // Chords / ties are preserved
+    expect(harmonized).toContain("[C] - - -");
+
+    const issues = TMDMeasureChecker.check(harmonized);
+    expect(issues).toHaveLength(0);
+  });
+
+  it("inlines/unrolls orders into a linear score with explicit measures", () => {
+    const input = `::SCORE::
+** Unroll Test **
+!= 120
+?= C
+<4/4>
+
+intro:Piano@|0|{
+    <4*>
+    | 1 2 3 4 |
+}
+
+verse:Piano@|0|{
+    <4*>
+    | 5 6 7 1^ |
+}
+
+-> intro -> verse -> intro ->#
+`;
+
+    const inlined = TMDRefactor.inlineOrders(input);
+    expect(inlined).toContain("linear:Piano@|0|{");
+    expect(inlined).toContain("-> linear ->#");
+    // 3 sections merged in linear playback sequence
+    expect(inlined).toContain("| 1 2 3 4 |");
+    expect(inlined).toContain("| 5 6 7 1^ |");
+
+    const sheet = TmdParser.parse(inlined);
+    expect(sheet.paragraphs).toHaveLength(1);
+    expect(sheet.paragraphs[0].sections[0].unitGroups.length).toBe(12); // 4 + 4 + 4
+  });
 });
 
 describe("TMDMeasureChecker (TDD)", () => {
@@ -475,6 +628,37 @@ describe("TMD CLI subcommands check, format, and refactor (TDD)", () => {
       const extracted = readFileSync(outExtract, "utf-8");
       expect(extracted).toContain("Chorus:Cello@|0|{");
       expect(extracted).not.toContain("Fiddle");
+
+      // double-grid
+      expect(main(["refactor", "double-grid", file, "-i"])).toBe(0);
+      content = readFileSync(file, "utf-8");
+      expect(content).toContain("<8*>");
+      expect(content).toContain("1 - 2 - 3 - 4 -");
+
+      // halve-grid
+      expect(main(["refactor", "halve-grid", file, "-i"])).toBe(0);
+      content = readFileSync(file, "utf-8");
+      expect(content).toContain("<4*>");
+      expect(content).toContain("1 2 3 4");
+
+      // duplicate-track
+      expect(main(["refactor", "duplicate-track", file, "--source", "Fiddle", "--target", "Viola", "--octave", "-1", "-i"])).toBe(0);
+      content = readFileSync(file, "utf-8");
+      expect(content).toContain("Chorus:Viola@|0|{");
+      expect(content).toContain("1_ 2_ 3_ 4_");
+
+      // generate-harmony
+      expect(main(["refactor", "generate-harmony", file, "--source", "Fiddle", "--target", "Harmony3rd", "--interval", "2", "-i"])).toBe(0);
+      content = readFileSync(file, "utf-8");
+      expect(content).toContain("Chorus:Harmony3rd@|0|{");
+      expect(content).toContain("3 4 5 6");
+
+      // inline-orders
+      const outInlined = join(tempDir, "inlined.tmd");
+      expect(main(["refactor", "inline-orders", file, "-o", outInlined])).toBe(0);
+      const inlinedContent = readFileSync(outInlined, "utf-8");
+      expect(inlinedContent).toContain("linear:Fiddle");
+      expect(inlinedContent).toContain("-> linear ->#");
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

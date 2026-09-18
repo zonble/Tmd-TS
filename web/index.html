@@ -89,6 +89,23 @@
                 <span>🪄</span> <span data-i18n="toolFormatDocument">格式化樂譜 (Shift+Alt+F)</span>
               </button>
               <div class="dropdown-divider"></div>
+              <button class="dropdown-item" id="tool-double-grid">
+                <span>⏩</span> <span data-i18n="toolDoubleGrid">細分網格時值 (Double Grid: &lt;4*&gt; ➔ &lt;8*&gt;)</span>
+              </button>
+              <button class="dropdown-item" id="tool-halve-grid">
+                <span>⏪</span> <span data-i18n="toolHalveGrid">減半網格時值 (Halve Grid: &lt;8*&gt; ➔ &lt;4*&gt;)</span>
+              </button>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" id="tool-duplicate-track">
+                <span>👯</span> <span data-i18n="toolDuplicateTrack">複製音軌 (Duplicate Track)...</span>
+              </button>
+              <button class="dropdown-item" id="tool-generate-harmony">
+                <span>🎶</span> <span data-i18n="toolGenerateHarmony">自動二部和聲 (Generate Harmony)...</span>
+              </button>
+              <button class="dropdown-item" id="tool-inline-orders">
+                <span>📜</span> <span data-i18n="toolInlineOrders">展開演奏流程 (Inline Orders)</span>
+              </button>
+              <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="tool-rename-instrument">
                 <span>🏷️</span> <span data-i18n="toolRenameInstrument">重新命名樂器...</span>
               </button>
@@ -658,6 +675,67 @@ verse:Lead@|0|{
         </div>
         <div class="modal-footer">
           <button id="btn-confirm-extract" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+        </div>
+      </dialog>
+
+      <dialog id="refactor-duplicate-modal" class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title" data-i18n="refactorDuplicateTitle">複製樂器音軌</h2>
+          <button class="btn btn-icon-only btn-close-modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="refactor-dup-source" data-i18n="labelSourceInstrument">來源樂器音軌：</label>
+            <select id="refactor-dup-source" class="text-control"></select>
+          </div>
+          <div class="form-group">
+            <label for="refactor-dup-target" data-i18n="labelTargetInstrument">目標新樂器名稱：</label>
+            <input type="text" id="refactor-dup-target" class="text-control" placeholder="e.g. Violin2" />
+          </div>
+          <div class="form-group">
+            <label for="refactor-dup-octave" data-i18n="labelOctaveShift">八度位移 (Octave Shift)：</label>
+            <select id="refactor-dup-octave" class="text-control">
+              <option value="0">0 (無位移)</option>
+              <option value="1">+1 (高一個八度 ^)</option>
+              <option value="2">+2 (高兩個八度 ^^)</option>
+              <option value="-1">-1 (低一個八度 _)</option>
+              <option value="-2">-2 (低兩個八度 __)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-confirm-duplicate" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+        </div>
+      </dialog>
+
+      <dialog id="refactor-harmony-modal" class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title" data-i18n="refactorHarmonyTitle">自動二部和聲 (平行度數)</h2>
+          <button class="btn btn-icon-only btn-close-modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="refactor-harm-source" data-i18n="labelSourceInstrument">來源樂器音軌：</label>
+            <select id="refactor-harm-source" class="text-control"></select>
+          </div>
+          <div class="form-group">
+            <label for="refactor-harm-target" data-i18n="labelTargetInstrument">目標新樂器名稱：</label>
+            <input type="text" id="refactor-harm-target" class="text-control" placeholder="e.g. LeadHarmony" />
+          </div>
+          <div class="form-group">
+            <label for="refactor-harm-interval" data-i18n="labelHarmonyInterval">平行和聲度數 (Interval)：</label>
+            <select id="refactor-harm-interval" class="text-control">
+              <option value="2" data-i18n="harmonyThirdUp">上行三度 (+3rd, +2 scale degrees)</option>
+              <option value="-2" data-i18n="harmonyThirdDown">下行三度 (-3rd, -2 scale degrees)</option>
+              <option value="5" data-i18n="harmonySixthUp">上行六度 (+6th, +5 scale degrees)</option>
+              <option value="-5" data-i18n="harmonySixthDown">下行六度 (-6th, -5 scale degrees)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-confirm-harmony" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
           <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
         </div>
       </dialog>

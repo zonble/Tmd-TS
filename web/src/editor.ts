@@ -119,6 +119,8 @@ export interface TMDWebEditor {
   getContent(): string;
   setContent(text: string): void;
   insertAtCursor(text: string): void;
+  getSelection(): string;
+  replaceSelection(text: string): void;
   scrollToLine(line: number): void;
   focus(): void;
 }
@@ -209,6 +211,22 @@ export function createTmdEditor(
       });
     },
     insertAtCursor(text: string) {
+      const selection = view.state.selection.main;
+      view.dispatch({
+        changes: {
+          from: selection.from,
+          to: selection.to,
+          insert: text,
+        },
+        selection: { anchor: selection.from + text.length },
+      });
+    },
+    getSelection() {
+      const selection = view.state.selection.main;
+      if (selection.empty) return "";
+      return view.state.sliceDoc(selection.from, selection.to);
+    },
+    replaceSelection(text: string) {
       const selection = view.state.selection.main;
       view.dispatch({
         changes: {

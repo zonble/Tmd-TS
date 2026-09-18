@@ -1,4 +1,4 @@
-import { Sheet, Paragraph } from "./types.js";
+import { Sheet, Paragraph, ScaleDegree, UnitGroup } from "./types.js";
 import { TmdParser } from "./parser.js";
 import { formatSheet } from "./format.js";
 
@@ -259,4 +259,454 @@ export class TMDRefactor {
 
     return this.format(formatSheet(extractedSheet));
   }
+
+  public static duplicateTrack(
+    source: string,
+    sourceInstrument: string,
+    targetInstrument: string,
+    options?: { octaveShift?: number }
+  ): string {
+    const sheet = TmdParser.parseThrowing(source);
+    const matching = sheet.paragraphs.filter((p) => p.instrument === sourceInstrument);
+    if (matching.length === 0) {
+      throw new TMDRefactorError(`Instrument '${sourceInstrument}' not found in score`);
+    }
+
+    const shift = options?.octaveShift || 0;
+    const duplicatedParagraphs: Paragraph[] = matching.map((orig) => {
+      const clonedSections = orig.sections.map((sec) => ({
+        noteLength: sec.noteLength,
+        directives: [...sec.directives],
+        unitGroups: sec.unitGroups.map((g) => ({
+          length: g.length,
+          units: g.units.map((u) => {
+            if (u.type === "note") {
+              return {
+                type: "note" as const,
+                note: {
+                  degree: u.note.degree,
+                  accidental: u.note.accidental,
+                  octave: u.note.octave + shift,
+                },
+              };
+            }
+            return u;
+          }),
+        })),
+      }));
+
+      return {
+        name: orig.name,
+        instrument: targetInstrument,
+        start: orig.start,
+        sections: clonedSections,
+        executionTime: orig.executionTime,
+        showProgram: orig.showProgram,
+      };
+    });
+
+    const newParagraphs = [...sheet.paragraphs, ...duplicatedParagraphs];
+    const newSheet: Sheet = {
+      ...sheet,
+      paragraphs: newParagraphs,
+    };
+
+    return this.format(formatSheet(newSheet));
+  }
+
+  public static generateHarmony(
+    source: string,
+    sourceInstrument: string,
+    harmonyInstrument: string,
+    options: { intervalSteps: number }
+  ): string {
+    const sheet = TmdParser.parseThrowing(source);
+    const matching = sheet.paragraphs.filter((p) => p.instrument === sourceInstrument);
+    if (matching.length === 0) {
+      throw new TMDRefactorError(`Instrument '${sourceInstrument}' not found in score`);
+    }
+
+    const steps = options.intervalSteps; // e.g. +2 for 3rd up, -2 for 3rd down
+    const harmonizedParagraphs: Paragraph[] = matching.map((orig) => {
+      const clonedSections = orig.sections.map((sec) => ({
+        noteLength: sec.noteLength,
+        directives: [...sec.directives],
+        unitGroups: sec.unitGroups.map((g) => ({
+          length: g.length,
+          units: g.units.map((u) => {
+            if (u.type === "note") {
+              const currentDeg = u.note.degree as number; // 1..7
+              const zeroIndexed = currentDeg - 1; // 0..6
+              const newZero = zeroIndexed + steps;
+              const newDeg = (((newZero % 7) + 7) % 7) + 1;
+              const octaveDelta = Math.floor(newZero / 7);
+
+              return {
+                type: "note" as const,
+                note: {
+                  degree: newDeg as ScaleDegree,
+                  accidental: u.note.accidental,
+                  octave: u.note.octave + octaveDelta,
+                },
+              };
+            }
+            return u;
+          }),
+        })),
+      }));
+
+      return {
+        name: orig.name,
+        instrument: harmonyInstrument,
+        start: orig.start,
+        sections: clonedSections,
+        executionTime: orig.executionTime,
+        showProgram: orig.showProgram,
+      };
+    });
+
+    const newParagraphs = [...sheet.paragraphs, ...harmonizedParagraphs];
+    const newSheet: Sheet = {
+      ...sheet,
+      paragraphs: newParagraphs,
+    };
+
+    return this.format(formatSheet(newSheet));
+  }
+
+  public static inlineOrders(source: string): string {
+    const sheet = TmdParser.parseThrowing(source);
+    if (!sheet.orders || sheet.orders.length === 0) {
+      return source;
+    }
+
+    // Map instruments -> combined list of sections in linear playback sequence
+    const instruments = Array.from(new Set(sheet.paragraphs.map((p) => p.instrument)));
+    const linearParagraphs: Paragraph[] = [];
+
+    for (const inst of instruments) {
+      const combinedUnitGroups: UnitGroup[] = [];
+      let baseNoteLength = 4;
+
+      for (const ord of sheet.orders) {
+        if (ord.type !== "name") continue;
+        const para = sheet.paragraphs.find((p) => p.name === ord.name && p.instrument === inst);
+        if (!para) continue;
+
+        for (const sec of para.sections) {
+          baseNoteLength = sec.noteLength;
+          combinedUnitGroups.push(...sec.unitGroups);
+        }
+      }
+
+      linearParagraphs.push({
+        name: "linear",
+        instrument: inst,
+        start: 0,
+        sections: [
+          {
+            noteLength: baseNoteLength,
+            unitGroups: combinedUnitGroups,
+            directives: [],
+          },
+        ],
+      });
+    }
+
+    const newSheet: Sheet = {
+      name: sheet.name,
+      speed: sheet.speed,
+      keySignature: sheet.keySignature,
+      beat: sheet.beat,
+      paragraphs: linearParagraphs,
+      orders: [{ type: "name", name: "linear" }],
+      metadata: sheet.metadata,
+    };
+
+    return this.format(formatSheet(newSheet));
+  }
+
+  public static doubleGrid(
+    source: string,
+    target?: { section?: string; instrument?: string }
+  ): string {
+    const rawLines = source.split(/\r?\n/);
+    const resultLines: string[] = [];
+
+    let inMatchingPara = false;
+    let insideParagraph = false;
+    let currentNoteLength = 4;
+
+    for (const rawLine of rawLines) {
+      const trimmed = rawLine.trim();
+
+      // Check paragraph header: section:instrument@...{
+      const paraMatch = trimmed.match(
+        /^([a-zA-Z0-9_\u4e00-\u9fa5-]+)\s*:\s*([a-zA-Z0-9_\u4e00-\u9fa5-]+)(@[^{]*)?\s*\{/
+      );
+      if (paraMatch) {
+        insideParagraph = true;
+        const pSec = paraMatch[1];
+        const pInst = paraMatch[2];
+        inMatchingPara =
+          (!target?.section || target.section === pSec) &&
+          (!target?.instrument || target.instrument === pInst);
+        currentNoteLength = 4;
+        resultLines.push(rawLine);
+        continue;
+      }
+
+      if (trimmed === "}") {
+        insideParagraph = false;
+        inMatchingPara = false;
+        resultLines.push(rawLine);
+        continue;
+      }
+
+      if (!insideParagraph || !inMatchingPara) {
+        resultLines.push(rawLine);
+        continue;
+      }
+
+      // Check section noteLength header: <4*> -> <8*>
+      const gridMatch = trimmed.match(/^<(\d+)\*>/);
+      if (gridMatch) {
+        currentNoteLength = parseInt(gridMatch[1], 10);
+        const newLen = currentNoteLength * 2;
+        const indent = rawLine.match(/^\s*/)?.[0] || "";
+        resultLines.push(`${indent}<${newLen}*>`);
+        continue;
+      }
+
+      // If line is measure line / contains units
+      if (trimmed.startsWith("|") || trimmed.includes("|") || /[0-7\[\]\-]/.test(trimmed)) {
+        const indent = rawLine.match(/^\s*/)?.[0] || "";
+        const transformed = doubleGridInLine(trimmed);
+        resultLines.push(indent + transformed);
+      } else {
+        resultLines.push(rawLine);
+      }
+    }
+
+    return this.format(resultLines.join("\n"));
+  }
+
+  public static halveGrid(
+    source: string,
+    target?: { section?: string; instrument?: string }
+  ): string {
+    const rawLines = source.split(/\r?\n/);
+    const resultLines: string[] = [];
+
+    let inMatchingPara = false;
+    let insideParagraph = false;
+    let currentNoteLength = 4;
+
+    for (const rawLine of rawLines) {
+      const trimmed = rawLine.trim();
+
+      const paraMatch = trimmed.match(
+        /^([a-zA-Z0-9_\u4e00-\u9fa5-]+)\s*:\s*([a-zA-Z0-9_\u4e00-\u9fa5-]+)(@[^{]*)?\s*\{/
+      );
+      if (paraMatch) {
+        insideParagraph = true;
+        const pSec = paraMatch[1];
+        const pInst = paraMatch[2];
+        inMatchingPara =
+          (!target?.section || target.section === pSec) &&
+          (!target?.instrument || target.instrument === pInst);
+        currentNoteLength = 4;
+        resultLines.push(rawLine);
+        continue;
+      }
+
+      if (trimmed === "}") {
+        insideParagraph = false;
+        inMatchingPara = false;
+        resultLines.push(rawLine);
+        continue;
+      }
+
+      if (!insideParagraph || !inMatchingPara) {
+        resultLines.push(rawLine);
+        continue;
+      }
+
+      const gridMatch = trimmed.match(/^<(\d+)\*>/);
+      if (gridMatch) {
+        currentNoteLength = parseInt(gridMatch[1], 10);
+        if (currentNoteLength % 2 !== 0) {
+          throw new TMDRefactorError(`Cannot halve odd grid <${currentNoteLength}*>`);
+        }
+        const newLen = currentNoteLength / 2;
+        const indent = rawLine.match(/^\s*/)?.[0] || "";
+        resultLines.push(`${indent}<${newLen}*>`);
+        continue;
+      }
+
+      if (trimmed.startsWith("|") || trimmed.includes("|") || /[0-7\[\]\-]/.test(trimmed)) {
+        const indent = rawLine.match(/^\s*/)?.[0] || "";
+        const transformed = halveGridInLine(trimmed);
+        resultLines.push(indent + transformed);
+      } else {
+        resultLines.push(rawLine);
+      }
+    }
+
+    return this.format(resultLines.join("\n"));
+  }
+}
+
+function doubleGridInLine(line: string): string {
+  // Break line into tokens while preserving pipes and comments
+  // Extract comment if present
+  let working = line;
+  let commentSuffix = "";
+  const commentStart = working.indexOf("/*");
+  if (commentStart !== -1) {
+    commentSuffix = " " + working.slice(commentStart);
+    working = working.slice(0, commentStart).trim();
+  }
+
+  // Tokenize the measure content
+  const tokens = tokenizeMeasureLine(working);
+  const outTokens: string[] = [];
+
+  for (const tok of tokens) {
+    if (tok === "|") {
+      outTokens.push("|");
+    } else if (tok.startsWith("(") && tok.includes(")%(")) {
+      // Tuplet with length: (1 2 3)%(--) -> double the dashes
+      const match = tok.match(/^\(([^)]+)\)%\(([-]+)\)$/);
+      if (match) {
+        const inner = match[1];
+        const dashes = match[2];
+        const doubledDashes = dashes + dashes;
+        outTokens.push(`(${inner})%(${doubledDashes})`);
+      } else {
+        outTokens.push(tok, "-");
+      }
+    } else {
+      // Regular unit: append a tie '-'
+      outTokens.push(tok);
+      outTokens.push("-");
+    }
+  }
+
+  return outTokens.join(" ") + commentSuffix;
+}
+
+function halveGridInLine(line: string): string {
+  let working = line;
+  let commentSuffix = "";
+  const commentStart = working.indexOf("/*");
+  if (commentStart !== -1) {
+    commentSuffix = " " + working.slice(commentStart);
+    working = working.slice(0, commentStart).trim();
+  }
+
+  const tokens = tokenizeMeasureLine(working);
+  const outTokens: string[] = [];
+
+  // Group tokens by measure (between pipes)
+  let currentMeasure: string[] = [];
+
+  const processMeasure = (measureTokens: string[]) => {
+    if (measureTokens.length % 2 !== 0) {
+      throw new TMDRefactorError(
+        `Cannot halve measure with odd number of units: | ${measureTokens.join(" ")} |`
+      );
+    }
+    for (let i = 0; i < measureTokens.length; i += 2) {
+      const u1 = measureTokens[i];
+      const u2 = measureTokens[i + 1];
+      if (u2 !== "-") {
+        throw new TMDRefactorError(
+          `Cannot halve grid: unit '${u1} ${u2}' does not sustain with a tie '-'`
+        );
+      }
+      outTokens.push(u1);
+    }
+  };
+
+  for (const tok of tokens) {
+    if (tok === "|") {
+      if (currentMeasure.length > 0) {
+        processMeasure(currentMeasure);
+        currentMeasure = [];
+      }
+      outTokens.push("|");
+    } else {
+      currentMeasure.push(tok);
+    }
+  }
+
+  if (currentMeasure.length > 0) {
+    processMeasure(currentMeasure);
+  }
+
+  return outTokens.join(" ") + commentSuffix;
+}
+
+function tokenizeMeasureLine(line: string): string[] {
+  const tokens: string[] = [];
+  let i = 0;
+  while (i < line.length) {
+    const ch = line[i];
+    if (ch === " " || ch === "\t") {
+      i++;
+      continue;
+    }
+    if (ch === "|") {
+      tokens.push("|");
+      i++;
+      continue;
+    }
+    if (ch === "[") {
+      // Chord [Am7]
+      const end = line.indexOf("]", i);
+      if (end !== -1) {
+        tokens.push(line.slice(i, end + 1));
+        i = end + 1;
+        continue;
+      }
+    }
+    if (ch === "(") {
+      // Tuplet (1 2 3) or (1 2 3)%(--)
+      const endParen = line.indexOf(")", i);
+      if (endParen !== -1) {
+        if (line.slice(endParen + 1, endParen + 3) === "%(") {
+          const endDashes = line.indexOf(")", endParen + 3);
+          if (endDashes !== -1) {
+            tokens.push(line.slice(i, endDashes + 1));
+            i = endDashes + 1;
+            continue;
+          }
+        }
+        tokens.push(line.slice(i, endParen + 1));
+        i = endParen + 1;
+        continue;
+      }
+    }
+    // Directive {!= 120} etc
+    if (ch === "{") {
+      const end = line.indexOf("}", i);
+      if (end !== -1) {
+        tokens.push(line.slice(i, end + 1));
+        i = end + 1;
+        continue;
+      }
+    }
+
+    // Normal word/note token until whitespace or pipe or bracket or paren
+    let word = "";
+    while (i < line.length && !/[\s|\[\]\(\)\{\}]/.test(line[i])) {
+      word += line[i];
+      i++;
+    }
+    if (word.length > 0) {
+      tokens.push(word);
+    }
+  }
+  return tokens;
 }

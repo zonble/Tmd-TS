@@ -15,12 +15,22 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     // Tool actions
     expect((zhTW as any).toolFormatDocument).toBeDefined();
     expect((en as any).toolFormatDocument).toBeDefined();
+    expect((zhTW as any).toolDoubleGrid).toBeDefined();
+    expect((en as any).toolDoubleGrid).toBeDefined();
+    expect((zhTW as any).toolHalveGrid).toBeDefined();
+    expect((en as any).toolHalveGrid).toBeDefined();
     expect((zhTW as any).toolRenameInstrument).toBeDefined();
     expect((en as any).toolRenameInstrument).toBeDefined();
     expect((zhTW as any).toolRenameSection).toBeDefined();
     expect((en as any).toolRenameSection).toBeDefined();
     expect((zhTW as any).toolExtractInstrument).toBeDefined();
     expect((en as any).toolExtractInstrument).toBeDefined();
+    expect((zhTW as any).toolDuplicateTrack).toBeDefined();
+    expect((en as any).toolDuplicateTrack).toBeDefined();
+    expect((zhTW as any).toolGenerateHarmony).toBeDefined();
+    expect((en as any).toolGenerateHarmony).toBeDefined();
+    expect((zhTW as any).toolInlineOrders).toBeDefined();
+    expect((en as any).toolInlineOrders).toBeDefined();
 
     // Problems Panel
     expect((zhTW as any).problemsPanelTitle).toBeDefined();
@@ -39,6 +49,11 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(html).toContain('id="tools-dropdown"');
     expect(html).toContain('id="btn-tools-menu"');
     expect(html).toContain('id="tool-format-document"');
+    expect(html).toContain('id="tool-double-grid"');
+    expect(html).toContain('id="tool-halve-grid"');
+    expect(html).toContain('id="tool-duplicate-track"');
+    expect(html).toContain('id="tool-generate-harmony"');
+    expect(html).toContain('id="tool-inline-orders"');
     expect(html).toContain('id="tool-rename-instrument"');
     expect(html).toContain('id="tool-rename-section"');
     expect(html).toContain('id="tool-extract-instrument"');
@@ -53,6 +68,8 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(html).toContain('id="refactor-instrument-modal"');
     expect(html).toContain('id="refactor-section-modal"');
     expect(html).toContain('id="refactor-extract-modal"');
+    expect(html).toContain('id="refactor-duplicate-modal"');
+    expect(html).toContain('id="refactor-harmony-modal"');
   });
 
   it("binds Tools actions, keyboard shortcut, and problems check in web/src/main.ts", () => {
@@ -65,6 +82,11 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
 
     // Events bound
     expect(mainContent).toContain("tool-format-document");
+    expect(mainContent).toContain("tool-double-grid");
+    expect(mainContent).toContain("tool-halve-grid");
+    expect(mainContent).toContain("tool-duplicate-track");
+    expect(mainContent).toContain("tool-generate-harmony");
+    expect(mainContent).toContain("tool-inline-orders");
     expect(mainContent).toContain("tool-rename-instrument");
     expect(mainContent).toContain("tool-rename-section");
     expect(mainContent).toContain("tool-extract-instrument");

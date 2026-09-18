@@ -190,6 +190,11 @@ SUBCOMMANDS:
   rename-instrument       Rename all occurrences of an instrument in a score.
   rename-section          Rename all occurrences of a section in a score.
   extract-instrument      Extract all tracks belonging to an instrument into a separate document.
+  double-grid             Double grid resolution (<4*> -> <8*>) with ties.
+  halve-grid              Halve grid resolution (<8*> -> <4*>) when divisible.
+  duplicate-track         Duplicate an instrument track with optional octave shift.
+  generate-harmony        Generate diatonic parallel harmony track (e.g. 3rd, 6th).
+  inline-orders           Unroll order sequence into a single linear section.
 `);
     return 0;
   }
@@ -388,6 +393,291 @@ SUBCOMMANDS:
       console.log(`Extracted instrument '${instrument}' to ${outputPath}.`);
     } else {
       process.stdout.write(extracted);
+    }
+    return 0;
+  }
+
+  if (sub === "double-grid" || sub === "halve-grid") {
+    let inputPath: string | undefined;
+    let targetSection: string | undefined;
+    let targetInstrument: string | undefined;
+    let inPlace = false;
+    let outputPath: string | undefined;
+
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i];
+      if (arg === "-h" || arg === "--help") {
+        console.log(`USAGE: tmd refactor ${sub} [<options>] <input-path>`);
+        return 0;
+      }
+      if (arg === "--section") {
+        targetSection = rest[++i];
+        continue;
+      }
+      if (arg === "--instrument") {
+        targetInstrument = rest[++i];
+        continue;
+      }
+      if (arg === "-i" || arg === "--in-place") {
+        inPlace = true;
+        continue;
+      }
+      if (arg === "-o" || arg === "--output") {
+        outputPath = rest[++i];
+        continue;
+      }
+      if (!arg.startsWith("-")) {
+        inputPath = arg;
+      } else {
+        console.error(`Unknown option: ${arg}`);
+        return 2;
+      }
+    }
+
+    if (!inputPath) {
+      console.error(`Error: ${sub} requires <input-path>`);
+      return 2;
+    }
+
+    let content: string;
+    try {
+      content = fs.readFileSync(inputPath, "utf-8");
+    } catch (error: any) {
+      console.error(`Error reading ${inputPath}: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    let transformed: string;
+    try {
+      const target = targetSection || targetInstrument ? { section: targetSection, instrument: targetInstrument } : undefined;
+      if (sub === "double-grid") {
+        transformed = TMDRefactor.doubleGrid(content, target);
+      } else {
+        transformed = TMDRefactor.halveGrid(content, target);
+      }
+    } catch (error: any) {
+      console.error(`Refactor error: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    if (inPlace) {
+      fs.writeFileSync(inputPath, transformed, "utf-8");
+      console.log(`Transformed grid (${sub}) in ${inputPath} in-place.`);
+    } else if (outputPath) {
+      fs.writeFileSync(outputPath, transformed, "utf-8");
+      console.log(`Transformed score written to ${outputPath}.`);
+    } else {
+      process.stdout.write(transformed);
+    }
+    return 0;
+  }
+
+  if (sub === "duplicate-track") {
+    let inputPath: string | undefined;
+    let source: string | undefined;
+    let target: string | undefined;
+    let octaveShift = 0;
+    let inPlace = false;
+    let outputPath: string | undefined;
+
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i];
+      if (arg === "-h" || arg === "--help") {
+        console.log(`USAGE: tmd refactor duplicate-track [<options>] <input-path>`);
+        return 0;
+      }
+      if (arg === "--source") {
+        source = rest[++i];
+        continue;
+      }
+      if (arg === "--target") {
+        target = rest[++i];
+        continue;
+      }
+      if (arg === "--octave") {
+        octaveShift = parseInt(rest[++i], 10) || 0;
+        continue;
+      }
+      if (arg === "-i" || arg === "--in-place") {
+        inPlace = true;
+        continue;
+      }
+      if (arg === "-o" || arg === "--output") {
+        outputPath = rest[++i];
+        continue;
+      }
+      if (!arg.startsWith("-")) {
+        inputPath = arg;
+      } else {
+        console.error(`Unknown option: ${arg}`);
+        return 2;
+      }
+    }
+
+    if (!inputPath || !source || !target) {
+      console.error("Error: duplicate-track requires <input-path>, --source, and --target");
+      return 2;
+    }
+
+    let content: string;
+    try {
+      content = fs.readFileSync(inputPath, "utf-8");
+    } catch (error: any) {
+      console.error(`Error reading ${inputPath}: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    let transformed: string;
+    try {
+      transformed = TMDRefactor.duplicateTrack(content, source, target, { octaveShift });
+    } catch (error: any) {
+      console.error(`Refactor error: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    if (inPlace) {
+      fs.writeFileSync(inputPath, transformed, "utf-8");
+      console.log(`Duplicated track ${source} -> ${target} in ${inputPath} in-place.`);
+    } else if (outputPath) {
+      fs.writeFileSync(outputPath, transformed, "utf-8");
+      console.log(`Duplicated track output written to ${outputPath}.`);
+    } else {
+      process.stdout.write(transformed);
+    }
+    return 0;
+  }
+
+  if (sub === "generate-harmony") {
+    let inputPath: string | undefined;
+    let source: string | undefined;
+    let target: string | undefined;
+    let intervalSteps = 2; // Default parallel 3rd
+    let inPlace = false;
+    let outputPath: string | undefined;
+
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i];
+      if (arg === "-h" || arg === "--help") {
+        console.log(`USAGE: tmd refactor generate-harmony [<options>] <input-path>`);
+        return 0;
+      }
+      if (arg === "--source") {
+        source = rest[++i];
+        continue;
+      }
+      if (arg === "--target") {
+        target = rest[++i];
+        continue;
+      }
+      if (arg === "--interval") {
+        intervalSteps = parseInt(rest[++i], 10) || 0;
+        continue;
+      }
+      if (arg === "-i" || arg === "--in-place") {
+        inPlace = true;
+        continue;
+      }
+      if (arg === "-o" || arg === "--output") {
+        outputPath = rest[++i];
+        continue;
+      }
+      if (!arg.startsWith("-")) {
+        inputPath = arg;
+      } else {
+        console.error(`Unknown option: ${arg}`);
+        return 2;
+      }
+    }
+
+    if (!inputPath || !source || !target) {
+      console.error("Error: generate-harmony requires <input-path>, --source, and --target");
+      return 2;
+    }
+
+    let content: string;
+    try {
+      content = fs.readFileSync(inputPath, "utf-8");
+    } catch (error: any) {
+      console.error(`Error reading ${inputPath}: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    let transformed: string;
+    try {
+      transformed = TMDRefactor.generateHarmony(content, source, target, { intervalSteps });
+    } catch (error: any) {
+      console.error(`Refactor error: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    if (inPlace) {
+      fs.writeFileSync(inputPath, transformed, "utf-8");
+      console.log(`Generated harmony ${source} -> ${target} in ${inputPath} in-place.`);
+    } else if (outputPath) {
+      fs.writeFileSync(outputPath, transformed, "utf-8");
+      console.log(`Harmony output written to ${outputPath}.`);
+    } else {
+      process.stdout.write(transformed);
+    }
+    return 0;
+  }
+
+  if (sub === "inline-orders") {
+    let inputPath: string | undefined;
+    let inPlace = false;
+    let outputPath: string | undefined;
+
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i];
+      if (arg === "-h" || arg === "--help") {
+        console.log(`USAGE: tmd refactor inline-orders [<options>] <input-path>`);
+        return 0;
+      }
+      if (arg === "-i" || arg === "--in-place") {
+        inPlace = true;
+        continue;
+      }
+      if (arg === "-o" || arg === "--output") {
+        outputPath = rest[++i];
+        continue;
+      }
+      if (!arg.startsWith("-")) {
+        inputPath = arg;
+      } else {
+        console.error(`Unknown option: ${arg}`);
+        return 2;
+      }
+    }
+
+    if (!inputPath) {
+      console.error("Error: inline-orders requires <input-path>");
+      return 2;
+    }
+
+    let content: string;
+    try {
+      content = fs.readFileSync(inputPath, "utf-8");
+    } catch (error: any) {
+      console.error(`Error reading ${inputPath}: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    let transformed: string;
+    try {
+      transformed = TMDRefactor.inlineOrders(content);
+    } catch (error: any) {
+      console.error(`Refactor error: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    if (inPlace) {
+      fs.writeFileSync(inputPath, transformed, "utf-8");
+      console.log(`Inlined orders in ${inputPath} in-place.`);
+    } else if (outputPath) {
+      fs.writeFileSync(outputPath, transformed, "utf-8");
+      console.log(`Inlined output written to ${outputPath}.`);
+    } else {
+      process.stdout.write(transformed);
     }
     return 0;
   }

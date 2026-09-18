@@ -7,7 +7,8 @@ import {
   Paragraph,
   Order,
   Sheet,
-  Accidental
+  Accidental,
+  Beat,
 } from "./types";
 
 export function formatNote(note: Note): string {
@@ -61,7 +62,7 @@ export function formatSectionDirective(dir: SectionDirective): string {
   }
 }
 
-export function formatSection(sec: Section): string {
+export function formatSection(sec: Section, beat: Beat = { count: 4, noteValue: 4 }): string {
   let result = `\t<${sec.noteLength}*>`;
   let counter = 0;
   let dirIdx = 0;
@@ -77,15 +78,29 @@ export function formatSection(sec: Section): string {
   let curPos = 0;
   appendDirs(curPos);
 
+  const measureUnits = Math.max(1, Math.floor((beat.count * sec.noteLength) / beat.noteValue));
+  let inMeasureCount = 0;
+  result += "\n\t| ";
+
   for (const group of sec.unitGroups) {
-    if (counter % 8 === 0 || counter >= 8) {
-      result += "\n\t";
-      counter = 0;
-    }
     result += `${formatUnitGroup(group)} `;
-    counter += group.length;
+    inMeasureCount += group.length;
     curPos += group.length;
     appendDirs(curPos);
+
+    if (inMeasureCount >= measureUnits) {
+      result += "| ";
+      inMeasureCount = 0;
+      counter++;
+      if (counter >= 4) {
+        result += "\n\t| ";
+        counter = 0;
+      }
+    }
+  }
+
+  if (inMeasureCount > 0 && !result.trim().endsWith("|")) {
+    result += "|";
   }
 
   while (dirIdx < sortedDirs.length) {
@@ -97,7 +112,7 @@ export function formatSection(sec: Section): string {
   return result;
 }
 
-export function formatParagraph(p: Paragraph): string {
+export function formatParagraph(p: Paragraph, beat?: Beat): string {
   if (p.showProgram) {
     const time = p.executionTime ?? "";
     return `${p.name}:${p.instrument}@${time}{\n"""${p.showProgram}"""\n}\n\n`;
@@ -109,7 +124,7 @@ export function formatParagraph(p: Paragraph): string {
   result += "|{\n";
 
   for (const sec of p.sections) {
-    result += formatSection(sec);
+    result += formatSection(sec, beat);
   }
   result += "}\n\n";
   return result;
@@ -143,7 +158,7 @@ export function formatSheet(sheet: Sheet): string {
   if (metaKeys.length > 0) result += "\n";
 
   for (const p of sheet.paragraphs) {
-    result += formatParagraph(p);
+    result += formatParagraph(p, sheet.beat);
   }
 
   let counter = 0;

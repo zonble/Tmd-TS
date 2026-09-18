@@ -148,6 +148,11 @@ const aiSettingsBaseUrl = document.getElementById("ai-settings-baseurl") as HTML
 const toolsDropdown = document.getElementById("tools-dropdown") as HTMLElement;
 const btnToolsMenu = document.getElementById("btn-tools-menu") as HTMLButtonElement;
 const toolFormatDocument = document.getElementById("tool-format-document") as HTMLButtonElement;
+const toolDoubleGrid = document.getElementById("tool-double-grid") as HTMLButtonElement;
+const toolHalveGrid = document.getElementById("tool-halve-grid") as HTMLButtonElement;
+const toolDuplicateTrack = document.getElementById("tool-duplicate-track") as HTMLButtonElement;
+const toolGenerateHarmony = document.getElementById("tool-generate-harmony") as HTMLButtonElement;
+const toolInlineOrders = document.getElementById("tool-inline-orders") as HTMLButtonElement;
 const toolRenameInstrument = document.getElementById("tool-rename-instrument") as HTMLButtonElement;
 const toolRenameSection = document.getElementById("tool-rename-section") as HTMLButtonElement;
 const toolExtractInstrument = document.getElementById("tool-extract-instrument") as HTMLButtonElement;
@@ -172,6 +177,18 @@ const btnConfirmRenameSec = document.getElementById("btn-confirm-rename-sec") as
 const refactorExtractModal = document.getElementById("refactor-extract-modal") as HTMLDialogElement;
 const refactorExtractInst = document.getElementById("refactor-extract-inst") as HTMLSelectElement;
 const btnConfirmExtract = document.getElementById("btn-confirm-extract") as HTMLButtonElement;
+
+const refactorDuplicateModal = document.getElementById("refactor-duplicate-modal") as HTMLDialogElement;
+const refactorDupSource = document.getElementById("refactor-dup-source") as HTMLSelectElement;
+const refactorDupTarget = document.getElementById("refactor-dup-target") as HTMLInputElement;
+const refactorDupOctave = document.getElementById("refactor-dup-octave") as HTMLSelectElement;
+const btnConfirmDuplicate = document.getElementById("btn-confirm-duplicate") as HTMLButtonElement;
+
+const refactorHarmonyModal = document.getElementById("refactor-harmony-modal") as HTMLDialogElement;
+const refactorHarmSource = document.getElementById("refactor-harm-source") as HTMLSelectElement;
+const refactorHarmTarget = document.getElementById("refactor-harm-target") as HTMLInputElement;
+const refactorHarmInterval = document.getElementById("refactor-harm-interval") as HTMLSelectElement;
+const btnConfirmHarmony = document.getElementById("btn-confirm-harmony") as HTMLButtonElement;
 const aiSettingsBaseUrlGroup = document.getElementById("ai-settings-baseurl-group") as HTMLElement;
 
 // Player Bar (Matching zago)
@@ -1099,6 +1116,49 @@ function initEvents() {
     handleFormatDocument();
   });
 
+  // Grid Subdivision Transform (Double / Halve)
+  toolDoubleGrid?.addEventListener("click", () => {
+    toolsDropdown?.classList.remove("open");
+    const selection = editor.getSelection();
+    try {
+      if (selection && selection.trim().length > 0) {
+        const doubled = TMDRefactor.doubleGrid(selection);
+        editor.replaceSelection(doubled);
+      } else {
+        const full = editor.getContent();
+        const doubled = TMDRefactor.doubleGrid(full);
+        editor.setContent(doubled);
+      }
+      const updated = editor.getContent();
+      updateInspector(updated);
+      updateProblems(updated);
+      showToast(t("toastDoubleGrid"));
+    } catch (err: any) {
+      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
+    }
+  });
+
+  toolHalveGrid?.addEventListener("click", () => {
+    toolsDropdown?.classList.remove("open");
+    const selection = editor.getSelection();
+    try {
+      if (selection && selection.trim().length > 0) {
+        const halved = TMDRefactor.halveGrid(selection);
+        editor.replaceSelection(halved);
+      } else {
+        const full = editor.getContent();
+        const halved = TMDRefactor.halveGrid(full);
+        editor.setContent(halved);
+      }
+      const updated = editor.getContent();
+      updateInspector(updated);
+      updateProblems(updated);
+      showToast(t("toastHalveGrid"));
+    } catch (err: any) {
+      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
+    }
+  });
+
   // Rename Instrument Modal
   toolRenameInstrument?.addEventListener("click", () => {
     toolsDropdown?.classList.remove("open");
@@ -1205,12 +1265,104 @@ function initEvents() {
     }
   });
 
+  // Duplicate Track Modal
+  toolDuplicateTrack?.addEventListener("click", () => {
+    toolsDropdown?.classList.remove("open");
+    const text = editor.getContent();
+    let sheet: Sheet | null = null;
+    try {
+      sheet = TmdParser.parse(text);
+    } catch (e) {
+      // ignore
+    }
+    const instruments = Array.from(new Set(sheet?.paragraphs.map((p) => p.instrument) || []));
+    refactorDupSource.innerHTML = instruments
+      .map((inst) => `<option value="${escapeHtml(inst)}">${escapeHtml(inst)}</option>`)
+      .join("");
+    refactorDupTarget.value = "";
+    refactorDupOctave.value = "0";
+    refactorDuplicateModal.showModal();
+  });
+
+  btnConfirmDuplicate?.addEventListener("click", () => {
+    const source = refactorDupSource.value;
+    const target = refactorDupTarget.value.trim();
+    const octaveShift = parseInt(refactorDupOctave.value, 10) || 0;
+    if (!source || !target) return;
+    try {
+      const text = editor.getContent();
+      const refactored = TMDRefactor.duplicateTrack(text, source, target, { octaveShift });
+      editor.setContent(refactored);
+      updateInspector(refactored);
+      updateProblems(refactored);
+      refactorDuplicateModal.close();
+      showToast(t("toastDuplicatedTrack"));
+    } catch (err: any) {
+      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
+    }
+  });
+
+  // Generate Harmony Modal
+  toolGenerateHarmony?.addEventListener("click", () => {
+    toolsDropdown?.classList.remove("open");
+    const text = editor.getContent();
+    let sheet: Sheet | null = null;
+    try {
+      sheet = TmdParser.parse(text);
+    } catch (e) {
+      // ignore
+    }
+    const instruments = Array.from(new Set(sheet?.paragraphs.map((p) => p.instrument) || []));
+    refactorHarmSource.innerHTML = instruments
+      .map((inst) => `<option value="${escapeHtml(inst)}">${escapeHtml(inst)}</option>`)
+      .join("");
+    refactorHarmTarget.value = "";
+    refactorHarmInterval.value = "2";
+    refactorHarmonyModal.showModal();
+  });
+
+  btnConfirmHarmony?.addEventListener("click", () => {
+    const source = refactorHarmSource.value;
+    const target = refactorHarmTarget.value.trim();
+    const intervalSteps = parseInt(refactorHarmInterval.value, 10) || 0;
+    if (!source || !target) return;
+    try {
+      const text = editor.getContent();
+      const refactored = TMDRefactor.generateHarmony(text, source, target, { intervalSteps });
+      editor.setContent(refactored);
+      updateInspector(refactored);
+      updateProblems(refactored);
+      refactorHarmonyModal.close();
+      showToast(t("toastGeneratedHarmony"));
+    } catch (err: any) {
+      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
+    }
+  });
+
+  // Inline Orders
+  toolInlineOrders?.addEventListener("click", () => {
+    toolsDropdown?.classList.remove("open");
+    if (!confirm(t("confirmInlineOrders"))) return;
+    try {
+      const text = editor.getContent();
+      const inlined = TMDRefactor.inlineOrders(text);
+      editor.setContent(inlined);
+      updateInspector(inlined);
+      updateProblems(inlined);
+      showToast(t("toastInlinedOrders"));
+    } catch (err: any) {
+      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
+    }
+  });
+
   // Close modals on cancel button click
   document.querySelectorAll(".btn-close-modal").forEach((btn) => {
     btn.addEventListener("click", () => {
       refactorInstrumentModal?.close();
       refactorSectionModal?.close();
       refactorExtractModal?.close();
+      refactorDuplicateModal?.close();
+      refactorHarmonyModal?.close();
     });
   });
 
