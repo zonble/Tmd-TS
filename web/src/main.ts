@@ -1,5 +1,7 @@
 import { TmdParser } from "../../src/core/parser.js";
 import { Sheet, scaleDegreeLetter, accidentalToSemitone } from "../../src/core/types.js";
+import { TMDRefactor } from "../../src/core/refactor.js";
+import { TMDMeasureChecker, TMDMeasureIssue } from "../../src/core/measure_check.js";
 import {
   TMDMIDIGenerator,
   TMDMusicXMLGenerator,
@@ -141,6 +143,35 @@ const aiSettingsKey = document.getElementById("ai-settings-key") as HTMLInputEle
 const aiKeyOfficialLink = document.getElementById("ai-key-official-link") as HTMLAnchorElement;
 const aiKeyAskAiLink = document.getElementById("ai-key-ask-ai-link") as HTMLAnchorElement;
 const aiSettingsBaseUrl = document.getElementById("ai-settings-baseurl") as HTMLInputElement;
+
+// Tools Dropdown
+const toolsDropdown = document.getElementById("tools-dropdown") as HTMLElement;
+const btnToolsMenu = document.getElementById("btn-tools-menu") as HTMLButtonElement;
+const toolFormatDocument = document.getElementById("tool-format-document") as HTMLButtonElement;
+const toolRenameInstrument = document.getElementById("tool-rename-instrument") as HTMLButtonElement;
+const toolRenameSection = document.getElementById("tool-rename-section") as HTMLButtonElement;
+const toolExtractInstrument = document.getElementById("tool-extract-instrument") as HTMLButtonElement;
+
+// Problems Panel elements
+const problemsPanel = document.getElementById("problems-panel") as HTMLElement;
+const btnToggleProblems = document.getElementById("btn-toggle-problems") as HTMLButtonElement;
+const problemsCountBadge = document.getElementById("problems-count-badge") as HTMLElement;
+const problemsList = document.getElementById("problems-list") as HTMLElement;
+
+// Refactor Modals
+const refactorInstrumentModal = document.getElementById("refactor-instrument-modal") as HTMLDialogElement;
+const refactorOldInst = document.getElementById("refactor-old-inst") as HTMLSelectElement;
+const refactorNewInst = document.getElementById("refactor-new-inst") as HTMLInputElement;
+const btnConfirmRenameInst = document.getElementById("btn-confirm-rename-inst") as HTMLButtonElement;
+
+const refactorSectionModal = document.getElementById("refactor-section-modal") as HTMLDialogElement;
+const refactorOldSec = document.getElementById("refactor-old-sec") as HTMLSelectElement;
+const refactorNewSec = document.getElementById("refactor-new-sec") as HTMLInputElement;
+const btnConfirmRenameSec = document.getElementById("btn-confirm-rename-sec") as HTMLButtonElement;
+
+const refactorExtractModal = document.getElementById("refactor-extract-modal") as HTMLDialogElement;
+const refactorExtractInst = document.getElementById("refactor-extract-inst") as HTMLSelectElement;
+const btnConfirmExtract = document.getElementById("btn-confirm-extract") as HTMLButtonElement;
 const aiSettingsBaseUrlGroup = document.getElementById("ai-settings-baseurl-group") as HTMLElement;
 
 // Player Bar (Matching zago)
@@ -179,6 +210,67 @@ function downloadBlob(filename: string, blob: Blob) {
 
 function clearShareHash() {
   history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
+// Toast notification helper
+function showToast(message: string, type: "success" | "error" = "success") {
+  let container = document.querySelector(".toast-container") as HTMLElement | null;
+  if (!container) {
+    container = document.createElement("div");
+    container.className = "toast-container";
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
+}
+
+function updateProblems(text: string) {
+  if (!problemsPanel || !problemsList || !problemsCountBadge) return;
+
+  // First check if parse fails
+  let syntaxError = false;
+  try {
+    TmdParser.parse(text);
+  } catch (err: any) {
+    syntaxError = true;
+    problemsCountBadge.className = "problems-badge error";
+    problemsCountBadge.textContent = "1";
+    problemsList.innerHTML = `
+      <div class="problem-item error" data-line="1">
+        <span class="problem-item-line">Ln 1</span>
+        <span class="problem-item-msg">${escapeHtml(err.message || "Syntax Error")}</span>
+      </div>
+    `;
+    return;
+  }
+
+  // If syntax is valid, run TMDMeasureChecker
+  const issues: TMDMeasureIssue[] = TMDMeasureChecker.check(text);
+  if (issues.length === 0) {
+    problemsCountBadge.className = "problems-badge valid";
+    problemsCountBadge.textContent = "0";
+    problemsList.innerHTML = `<div class="problem-empty-hint">${escapeHtml(t("problemsAllValid"))}</div>`;
+  } else {
+    problemsCountBadge.className = "problems-badge warning";
+    problemsCountBadge.textContent = issues.length.toString();
+    problemsList.innerHTML = issues
+      .map((issue) => {
+        const line = issue.lineNumber || 1;
+        const msg = issue.description || `${issue.paragraphName}:${issue.instrument} measure issue`;
+        return `
+          <div class="problem-item warning" data-line="${line}">
+            <span class="problem-item-line">Ln ${line}</span>
+            <span class="problem-item-msg">${escapeHtml(msg)}</span>
+          </div>
+        `;
+      })
+      .join("");
+  }
 }
 
 // Saves the score of a "#tmd=..." link to the library and removes the hash,
@@ -299,6 +391,7 @@ function handleEditorChange(text: string) {
   clearTimeout(parseDebounceTimer);
   parseDebounceTimer = setTimeout(() => {
     updateInspector(text);
+    updateProblems(text);
   }, 200);
 
   // Auto-save to IndexedDB (Debounced 500ms)
@@ -573,6 +666,7 @@ function initEvents() {
   onLanguageChange(() => {
     if (editor) {
       updateInspector(editor.getContent());
+      updateProblems(editor.getContent());
     }
     const selectedProvider = (aiSettingsProvider?.value as AIProviderType) || aiSettings.activeProvider;
     populateModelPresets(selectedProvider);
@@ -583,11 +677,22 @@ function initEvents() {
   btnExportMenu.addEventListener("click", (e) => {
     e.stopPropagation();
     exportDropdown.classList.toggle("open");
+    toolsDropdown?.classList.remove("open");
+  });
+
+  // Tools dropdown menu
+  btnToolsMenu?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toolsDropdown?.classList.toggle("open");
+    exportDropdown.classList.remove("open");
   });
 
   window.addEventListener("click", (e) => {
     if (!exportDropdown.contains(e.target as Node)) {
       exportDropdown.classList.remove("open");
+    }
+    if (toolsDropdown && !toolsDropdown.contains(e.target as Node)) {
+      toolsDropdown.classList.remove("open");
     }
   });
 
@@ -973,6 +1078,165 @@ function initEvents() {
 
   btnDismissHelp.addEventListener("click", () => {
     helpModal.close();
+  });
+
+  // Tools Actions
+  const handleFormatDocument = () => {
+    try {
+      const current = editor.getContent();
+      const formatted = TMDRefactor.format(current);
+      editor.setContent(formatted);
+      updateInspector(formatted);
+      updateProblems(formatted);
+      showToast(t("toastFormatted"));
+    } catch (err: any) {
+      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
+    }
+  };
+
+  toolFormatDocument?.addEventListener("click", () => {
+    toolsDropdown?.classList.remove("open");
+    handleFormatDocument();
+  });
+
+  // Rename Instrument Modal
+  toolRenameInstrument?.addEventListener("click", () => {
+    toolsDropdown?.classList.remove("open");
+    const text = editor.getContent();
+    let sheet: Sheet | null = null;
+    try {
+      sheet = TmdParser.parse(text);
+    } catch (e) {
+      // ignore
+    }
+    const instruments = Array.from(new Set(sheet?.paragraphs.map((p) => p.instrument) || []));
+    refactorOldInst.innerHTML = instruments
+      .map((inst) => `<option value="${escapeHtml(inst)}">${escapeHtml(inst)}</option>`)
+      .join("");
+    refactorNewInst.value = "";
+    refactorInstrumentModal.showModal();
+  });
+
+  btnConfirmRenameInst?.addEventListener("click", () => {
+    const oldInst = refactorOldInst.value;
+    const newInst = refactorNewInst.value.trim();
+    if (!oldInst || !newInst) return;
+    try {
+      const text = editor.getContent();
+      const refactored = TMDRefactor.renameInstrument(text, oldInst, newInst);
+      editor.setContent(refactored);
+      updateInspector(refactored);
+      updateProblems(refactored);
+      refactorInstrumentModal.close();
+      showToast(t("toastRenamedInstrument"));
+    } catch (err: any) {
+      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
+    }
+  });
+
+  // Rename Section Modal
+  toolRenameSection?.addEventListener("click", () => {
+    toolsDropdown?.classList.remove("open");
+    const text = editor.getContent();
+    let sheet: Sheet | null = null;
+    try {
+      sheet = TmdParser.parse(text);
+    } catch (e) {
+      // ignore
+    }
+    const sections = Array.from(new Set(sheet?.paragraphs.map((p) => p.name) || []));
+    refactorOldSec.innerHTML = sections
+      .map((sec) => `<option value="${escapeHtml(sec)}">${escapeHtml(sec)}</option>`)
+      .join("");
+    refactorNewSec.value = "";
+    refactorSectionModal.showModal();
+  });
+
+  btnConfirmRenameSec?.addEventListener("click", () => {
+    const oldSec = refactorOldSec.value;
+    const newSec = refactorNewSec.value.trim();
+    if (!oldSec || !newSec) return;
+    try {
+      const text = editor.getContent();
+      const refactored = TMDRefactor.renameSection(text, oldSec, newSec);
+      editor.setContent(refactored);
+      updateInspector(refactored);
+      updateProblems(refactored);
+      refactorSectionModal.close();
+      showToast(t("toastRenamedSection"));
+    } catch (err: any) {
+      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
+    }
+  });
+
+  // Extract Instrument Modal
+  toolExtractInstrument?.addEventListener("click", () => {
+    toolsDropdown?.classList.remove("open");
+    const text = editor.getContent();
+    let sheet: Sheet | null = null;
+    try {
+      sheet = TmdParser.parse(text);
+    } catch (e) {
+      // ignore
+    }
+    const instruments = Array.from(new Set(sheet?.paragraphs.map((p) => p.instrument) || []));
+    refactorExtractInst.innerHTML = instruments
+      .map((inst) => `<option value="${escapeHtml(inst)}">${escapeHtml(inst)}</option>`)
+      .join("");
+    refactorExtractModal.showModal();
+  });
+
+  btnConfirmExtract?.addEventListener("click", async () => {
+    const inst = refactorExtractInst.value;
+    if (!inst) return;
+    try {
+      const text = editor.getContent();
+      const extractedTmd = TMDRefactor.extractInstrument(text, inst);
+      const title = extractTmdTitle(extractedTmd) || `${inst}_score`;
+      const newScore = await TmdStorage.saveScore({
+        title,
+        content: extractedTmd,
+      });
+      loadScoreIntoEditor(newScore);
+      refactorExtractModal.close();
+      showToast(t("toastExtracted"));
+    } catch (err: any) {
+      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
+    }
+  });
+
+  // Close modals on cancel button click
+  document.querySelectorAll(".btn-close-modal").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      refactorInstrumentModal?.close();
+      refactorSectionModal?.close();
+      refactorExtractModal?.close();
+    });
+  });
+
+  // Problems Panel Toggle and Jump
+  btnToggleProblems?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    problemsPanel.classList.toggle("collapsed");
+    btnToggleProblems.textContent = problemsPanel.classList.contains("collapsed") ? "▲" : "▼";
+  });
+
+  const problemsHeader = problemsPanel?.querySelector(".problems-panel-header");
+  problemsHeader?.addEventListener("click", () => {
+    problemsPanel.classList.toggle("collapsed");
+    if (btnToggleProblems) {
+      btnToggleProblems.textContent = problemsPanel.classList.contains("collapsed") ? "▲" : "▼";
+    }
+  });
+
+  problemsList?.addEventListener("click", (e) => {
+    const item = (e.target as HTMLElement).closest(".problem-item") as HTMLElement | null;
+    if (item && item.dataset.line) {
+      const line = parseInt(item.dataset.line, 10);
+      if (!isNaN(line) && line > 0) {
+        editor.scrollToLine(line);
+      }
+    }
   });
 
   // AI Assistant Drawer & Settings
@@ -1463,11 +1727,24 @@ async function init() {
       if (sbCursor) {
         sbCursor.textContent = `Ln ${line}, Col ${col}`;
       }
+    },
+    () => {
+      try {
+        const current = editor.getContent();
+        const formatted = TMDRefactor.format(current);
+        editor.setContent(formatted);
+        updateInspector(formatted);
+        updateProblems(formatted);
+        showToast(t("toastFormatted"));
+      } catch (err: any) {
+        showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
+      }
     }
   );
 
   initEvents();
   updateInspector(initialContent);
+  updateProblems(initialContent);
 
   // Initialize Web MCP service
   try {

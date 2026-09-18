@@ -77,6 +77,30 @@
           </button>
 
           <!-- Share Button -->
+          <!-- Tools Dropdown -->
+          <div class="dropdown" id="tools-dropdown">
+            <button id="btn-tools-menu" class="btn" title="格式化與重構工具" data-i18n-title="btnToolsMenuTitle">
+              <span class="btn-icon">🛠️</span>
+              <span class="btn-text" data-i18n="btnToolsText">工具</span>
+              <span style="font-size: 10px;">▼</span>
+            </button>
+            <div class="dropdown-menu">
+              <button class="dropdown-item" id="tool-format-document">
+                <span>🪄</span> <span data-i18n="toolFormatDocument">格式化樂譜 (Shift+Alt+F)</span>
+              </button>
+              <div class="dropdown-divider"></div>
+              <button class="dropdown-item" id="tool-rename-instrument">
+                <span>🏷️</span> <span data-i18n="toolRenameInstrument">重新命名樂器...</span>
+              </button>
+              <button class="dropdown-item" id="tool-rename-section">
+                <span>📑</span> <span data-i18n="toolRenameSection">重新命名段落...</span>
+              </button>
+              <button class="dropdown-item" id="tool-extract-instrument">
+                <span>🎼</span> <span data-i18n="toolExtractInstrument">抽取樂器音軌...</span>
+              </button>
+            </div>
+          </div>
+
           <button id="btn-share" class="btn" title="複製含有這份樂譜的分享連結" data-i18n-title="btnShareTitle">
             <span class="btn-icon">🔗</span>
             <span class="btn-text" data-i18n="btnShare">分享</span>
@@ -200,8 +224,23 @@
           </div>
         </aside>
 
-        <!-- Editor Container -->
-        <div id="editor-container" class="editor-container"></div>
+        <!-- Editor Workspace Column (Editor + Problems Panel) -->
+        <div class="editor-workspace-column">
+          <div id="editor-container" class="editor-container"></div>
+          <div id="problems-panel" class="problems-panel">
+            <div class="problems-panel-header">
+              <div class="problems-panel-title-wrap">
+                <span class="problems-panel-icon">⚠️</span>
+                <span class="problems-panel-title" data-i18n="problemsPanelTitle">問題與檢驗</span>
+                <span id="problems-count-badge" class="problems-badge valid">0</span>
+              </div>
+              <button id="btn-toggle-problems" class="btn btn-icon-only" title="切換問題面板" data-i18n-title="btnToggleProblems">▼</button>
+            </div>
+            <div id="problems-list" class="problems-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
 
         <!-- TMD Floating Mini Player Bar (Matching zago) -->
         <div id="tmd-player-bar" class="tmd-player-bar" style="display: none;">
@@ -561,6 +600,66 @@ verse:Lead@|0|{
         <form method="dialog" class="modal-footer">
           <button id="btn-dismiss-help" class="btn btn-primary" data-i18n="btnDismissHelp">了解</button>
         </form>
+      </dialog>
+
+      <!-- Refactor Modals -->
+      <dialog id="refactor-instrument-modal" class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title" data-i18n="refactorInstrumentTitle">重新命名樂器</h2>
+          <button class="btn btn-icon-only btn-close-modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="refactor-old-inst" data-i18n="labelOldInstrument">原樂器名稱：</label>
+            <select id="refactor-old-inst" class="text-control"></select>
+          </div>
+          <div class="form-group">
+            <label for="refactor-new-inst" data-i18n="labelNewInstrument">新樂器名稱：</label>
+            <input type="text" id="refactor-new-inst" class="text-control" placeholder="e.g. AcousticGuitar" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-confirm-rename-inst" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+        </div>
+      </dialog>
+
+      <dialog id="refactor-section-modal" class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title" data-i18n="refactorSectionTitle">重新命名段落</h2>
+          <button class="btn btn-icon-only btn-close-modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="refactor-old-sec" data-i18n="labelOldSection">原段落名稱：</label>
+            <select id="refactor-old-sec" class="text-control"></select>
+          </div>
+          <div class="form-group">
+            <label for="refactor-new-sec" data-i18n="labelNewSection">新段落名稱：</label>
+            <input type="text" id="refactor-new-sec" class="text-control" placeholder="e.g. verseA" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-confirm-rename-sec" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+        </div>
+      </dialog>
+
+      <dialog id="refactor-extract-modal" class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title" data-i18n="refactorExtractTitle">抽取樂器音軌為新樂譜</h2>
+          <button class="btn btn-icon-only btn-close-modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="refactor-extract-inst" data-i18n="labelSelectInstrument">選擇要抽取的樂器：</label>
+            <select id="refactor-extract-inst" class="text-control"></select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-confirm-extract" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+        </div>
       </dialog>
 
     </div>
