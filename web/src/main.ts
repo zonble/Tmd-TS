@@ -45,7 +45,7 @@ import { initTmdWebMcp } from "./mcp/webmcpIntegration.js";
 import { TmdStorage, SavedScore, extractTmdTitle } from "./storage/db.js";
 import { encodeShareHash, decodeShareHash } from "./share.js";
 import { escapeHtml } from "./html.js";
-import { quantizeNoteEventsToTmdSection, TmdNoteEventTime } from "./audio/quantizer.js";
+import { quantizeNoteEventsToTmdSection, resampleAudioBuffer, TmdNoteEventTime } from "./audio/quantizer.js";
 
 let editor: TMDWebEditor;
 let currentSheet: Sheet | null = null;
@@ -1799,7 +1799,9 @@ function initEvents() {
             const audioBlob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || "audio/webm" });
             const arrayBuffer = await audioBlob.arrayBuffer();
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            const rawBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            // Basic Pitch expects 22050 Hz mono audioBuffer
+            const audioBuffer = await resampleAudioBuffer(rawBuffer, 22050);
 
             // Dynamically import @spotify/basic-pitch to avoid loading tensorflow at startup
             const { BasicPitch, noteFramesToTime, outputToNotesPoly } = await import("@spotify/basic-pitch");
