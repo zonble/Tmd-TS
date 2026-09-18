@@ -56,19 +56,13 @@ verse:CHORD@|0|{
     const chordTrack = introNode.children![0];
     expect(chordTrack.name).toBe("CHORD");
     expect(chordTrack.kind).toBe("field");
-    expect(chordTrack.children).toBeDefined();
-    expect(chordTrack.children!.length).toBe(1);
-    expect(chordTrack.children![0].name).toBe("Measure 1");
-    expect(chordTrack.children![0].detail).toBe("[G] [D] [Em] [C]");
+    expect(chordTrack.children).toBeUndefined();
 
     // Track 2: Piano
     const pianoTrack = introNode.children![1];
     expect(pianoTrack.name).toBe("Piano");
     expect(pianoTrack.kind).toBe("field");
-    expect(pianoTrack.children).toBeDefined();
-    expect(pianoTrack.children!.length).toBe(1);
-    expect(pianoTrack.children![0].name).toBe("Measure 1");
-    expect(pianoTrack.children![0].detail).toBe("1 2 3 4");
+    expect(pianoTrack.children).toBeUndefined();
 
     // Verse section
     const verseNode = sectionsNode.children![1];
@@ -76,9 +70,8 @@ verse:CHORD@|0|{
     expect(verseNode.children!.length).toBe(1); // CHORD
     const verseChord = verseNode.children![0];
     expect(verseChord.name).toBe("CHORD");
-    expect(verseChord.children!.length).toBe(1);
-    expect(verseChord.children![0].name).toBe("Measure 1");
-    expect(verseChord.children![0].detail).toBe("[G] - [D] -");
+    expect(verseChord.kind).toBe("field");
+    expect(verseChord.children).toBeUndefined();
 
     // 3. Orders node
     const ordersNode = nodes[2];

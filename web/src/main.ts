@@ -424,42 +424,11 @@ function updateInspector(text: string) {
             const tracksHtml = trackChildren
               .map((trkNode) => {
                 const trkRangeAttrs = `data-start-line="${trkNode.range.startLine}" data-start-col="${trkNode.range.startColumn}" data-end-line="${trkNode.range.endLine}" data-end-col="${trkNode.range.endColumn}"`;
-                const measureChildren = trkNode.children || [];
-
-                if (measureChildren.length === 0) {
-                  return `
-                    <div class="track-item outline-track-item" ${trkRangeAttrs} title="L${trkNode.range.startLine}:C${trkNode.range.startColumn}">
-                      <span class="track-name">${escapeHtml(trkNode.name)}</span>
-                      ${trkNode.detail ? `<span class="track-meta">${escapeHtml(trkNode.detail)}</span>` : ""}
-                    </div>
-                  `;
-                }
-
-                const measuresHtml = measureChildren
-                  .map((mNode) => {
-                    const mRangeAttrs = `data-start-line="${mNode.range.startLine}" data-start-col="${mNode.range.startColumn}" data-end-line="${mNode.range.endLine}" data-end-col="${mNode.range.endColumn}"`;
-                    return `
-                      <div class="outline-measure-item" ${mRangeAttrs} title="L${mNode.range.startLine}:C${mNode.range.startColumn}">
-                        <span class="outline-measure-name">${escapeHtml(mNode.name)}</span>
-                        ${mNode.detail ? `<span class="outline-measure-snippet">${escapeHtml(mNode.detail)}</span>` : ""}
-                      </div>
-                    `;
-                  })
-                  .join("");
-
                 return `
-                  <details class="outline-track-node" open>
-                    <summary class="outline-track-summary" ${trkRangeAttrs} title="L${trkNode.range.startLine}:C${trkNode.range.startColumn}">
-                      <span class="outline-node-title">
-                        <span class="outline-chevron">▶</span>
-                        <span class="track-name">${escapeHtml(trkNode.name)}</span>
-                      </span>
-                      <span class="outline-badge">${measureChildren.length} bar${measureChildren.length === 1 ? "" : "s"}</span>
-                    </summary>
-                    <div class="outline-measures-container">
-                      ${measuresHtml}
-                    </div>
-                  </details>
+                  <div class="track-item outline-track-item" ${trkRangeAttrs} title="L${trkNode.range.startLine}:C${trkNode.range.startColumn}">
+                    <span class="track-name">${escapeHtml(trkNode.name)}</span>
+                    ${trkNode.detail ? `<span class="track-meta">${escapeHtml(trkNode.detail)}</span>` : ""}
+                  </div>
                 `;
               })
               .join("");

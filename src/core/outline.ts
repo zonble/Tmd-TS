@@ -16,19 +16,12 @@ export interface TMDOutlineNode {
   children?: TMDOutlineNode[];
 }
 
-interface MeasureOccurrence {
-  index: number;
-  snippet: string;
-  range: TMDOutlineRange;
-}
-
 interface TrackOccurrence {
   sectionName: string;
   instrument: string;
   range: TMDOutlineRange;
   selectionRange: TMDOutlineRange;
   detail?: string;
-  measures: MeasureOccurrence[];
 }
 
 export class TMDOutlineGenerator {
@@ -148,15 +141,10 @@ export class TMDOutlineGenerator {
 
         let braceCount = 0;
         let paraEndTok = paraStartTok;
-        const measures: MeasureOccurrence[] = [];
 
         if (current()?.token.type === "openBrace") {
           advance();
           braceCount = 1;
-
-          let currentMeasureIndex = 0;
-          let currentSnippetTokens: string[] = [];
-          let measureStartPos: SourcePosition | undefined;
 
           while (pos < tokens.length && braceCount > 0) {
             const bodyTok = advance();
@@ -167,67 +155,7 @@ export class TMDOutlineGenerator {
               braceCount++;
             } else if (bodyTok.token.type === "closeBrace") {
               braceCount--;
-              if (braceCount === 0) {
-                if (currentSnippetTokens.length > 0 && measureStartPos) {
-                  currentMeasureIndex++;
-                  const mRange: TMDOutlineRange = {
-                    startLine: measureStartPos.line,
-                    startColumn: measureStartPos.column,
-                    endLine: bodyTok.range.start.line,
-                    endColumn: bodyTok.range.start.column,
-                  };
-                  measures.push({
-                    index: currentMeasureIndex,
-                    snippet: currentSnippetTokens.join(" "),
-                    range: mRange,
-                  });
-                }
-                break;
-              }
-            }
-
-            if (braceCount === 1) {
-              if (bodyTok.token.type === "openAngle") {
-                let isGrid = false;
-                if (pos + 1 < tokens.length && tokens[pos].token.type === "asterisk" && tokens[pos + 1].token.type === "closeAngle") {
-                  isGrid = true;
-                  pos += 2;
-                } else if (pos + 2 < tokens.length && tokens[pos + 1].token.type === "asterisk" && tokens[pos + 2].token.type === "closeAngle") {
-                  isGrid = true;
-                  pos += 3;
-                }
-                if (isGrid) continue;
-              }
-
-              if (bodyTok.token.type === "pipe") {
-                if (currentSnippetTokens.length > 0 && measureStartPos) {
-                  currentMeasureIndex++;
-                  const mEnd: SourcePosition = {
-                    offset: bodyTok.range.endOffset,
-                    line: bodyTok.range.start.line,
-                    column: bodyTok.range.start.column + bodyTok.range.length,
-                  };
-                  measures.push({
-                    index: currentMeasureIndex,
-                    snippet: currentSnippetTokens.join(" "),
-                    range: {
-                      startLine: measureStartPos.line,
-                      startColumn: measureStartPos.column,
-                      endLine: mEnd.line,
-                      endColumn: mEnd.column,
-                    },
-                  });
-                  currentSnippetTokens = [];
-                  measureStartPos = undefined;
-                } else {
-                  measureStartPos = bodyTok.range.start;
-                }
-              } else {
-                if (!measureStartPos) {
-                  measureStartPos = bodyTok.range.start;
-                }
-                currentSnippetTokens.push(bodyTok.text);
-              }
+              if (braceCount === 0) break;
             }
           }
         }
@@ -266,7 +194,6 @@ export class TMDOutlineGenerator {
           range,
           selectionRange,
           detail,
-          measures,
         });
 
         continue;
@@ -407,24 +334,13 @@ export class TMDOutlineGenerator {
         endColumn: maxCol,
       };
 
-      const trackNodes: TMDOutlineNode[] = tracks.map((track) => {
-        const measureNodes: TMDOutlineNode[] = track.measures.map((m) => ({
-          name: `Measure ${m.index}`,
-          detail: m.snippet.length > 0 ? m.snippet : undefined,
-          kind: "string",
-          range: m.range,
-          selectionRange: m.range,
-        }));
-
-        return {
-          name: track.instrument,
-          detail: track.detail,
-          kind: "field",
-          range: track.range,
-          selectionRange: track.selectionRange,
-          children: measureNodes.length > 0 ? measureNodes : undefined,
-        };
-      });
+      const trackNodes: TMDOutlineNode[] = tracks.map((track) => ({
+        name: track.instrument,
+        detail: track.detail,
+        kind: "field",
+        range: track.range,
+        selectionRange: track.selectionRange,
+      }));
 
       sectionNodes.push({
         name: secName,
