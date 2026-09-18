@@ -364,6 +364,9 @@ export class TMDMeasureChecker {
     // Check for undefined sections referenced in execution orders (-> section)
     const definedSectionNames = new Set(paragraphInfos.map((p) => p.paragraphName));
     for (const order of orderSections) {
+      if (order.name === "#") {
+        continue;
+      }
       if (!definedSectionNames.has(order.name)) {
         const issueObj = {
           paragraphName: order.name,
