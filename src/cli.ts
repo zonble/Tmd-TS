@@ -19,6 +19,7 @@ import {
   TMDChordProGenerator,
   TMDVSQGenerator,
   TMDVSQXGenerator,
+  TMDUSTGenerator,
 } from "./exporters/index.js";
 import { TMDWAVRenderer } from "./audio.js";
 import { TmdSkill } from "./skill.js";
@@ -48,6 +49,7 @@ OPTIONS:
       --cho-output PATH   Export ChordPro lead sheet (.cho/.chordpro).
       --vsq-output PATH   Export vocal track to VOCALOID2 (.vsq) file.
       --vsqx-output PATH  Export vocal track to VOCALOID3/4 (.vsqx) XML file.
+  -u, --ust-output PATH   Export vocal track to UTAU / OpenUtau (.ust) file.
       --singer NAME       Vocaloid singer name (defaults to Miku).
   -w, --wav-output PATH   Render portable 16-bit stereo WAV.
       --pdf-output PATH   Render PDF through lilypond.
@@ -844,6 +846,8 @@ export function main(argv = process.argv.slice(2)): number {
       "--cho-output": "chordpro",
       "--vsq-output": "vsq",
       "--vsqx-output": "vsqx",
+      "-u": "ust",
+      "--ust-output": "ust",
       "-w": "wav",
       "--wav-output": "wav",
       "--pdf-output": "pdf",
@@ -925,6 +929,8 @@ export function main(argv = process.argv.slice(2)): number {
       fs.writeFileSync(outputs.vsq, TMDVSQGenerator.generateVSQ(sheet, { singerName: singer }));
     if (outputs.vsqx)
       fs.writeFileSync(outputs.vsqx, TMDVSQXGenerator.generateVSQX(sheet, { singerName: singer }));
+    if (outputs.ust)
+      fs.writeFileSync(outputs.ust, TMDUSTGenerator.generateUST(sheet));
     if (outputs.pdf) {
       const temp = path.join(os.tmpdir(), `tmd-${Date.now()}.ly`);
       fs.writeFileSync(temp, TMDLilyPondGenerator.generateLilyPond(sheet));

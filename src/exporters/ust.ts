@@ -1,0 +1,137 @@
+import { Sheet, TMDPlaybackRenderer } from "../core/index.js";
+import { TMDMIDIGenerator } from "./midi.js";
+
+/** Options for configuring UTAU .ust exports. */
+export interface USTExportOptions {
+  /** Title of the project. If empty, falls back to the sheet's name. */
+  projectName?: string;
+  /** Voice directory path to embed in UST settings. */
+  voiceDir?: string;
+  /** Default lyric to use if none is provided for a note. */
+  defaultLyric?: string;
+  /** Optional sequence of lyrics to apply to consecutive notes. */
+  lyrics?: string[];
+  /** Ticks per quarter note (standard UTAU PPQ is 480). */
+  ticksPerQuarter?: number;
+}
+
+/**
+ * Exporter for UTAU sequence text (.ust) format, fully compatible with
+ * original UTAU and modern cross-platform OpenUtau.
+ */
+export class TMDUSTGenerator {
+  /**
+   * Generates a .ust formatted string from a parsed TMD Sheet.
+   */
+  public static generateUST(
+    sheet: Sheet,
+    targetInstrument?: string,
+    options: USTExportOptions = {}
+  ): string {
+    const selectedInstrument = this.resolveTargetInstrument(sheet, targetInstrument);
+    const timeline = TMDPlaybackRenderer.render(sheet, selectedInstrument);
+
+    const initialTempo = sheet.speed > 0 ? sheet.speed : 120.0;
+    const title =
+      options.projectName && options.projectName.length > 0
+        ? options.projectName
+        : sheet.name && sheet.name.length > 0
+        ? sheet.name
+        : "TMD UTAU Score";
+    const voiceDir = options.voiceDir || "";
+    const defaultLyric = options.defaultLyric || "a";
+    const lyrics = options.lyrics || [];
+    const ticksPerQuarter = options.ticksPerQuarter || 480;
+
+    const lines: string[] = [
+      "[#SETTING]",
+      `Tempo=${initialTempo.toFixed(2)}`,
+      "Tracks=1",
+      `ProjectName=${title}`,
+      `VoiceDir=${voiceDir}`,
+      "OutFile=",
+      "CacheDir=",
+      "Tool1=",
+      "Tool2=",
+      "Mode2=True",
+      "Charset=UTF-8",
+      "",
+    ];
+
+    let currentPosition = 0.0;
+    let currentTempo = initialTempo;
+    let noteIndex = 0;
+    let lyricIndex = 0;
+
+    for (const event of timeline.events) {
+      // Fill any timeline gap prior to this event with a Rest (Lyric=R)
+      if (event.position > currentPosition) {
+        const gapDuration = event.position - currentPosition;
+        const gapTicks = Math.round(gapDuration * ticksPerQuarter);
+        if (gapTicks > 0) {
+          lines.push(...this.formatRestNote(noteIndex, gapTicks));
+          noteIndex += 1;
+        }
+        currentPosition = event.position;
+      }
+
+      if (event.content.type === "note") {
+        const ticks = Math.max(1, Math.round(event.duration * ticksPerQuarter));
+        const pitch = TMDMIDIGenerator.noteToMIDIPitch(event.content.note, event.state.keyOffset);
+        const lyric = lyricIndex < lyrics.length ? lyrics[lyricIndex++] : defaultLyric;
+
+        const noteLines: string[] = [
+          `[#${String(noteIndex).padStart(4, "0")}]`,
+          `Length=${ticks}`,
+          `Lyric=${lyric}`,
+          `NoteNum=${pitch}`,
+          "PreUtterance=",
+          "Intensity=100",
+          "Modulation=0",
+        ];
+
+        if (Math.abs(event.state.tempo - currentTempo) > 0.001) {
+          noteLines.push(`Tempo=${event.state.tempo.toFixed(2)}`);
+          currentTempo = event.state.tempo;
+        }
+
+        noteLines.push("");
+        lines.push(...noteLines);
+        noteIndex += 1;
+        currentPosition = event.position + event.duration;
+      } else if (event.content.type === "rest") {
+        const ticks = Math.max(1, Math.round(event.duration * ticksPerQuarter));
+        lines.push(...this.formatRestNote(noteIndex, ticks));
+        noteIndex += 1;
+        currentPosition = event.position + event.duration;
+      }
+    }
+
+    lines.push("[#TRACKEND]", "");
+    return lines.join("\r\n");
+  }
+
+  private static formatRestNote(index: number, ticks: number): string[] {
+    return [
+      `[#${String(index).padStart(4, "0")}]`,
+      `Length=${ticks}`,
+      "Lyric=R",
+      "NoteNum=60",
+      "PreUtterance=",
+      "",
+    ];
+  }
+
+  public static resolveTargetInstrument(sheet: Sheet, requested?: string): string {
+    const distinct = Array.from(new Set(sheet.paragraphs.map((p) => p.instrument))).sort();
+    if (requested && distinct.includes(requested)) {
+      return requested;
+    }
+    const regex = /vocal|voice|utau|teto|sing|lead|melody/i;
+    const matched = distinct.find((inst) => regex.test(inst));
+    if (matched) {
+      return matched;
+    }
+    return distinct[0] || "Vocal";
+  }
+}
