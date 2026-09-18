@@ -49,7 +49,11 @@ function formatIssueDescription(issue: {
   snippet: string;
 }): string {
   if (issue.instrument === "Order") {
-    return `Order (line ${issue.lineNumber}): Undefined section '${issue.paragraphName}' in playback order (${issue.snippet})`;
+    if (issue.paragraphName) {
+      return `Order (line ${issue.lineNumber}): Undefined section '${issue.paragraphName}' in playback order (${issue.snippet})`;
+    } else {
+      return `Order (line ${issue.lineNumber}): ${issue.snippet}`;
+    }
   }
   const diffStr = issue.deltaUnits > 0 ? `+${issue.deltaUnits}` : `${issue.deltaUnits}`;
   if (issue.measureIndex === 0) {
@@ -88,6 +92,9 @@ export class TMDMeasureChecker {
     const issues: TMDMeasureIssue[] = [];
     const paragraphInfos: ParagraphSpanInfo[] = [];
     const orderSections: { name: string; line: number }[] = [];
+    let hasOrder = false;
+    let terminatedWithHash = false;
+    let lastOrderTokenLine = 1;
     let pos = 0;
 
     function current(): LexedToken | undefined {
@@ -349,16 +356,76 @@ export class TMDMeasureChecker {
         });
       } else if (tok.token.type === "arrow") {
         const arrowLine = tok.range.start.line;
+        lastOrderTokenLine = arrowLine;
+        hasOrder = true;
         advance(); // ->
         const nextTok = current();
-        if (nextTok && nextTok.token.type === "identifier") {
-          const orderSecName = nextTok.token.value as string;
-          orderSections.push({ name: orderSecName, line: nextTok.range.start.line || arrowLine });
-          advance();
+        if (nextTok) {
+          lastOrderTokenLine = nextTok.range.start.line || arrowLine;
+          if (nextTok.token.type === "arrowEnd") {
+            terminatedWithHash = true;
+            advance();
+          } else if (nextTok.token.type === "identifier") {
+            const orderSecName = nextTok.token.value as string;
+            if (orderSecName === "#") {
+              terminatedWithHash = true;
+            }
+            orderSections.push({ name: orderSecName, line: lastOrderTokenLine });
+            advance();
+          }
         }
+      } else if (tok.token.type === "arrowEnd") {
+        lastOrderTokenLine = tok.range.start.line;
+        hasOrder = true;
+        terminatedWithHash = true;
+        advance();
       } else {
         advance();
       }
+    }
+
+    // Check playback order existence and termination
+    if (!hasOrder) {
+      let lastLine = 1;
+      for (let i = tokensWithRanges.length - 1; i >= 0; i--) {
+        if (tokensWithRanges[i].token.type !== "eof") {
+          lastLine = tokensWithRanges[i].range.start.line;
+          break;
+        }
+      }
+      const issueObj = {
+        paragraphName: "",
+        instrument: "Order",
+        lineNumber: lastLine,
+        measureIndex: 0,
+        expectedUnits: 0,
+        actualUnits: 0,
+        deltaUnits: 0,
+        noteLength: 4,
+        beat,
+        snippet: "Missing playback order",
+      };
+      issues.push({
+        ...issueObj,
+        description: formatIssueDescription(issueObj),
+      });
+    } else if (!terminatedWithHash) {
+      const issueObj = {
+        paragraphName: "",
+        instrument: "Order",
+        lineNumber: lastOrderTokenLine,
+        measureIndex: 0,
+        expectedUnits: 0,
+        actualUnits: 0,
+        deltaUnits: 0,
+        noteLength: 4,
+        beat,
+        snippet: "Playback order must terminate with '#'",
+      };
+      issues.push({
+        ...issueObj,
+        description: formatIssueDescription(issueObj),
+      });
     }
 
     // Check for undefined sections referenced in execution orders (-> section)

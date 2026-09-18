@@ -659,6 +659,48 @@ verse:Piano@|0|{
     expect(issue.measureIndex).toBe(0);
     expect(issue.description).toContain("Undefined section 'chorus' in playback order");
   });
+
+  it("reports issue when playback order is missing", () => {
+    const input = `::SCORE::
+** No Order Song **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    | 1 2 3 4 |
+}
+`;
+
+    const issues = TMDMeasureChecker.check(input);
+    expect(issues).toHaveLength(1);
+    const issue = issues[0];
+    expect(issue.instrument).toBe("Order");
+    expect(issue.description).toContain("Missing playback order");
+  });
+
+  it("reports issue when playback order does not terminate with '#'", () => {
+    const input = `::SCORE::
+** Unterminated Order Song **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    | 1 2 3 4 |
+}
+
+-> verse
+`;
+
+    const issues = TMDMeasureChecker.check(input);
+    expect(issues).toHaveLength(1);
+    const issue = issues[0];
+    expect(issue.instrument).toBe("Order");
+    expect(issue.description).toContain("Playback order must terminate with '#'");
+  });
 });
 
 describe("TMD CLI subcommands check, format, and refactor (TDD)", () => {
