@@ -374,128 +374,24 @@ async function importSharedScore(): Promise<SavedScore | null> {
   return score;
 }
 
+import { renderInspectorView } from "./ui/inspector.js";
+
 function updateInspector(text: string) {
-  try {
-    currentSheet = TmdParser.parse(text);
-  } catch (err: any) {
-    currentSheet = null;
-    inspectorStatus.className = "status-badge error";
-    inspectorStatus.textContent = `${t("statusError")}: ${err.message || ""}`;
-    sbStatus.textContent = "Syntax Error";
-    sbSummary.textContent = err.message || "";
-    return;
-  }
-
-  if (!currentSheet) {
-    inspectorStatus.className = "status-badge error";
-    inspectorStatus.textContent = t("missingScoreHeader");
-    sbStatus.textContent = "Invalid TMD";
-    sbSummary.textContent = "Missing ::SCORE:: root header";
-    return;
-  }
-
-  inspectorStatus.className = "status-badge success";
-  inspectorStatus.textContent = t("statusValid");
-
-  // Metadata
-  statTitle.textContent = currentSheet.name || t("defaultTitle");
-  statTempo.textContent = currentSheet.speed ? `${currentSheet.speed}` : t("defaultTempo");
-
-  if (currentSheet.keySignature) {
-    const letter = scaleDegreeLetter(currentSheet.keySignature.tonic);
-    const semitone = accidentalToSemitone(currentSheet.keySignature.accidental);
-    const acc = semitone === 1 ? "#" : semitone === -1 ? "b" : "";
-    statKey.textContent = `${letter}${acc}`;
-  } else {
-    statKey.textContent = "C";
-  }
-
-  statMeter.textContent = currentSheet.beat ? `${currentSheet.beat.count}/${currentSheet.beat.noteValue}` : "4/4";
-
-  // Orders
-  if (currentSheet.orders && currentSheet.orders.length > 0) {
-    inspectorOrders.innerHTML = currentSheet.orders
-      .map((ord) => {
-        if (ord.type === "name") {
-          return `<span class="order-tag">${escapeHtml(ord.name)}</span>`;
-        } else if (ord.type === "relative") {
-          return `<span class="order-tag" style="color: var(--accent-purple); border-color: rgba(188, 140, 255, 0.3);">{${escapeHtml(ord.value)}}</span>`;
-        } else if (ord.type === "absolute") {
-          return `<span class="order-tag" style="color: var(--accent-yellow); border-color: rgba(210, 153, 34, 0.3);">{${escapeHtml(ord.value)}}</span>`;
-        }
-        return "";
-      })
-      .filter(Boolean)
-      .join("");
-  } else {
-    inspectorOrders.innerHTML = `<span class="stat-label">${t("noOrders")}</span>`;
-  }
-
-  // Tracks / Outline Hierarchy (Sections -> Tracks -> Measures)
-  const outlineNodes = TMDOutlineGenerator.generate(text);
-  const sectionsNode = outlineNodes.find((n) => n.name === "Sections");
-
-  if (sectionsNode && sectionsNode.children && sectionsNode.children.length > 0) {
-    inspectorTracks.innerHTML = `
-      <div class="outline-tree">
-        ${sectionsNode.children
-          .map((secNode) => {
-            const secRangeAttrs = `data-start-line="${secNode.range.startLine}" data-start-col="${secNode.range.startColumn}" data-end-line="${secNode.range.endLine}" data-end-col="${secNode.range.endColumn}"`;
-            const trackChildren = secNode.children || [];
-
-            const tracksHtml = trackChildren
-              .map((trkNode) => {
-                const trkRangeAttrs = `data-start-line="${trkNode.range.startLine}" data-start-col="${trkNode.range.startColumn}" data-end-line="${trkNode.range.endLine}" data-end-col="${trkNode.range.endColumn}"`;
-                return `
-                  <div class="track-item outline-track-item" ${trkRangeAttrs} title="L${trkNode.range.startLine}:C${trkNode.range.startColumn}">
-                    <span class="track-name">${escapeHtml(trkNode.name)}</span>
-                    ${trkNode.detail ? `<span class="track-meta">${escapeHtml(trkNode.detail)}</span>` : ""}
-                  </div>
-                `;
-              })
-              .join("");
-
-            return `
-              <details class="outline-section-node" open>
-                <summary class="outline-section-summary" ${secRangeAttrs} title="L${secNode.range.startLine}:C${secNode.range.startColumn}">
-                  <span class="outline-node-title">
-                    <span class="outline-chevron">▶</span>
-                    <span>${escapeHtml(secNode.name)}</span>
-                  </span>
-                  <span class="outline-badge">${trackChildren.length} track${trackChildren.length === 1 ? "" : "s"}</span>
-                </summary>
-                <div class="outline-tracks-container">
-                  ${tracksHtml}
-                </div>
-              </details>
-            `;
-          })
-          .join("")}
-      </div>
-    `;
-  } else if (currentSheet.paragraphs && currentSheet.paragraphs.length > 0) {
-    // Fallback if AST has paragraphs but outline nodes failed
-    inspectorTracks.innerHTML = currentSheet.paragraphs
-      .map((p) => {
-        const offset = p.start ? (p.start > 0 ? `+${p.start}` : `${p.start}`) : "0";
-        const totalUnits = p.sections.reduce((acc, s) => acc + s.unitGroups.reduce((uAcc, g) => uAcc + g.units.length, 0), 0);
-        const lineAttr = p.line ? `data-start-line="${p.line}" data-start-col="1" data-end-line="${p.line}" data-end-col="1"` : "";
-        return `
-          <div class="track-item" ${lineAttr}>
-            <span class="track-name">${escapeHtml(p.name)}:${escapeHtml(p.instrument)}</span>
-            <span class="track-meta">@|${offset}| · ${totalUnits} notes</span>
-          </div>
-        `;
-      })
-      .join("");
-  } else {
-    inspectorTracks.innerHTML = `<span class="stat-label">${t("noTracks")}</span>`;
-  }
-
-  // Status bar summary
-  const trackCount = new Set(currentSheet.paragraphs.map((p) => p.instrument)).size;
-  sbStatus.textContent = "Valid TMD";
-  sbSummary.textContent = `${currentSheet.paragraphs.length} paragraphs · ${trackCount} instruments · BPM ${currentSheet.speed || 120}`;
+  currentSheet = renderInspectorView(
+    text,
+    {
+      inspectorStatus,
+      statTitle,
+      statTempo,
+      statKey,
+      statMeter,
+      inspectorOrders,
+      inspectorTracks,
+      sbStatus,
+      sbSummary,
+    },
+    (code) => TmdParser.parse(code)
+  );
 }
 
 let parseDebounceTimer: any = null;
@@ -585,6 +481,91 @@ async function playSectionOrTrack(sectionName: string, instrumentName?: string) 
     midiBytes = TMDMIDIGenerator.generateMIDI(sheet, undefined, {
       targetParagraph: sectionName,
       targetInstrument: instrumentName,
+    });
+  } catch (err: any) {
+    alert(`${t("alertMidiFailed")}: ${err.message}`);
+    return;
+  }
+
+  if (playerTitle) playerTitle.textContent = title;
+  if (playerTime) playerTime.textContent = "00:00 / 00:00";
+  if (playerProgress) {
+    playerProgress.value = "0";
+    playerProgress.max = "100";
+  }
+  if (tmdPlayerBar) tmdPlayerBar.style.display = "flex";
+  if (playerBtnPause) playerBtnPause.textContent = "⏸";
+
+  await tmdPlayer.play(midiBytes, title, {
+    onStart: (_title, durationSec) => {
+      if (playerProgress) {
+        playerProgress.max = Math.max(1, durationSec).toString();
+        playerProgress.value = "0";
+      }
+      if (playerTime) {
+        playerTime.textContent = `00:00 / ${formatTime(durationSec)}`;
+      }
+    },
+    onProgress: (currentSec, totalSec) => {
+      if (playerTime) {
+        playerTime.textContent = `${formatTime(currentSec)} / ${formatTime(totalSec)}`;
+      }
+      if (playerProgress && !isSeeking) {
+        if (playerProgress.max !== totalSec.toString()) {
+          playerProgress.max = Math.max(1, totalSec).toString();
+        }
+        playerProgress.value = currentSec.toString();
+      }
+    },
+    onPause: () => {
+      if (playerBtnPause) playerBtnPause.textContent = "▶";
+    },
+    onResume: () => {
+      if (playerBtnPause) playerBtnPause.textContent = "⏸";
+    },
+    onLoadingStatus: (status) => {
+      if (status && playerTime) {
+        playerTime.textContent = status;
+      }
+    },
+    onStop: () => {
+      if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
+      if (playerBtnPause) playerBtnPause.textContent = "⏸";
+      if (playerProgress) playerProgress.value = "0";
+    },
+    onEnd: () => {
+      if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
+      if (playerBtnPause) playerBtnPause.textContent = "⏸";
+      if (playerProgress) playerProgress.value = "0";
+    },
+  });
+}
+
+async function playFromOrderIndex(orderIndex: number) {
+  const text = editor.getContent();
+  let sheet: Sheet | null = null;
+  try {
+    sheet = TmdParser.parse(text);
+  } catch (err: any) {
+    alert(`${t("alertCannotPlaySyntax")}\n${err.message}`);
+    return;
+  }
+
+  if (!sheet) {
+    alert(t("alertCannotPlayMissingHeader"));
+    return;
+  }
+
+  const targetOrder = sheet.orders[orderIndex];
+  const orderLabel = targetOrder
+    ? (targetOrder.type === "name" ? targetOrder.name : `{${targetOrder.value}}`)
+    : `#${orderIndex + 1}`;
+  const title = `${sheet.name || "score"} [➔ ${orderLabel}]`;
+
+  let midiBytes: Uint8Array;
+  try {
+    midiBytes = TMDMIDIGenerator.generateMIDI(sheet, undefined, {
+      startOrderIndex: orderIndex,
     });
   } catch (err: any) {
     alert(`${t("alertMidiFailed")}: ${err.message}`);
@@ -1252,9 +1233,22 @@ function initEvents() {
     inspectorPanel.classList.add("hidden");
   });
 
-  // Outline / Track item click -> Jump to editor range or line
+  // Outline / Track item click -> Jump to editor range or line, or play individual section/track
   inspectorTracks?.addEventListener("click", (e) => {
-    const clickable = (e.target as HTMLElement).closest("[data-start-line]") as HTMLElement | null;
+    const target = e.target as HTMLElement;
+    const playBtn = target.closest(".outline-play-btn") as HTMLElement | null;
+    if (playBtn) {
+      e.stopPropagation();
+      e.preventDefault();
+      const sec = playBtn.dataset.playSection;
+      const inst = playBtn.dataset.playInstrument;
+      if (sec) {
+        playSectionOrTrack(sec, inst);
+      }
+      return;
+    }
+
+    const clickable = target.closest("[data-start-line]") as HTMLElement | null;
     if (clickable && clickable.dataset.startLine) {
       const sLine = parseInt(clickable.dataset.startLine, 10);
       const sCol = clickable.dataset.startCol ? parseInt(clickable.dataset.startCol, 10) : 1;
@@ -1267,6 +1261,20 @@ function initEvents() {
         } else {
           editor.scrollToLine(sLine);
         }
+      }
+    }
+  });
+
+  // Playback Order item click -> Play from that order index
+  inspectorOrders?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const playBtn = target.closest(".order-play-btn") as HTMLElement | null;
+    if (playBtn && playBtn.dataset.playOrderIndex !== undefined) {
+      e.stopPropagation();
+      e.preventDefault();
+      const idx = parseInt(playBtn.dataset.playOrderIndex, 10);
+      if (!isNaN(idx) && idx >= 0) {
+        playFromOrderIndex(idx);
       }
     }
   });

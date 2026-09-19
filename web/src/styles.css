@@ -812,6 +812,9 @@ html, body {
 }
 
 .order-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-family: var(--font-mono);
   font-size: 11px;
   background: rgba(88, 166, 255, 0.12);
@@ -819,6 +822,38 @@ html, body {
   color: var(--accent-blue);
   padding: 2px 6px;
   border-radius: 4px;
+  user-select: none;
+}
+
+.order-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  margin: 0 0 0 2px;
+  font-size: 8px;
+  line-height: 1;
+  color: var(--accent-green, #3fb950);
+  background: rgba(63, 185, 80, 0.15);
+  border: 1px solid rgba(63, 185, 80, 0.3);
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.15s ease, transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.order-play-btn:hover {
+  opacity: 1;
+  transform: scale(1.2);
+  background: rgba(63, 185, 80, 0.3);
+  border-color: rgba(63, 185, 80, 0.6);
+}
+
+.order-play-btn:active {
+  transform: scale(0.9);
 }
 
 .track-item {
@@ -915,10 +950,49 @@ details[open] > summary .outline-chevron {
   transform: rotate(90deg);
 }
 
+.outline-summary-right,
+.outline-item-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .outline-badge {
   font-size: 10px;
   color: var(--text-secondary);
   font-family: var(--font-mono);
+}
+
+.outline-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin: 0;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--accent-green, #3fb950);
+  background: rgba(63, 185, 80, 0.1);
+  border: 1px solid rgba(63, 185, 80, 0.25);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.15s ease, transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.outline-play-btn:hover {
+  opacity: 1;
+  transform: scale(1.15);
+  background: rgba(63, 185, 80, 0.25);
+  border-color: rgba(63, 185, 80, 0.5);
+}
+
+.outline-play-btn:active {
+  transform: scale(0.92);
 }
 
 .outline-tracks-container {

@@ -145,7 +145,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(mainContent).toContain("insert-section-modal");
   });
 
-  it("supports playing individual section/track from editor line gutter in web/src/editor.ts and main.ts", () => {
+  it("supports playing individual section/track from editor line gutter and outline items in web/src/editor.ts and main.ts", () => {
     const editorPath = path.join(__dirname, "../web/src/editor.ts");
     const editorContent = fs.readFileSync(editorPath, "utf-8");
 
@@ -155,9 +155,20 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
 
     const mainPath = path.join(__dirname, "../web/src/main.ts");
     const mainContent = fs.readFileSync(mainPath, "utf-8");
+    const inspectorPath = path.join(__dirname, "../web/src/ui/inspector.ts");
+    const inspectorContent = fs.existsSync(inspectorPath) ? fs.readFileSync(inspectorPath, "utf-8") : "";
+    const uiContent = mainContent + "\n" + inspectorContent;
 
     // main.ts should handle onPlaySection and generate/play scoped MIDI
     expect(mainContent).toContain("playSectionOrTrack");
+    // outline section and track items should have play buttons
+    expect(uiContent).toContain("outline-play-btn");
+    expect(uiContent).toContain("data-play-section");
+    expect(uiContent).toContain("data-play-instrument");
+    // inspector playback orders should have play buttons to play from that order index
+    expect(uiContent).toContain("order-play-btn");
+    expect(uiContent).toContain("data-play-order-index");
+    expect(mainContent).toContain("playFromOrderIndex");
   });
 
   it("supports Humming to TMD section (Spotify Basic Pitch) in web UI and i18n", () => {

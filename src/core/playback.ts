@@ -42,8 +42,16 @@ export interface PlaybackTimeline {
   duration: number;
 }
 
+export interface TMDPlaybackRendererOptions {
+  startOrderIndex?: number;
+}
+
 export class TMDPlaybackRenderer {
-  public static render(sheet: Sheet, instrument: string): PlaybackTimeline {
+  public static render(
+    sheet: Sheet,
+    instrument: string,
+    options?: TMDPlaybackRendererOptions
+  ): PlaybackTimeline {
     const paragraphs = sheet.paragraphs.filter((p) => p.instrument === instrument);
     const orders: Order[] = sheet.orders.length > 0
       ? sheet.orders
@@ -58,8 +66,10 @@ export class TMDPlaybackRenderer {
     let events: PlaybackEvent[] = [];
     let directives: PlaybackDirectiveEvent[] = [];
     let timelinePosition = 0.0;
+    const startIndex = options?.startOrderIndex ?? 0;
 
-    for (const order of orders) {
+    for (let i = 0; i < orders.length; i++) {
+      const order = orders[i];
       if (order.type === "relative") {
         const delta = parseInt(order.value.replace("+", ""), 10);
         if (!isNaN(delta)) {
@@ -70,6 +80,16 @@ export class TMDPlaybackRenderer {
       } else if (order.type === "name") {
         const paragraph = paragraphs.find((p) => p.name === order.name);
         const paragraphDuration = TMDPlaybackRenderer.durationOf(order.name, sheet);
+        if (i < startIndex) {
+          // If before startOrderIndex, accumulate directives and key/tempo/meter state from paragraph
+          if (paragraph) {
+            const start = timelinePosition + paragraph.start * TMDPlaybackRenderer.measureDuration(state.timeSignature);
+            const rendered = TMDPlaybackRenderer.renderParagraph(paragraph, start, state);
+            state = rendered.state;
+          }
+          continue;
+        }
+
         if (!paragraph) {
           timelinePosition += paragraphDuration;
           continue;

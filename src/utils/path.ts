@@ -12,10 +12,33 @@ export class FilePathNormalizer {
     return text.startsWith("file:");
   }
 
+  private static normalizePath(p: string): string {
+    if (typeof path !== "undefined" && typeof (path as any).normalize === "function") {
+      return (path as any).normalize(p);
+    }
+    const isAbs = p.startsWith("/");
+    const segments = p.split("/").filter(Boolean);
+    const resolved: string[] = [];
+    for (const seg of segments) {
+      if (seg === ".") continue;
+      if (seg === "..") {
+        if (resolved.length > 0 && resolved[resolved.length - 1] !== "..") {
+          resolved.pop();
+        } else if (!isAbs) {
+          resolved.push("..");
+        }
+      } else {
+        resolved.push(seg);
+      }
+    }
+    const res = resolved.join("/");
+    return isAbs ? `/${res}` : (res || ".");
+  }
+
   static fileURLToPath(value: string): string {
     const text = value.trim().replace(/^<|>$/g, "").trim();
     if (!this.isFileURL(text)) return text;
-    try { return path.normalize(decodeURIComponent(new URL(text).pathname)); }
+    try { return this.normalizePath(decodeURIComponent(new URL(text).pathname)); }
     catch { return decodeURIComponent(text.replace(/^file:(\/\/localhost)?/, "")); }
   }
 

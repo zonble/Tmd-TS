@@ -780,6 +780,28 @@ verse:Piano@|0|{
     expect(issue.description).toContain("Undefined section 'chorus' in playback order");
   });
 
+  it("reports issue when execution order refers to undefined section following a directive", () => {
+    const input = `::SCORE::
+** Undefined Order After Directive Song **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    | 1 2 3 4 |
+}
+
+-> verse -> {?+3} -> ending ->#
+`;
+
+    const issues = TMDMeasureChecker.check(input);
+    expect(issues).toHaveLength(1);
+    const issue = issues[0];
+    expect(issue.paragraphName).toBe("ending");
+    expect(issue.description).toContain("Undefined section 'ending' in playback order");
+  });
+
   it("reports issue when playback order is missing", () => {
     const input = `::SCORE::
 ** No Order Song **

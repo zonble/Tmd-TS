@@ -390,5 +390,50 @@ verse:Piano@|0|{
       const versePianoTracks = (versePianoMidi[10] << 8) | versePianoMidi[11];
       expect(versePianoTracks).toBe(2);
     });
+
+    it('supports generating MIDI starting from a specific order index with accumulated key offset', () => {
+      const input = `::SCORE::
+** Key Change Test **
+!= 120
+?= C
+<4/4>
+
+intro:Piano@|0|{
+    <4*>
+    1 2 3 4
+}
+
+verse:Piano@|0|{
+    <4*>
+    1 2 3 4
+}
+
+bridge:Piano@|0|{
+    <4*>
+    5 5 5 5
+}
+
+outro:Piano@|0|{
+    <4*>
+    1 - - -
+}
+
+-> intro -> verse -> {?+3} -> bridge -> outro ->#
+`;
+      const sheet = TmdParser.parse(input);
+      // intro (4 beats) + verse (4 beats) = 8 beats precede index 2 ({?+3})
+      // Start playback directly on {?+3} (order index 2)
+      const timelineFromDirective = TMDPlaybackRenderer.render(sheet, 'Piano', { startOrderIndex: 2 });
+      expect(timelineFromDirective.events.length).toBe(5); // 4 notes in bridge + 1 note in outro
+      // First note should start immediately at 0
+      expect(timelineFromDirective.events[0].position).toBe(0);
+      expect(timelineFromDirective.events[0].state.keyOffset).toBe(3);
+      // Duration should be remaining duration (bridge: 4 beats + outro: 4 beats = 8 beats), NOT 16 beats!
+      expect(timelineFromDirective.duration).toBe(8);
+
+      const midiFromDirective = TMDMIDIGenerator.generateMIDI(sheet, undefined, { startOrderIndex: 2 });
+      expect(midiFromDirective).toBeInstanceOf(Uint8Array);
+      expect(midiFromDirective.length).toBeGreaterThan(0);
+    });
   });
 });
