@@ -90,4 +90,23 @@ describe('Web UI Exporters & REAPER support (TDD)', () => {
     expect(fullContent).toContain('buildRepairPrompt');
     expect(fullContent).toContain('btn-ai-retry-repair');
   });
+
+  it('supports separate Multi-Track GM, Piano-only GM, and Tiny synth options in locales and UI', () => {
+    // Check locales
+    expect((zhTW as any).synthOptionGm).toBeDefined();
+    expect((zhTW as any).synthOptionPiano).toBeDefined();
+    expect((zhTW as any).synthOptionTiny).toBeDefined();
+
+    expect((en as any).synthOptionGm).toBeDefined();
+    expect((en as any).synthOptionPiano).toBeDefined();
+    expect((en as any).synthOptionTiny).toBeDefined();
+
+    // Check index.html synth-select options
+    const htmlPath = path.join(__dirname, '../web/index.html');
+    const html = fs.readFileSync(htmlPath, 'utf-8');
+    expect(html).toContain('value="gm"');
+    expect(html).toContain('value="piano"');
+    expect(html).toContain('value="tiny"');
+  });
 });
+

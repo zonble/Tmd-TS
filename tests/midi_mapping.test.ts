@@ -192,4 +192,14 @@ describe('MIDIInstrument and GM Mapping (TDD)', () => {
     expect(TMDMIDIGenerator.generalMidiProgram('Unknown')).toBe(0);
     expect(TMDMIDIGenerator.generalMidiProgram('prog:60')).toBe(60);
   });
+
+  it('resolves guzheng, koto, lead, and lead-guitar aliases correctly', () => {
+    expect(MIDIInstrument.program(MIDIInstrument.resolve('guzheng'))).toBe(107);
+    expect(MIDIInstrument.program(MIDIInstrument.resolve('zheng'))).toBe(107);
+    expect(MIDIInstrument.program(MIDIInstrument.resolve('Lead'))).toBe(80);
+    expect(MIDIInstrument.program(MIDIInstrument.resolve('lead_synth'))).toBe(80);
+    expect(MIDIInstrument.program(MIDIInstrument.resolve('lead-guitar'))).toBe(29);
+    expect(MIDIInstrument.program(MIDIInstrument.resolve('leadguitar'))).toBe(29);
+  });
 });
+

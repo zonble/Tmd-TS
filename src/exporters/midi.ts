@@ -375,7 +375,7 @@ export namespace MIDIInstrument {
       [MIDIInstrument.Shanai, ['shanai', 'shehnai']],
       [MIDIInstrument.Sitar, ['sitar']],
       [MIDIInstrument.Banjo, ['banjo']],
-      [MIDIInstrument.Koto, ['koto']],
+      [MIDIInstrument.Koto, ['guzheng', 'zheng', 'koto']],
       [MIDIInstrument.Fiddle, ['fiddle']],
 
       // Synth Effects (96-103)
@@ -398,15 +398,25 @@ export namespace MIDIInstrument {
       [MIDIInstrument.PadHalo, ['halo']],
       [MIDIInstrument.PadWarm, ['warm', 'pad']],
 
+      // Guitar (24-31) - Prioritize lead guitar and compound guitar names before generic synth lead
+      [MIDIInstrument.GuitarHarmonics, ['guitarharmonics']],
+      [MIDIInstrument.DistortionGuitar, ['distortion', 'dist', 'fuzz', 'heavy', 'metal']],
+      [MIDIInstrument.OverdriveGuitar, ['overdrive', 'od', 'rockguitar', 'leadguitar', 'lead-guitar', 'electricguitar', 'electric-guitar']],
+      [MIDIInstrument.CleanGuitar, ['cleanguitar', 'electricclean']],
+      [MIDIInstrument.MutedGuitar, ['mutedguitar']],
+      [MIDIInstrument.JazzGuitar, ['jazzguitar']],
+      [MIDIInstrument.NylonGuitar, ['nylon', 'classicalguitar']],
+      [MIDIInstrument.SteelGuitar, ['steelguitar', 'acousticguitar', 'guitar']],
+
       // Synth Leads (80-87)
-      [MIDIInstrument.LeadSquare, ['square']],
+      [MIDIInstrument.LeadBassAndLead, ['basslead']],
+      [MIDIInstrument.LeadVoice, ['voicelead']],
       [MIDIInstrument.LeadSawtooth, ['sawtooth', 'sawlead', 'saw']],
       [MIDIInstrument.LeadCalliope, ['calliope']],
       [MIDIInstrument.LeadCharang, ['charang']],
       [MIDIInstrument.LeadChiff, ['chiff']],
       [MIDIInstrument.LeadFifths, ['fifths']],
-      [MIDIInstrument.LeadBassAndLead, ['basslead']],
-      [MIDIInstrument.LeadVoice, ['voicelead']],
+      [MIDIInstrument.LeadSquare, ['square', 'leadsynth', 'lead_synth', 'lead']],
 
       // Pipe (72-79)
       [MIDIInstrument.Shakuhachi, ['shakuhachi']],
@@ -467,16 +477,6 @@ export namespace MIDIInstrument {
       [MIDIInstrument.PickBass, ['pickbass']],
       [MIDIInstrument.FingerBass, ['fingerbass', 'electricbass']],
       [MIDIInstrument.Bass, ['bass']],
-
-      // Guitar (24-31)
-      [MIDIInstrument.GuitarHarmonics, ['guitarharmonics']],
-      [MIDIInstrument.DistortionGuitar, ['distortion', 'dist', 'fuzz', 'heavy', 'metal']],
-      [MIDIInstrument.OverdriveGuitar, ['overdrive', 'od', 'rockguitar', 'electricguitar', 'electric-guitar']],
-      [MIDIInstrument.CleanGuitar, ['cleanguitar', 'electricclean']],
-      [MIDIInstrument.MutedGuitar, ['mutedguitar']],
-      [MIDIInstrument.JazzGuitar, ['jazzguitar']],
-      [MIDIInstrument.NylonGuitar, ['nylon', 'classicalguitar']],
-      [MIDIInstrument.SteelGuitar, ['steelguitar', 'acousticguitar', 'guitar']],
 
       // Organ (16-23)
       [MIDIInstrument.TangoAccordion, ['tangoaccordion', 'bandoneon']],
@@ -879,18 +879,26 @@ export class TMDMIDIGenerator {
       ),
     ];
 
-    let melodyChannel = 0;
+    const programToMelodyChannel = new Map<number, number>();
+    let nextMelodyChannel = 0;
+
     for (const instrument of distinctInstruments) {
       const midiInst = MIDIInstrument.resolve(instrument);
       let channel: number;
       if (MIDIInstrument.isPercussion(midiInst)) {
         channel = 9;
       } else {
-        if (melodyChannel === 9) {
-          melodyChannel += 1;
+        const prog = MIDIInstrument.program(midiInst);
+        if (programToMelodyChannel.has(prog)) {
+          channel = programToMelodyChannel.get(prog)!;
+        } else {
+          if (nextMelodyChannel === 9) {
+            nextMelodyChannel += 1;
+          }
+          channel = nextMelodyChannel % 16;
+          programToMelodyChannel.set(prog, channel);
+          nextMelodyChannel += 1;
         }
-        channel = melodyChannel % 16;
-        melodyChannel += 1;
       }
 
       const instTimeline = TMDPlaybackRenderer.render(effectiveSheet, instrument, renderOpts);

@@ -14,7 +14,7 @@ import {
 
 const JZZ: any = JZZModule;
 
-export type TMDMidiSynthType = "piano" | "tiny" | "webmidi";
+export type TMDMidiSynthType = "gm" | "piano" | "tiny" | "webmidi";
 
 export interface TMDPlayerCallbacks {
   onStart?: (title: string, durationSec: number) => void;
@@ -58,7 +58,7 @@ export class TMDMidiPlayer {
 
     // Load saved synth preference
     const savedSynth = localStorage.getItem("tmd-synth-pref") as TMDMidiSynthType | null;
-    if (savedSynth && ["piano", "tiny", "webmidi"].includes(savedSynth)) {
+    if (savedSynth && ["gm", "piano", "tiny", "webmidi"].includes(savedSynth)) {
       this.currentSynthType = savedSynth;
     }
   }
@@ -176,6 +176,25 @@ export class TMDMidiPlayer {
     this.activeNotes.clear();
   }
 
+  private async fetchSoundfontWithCache(url: string): Promise<string> {
+    if (typeof caches !== "undefined") {
+      try {
+        const cache = await caches.open("tmd-soundfonts-v1");
+        const cached = await cache.match(url);
+        if (cached) {
+          return await cached.text();
+        }
+        const resp = await fetch(url);
+        if (resp.ok) {
+          cache.put(url, resp.clone()).catch(() => {});
+          return await resp.text();
+        }
+      } catch (_) {}
+    }
+    const resp = await fetch(url);
+    return await resp.text();
+  }
+
   private async loadSoundfontInstrument(name: string): Promise<any> {
     if (this.loadedInstruments.has(name)) {
       return this.loadedInstruments.get(name);
@@ -189,6 +208,10 @@ export class TMDMidiPlayer {
 
     const promise = (async () => {
       try {
+        // Pre-cache SoundFont asset via Cache API if supported
+        const url = `https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/${name}-mp3.js`;
+        this.fetchSoundfontWithCache(url).catch(() => {});
+
         const inst = await Soundfont.instrument(ctx, name as any, {
           soundfont: "FluidR3_GM",
           format: "mp3",
@@ -269,20 +292,32 @@ export class TMDMidiPlayer {
         try { oldNode.stop(); } catch (_) {}
       }
 
-      // Determine instrument: Channel 9 (MIDI Ch 10) is always percussion/drum kit
-      let instName: string;
-      if (channel === 9) {
-        instName = getDrumSoundfontName();
+      let inst: any = null;
+
+      if (this.currentSynthType === "piano") {
+        // Pure Grand Piano mode: all channels use acoustic grand piano
+        inst = this.loadedInstruments.get("acoustic_grand_piano");
       } else {
-        const prog = this.channelPrograms[channel] ?? 0;
-        instName = gmProgramToSoundfontName(prog);
+        // Multi-Track GM mode
+        let instName: string;
+        if (channel === 9) {
+          instName = getDrumSoundfontName();
+        } else {
+          const prog = this.channelPrograms[channel] ?? 0;
+          instName = gmProgramToSoundfontName(prog);
+        }
+
+        inst = this.loadedInstruments.get(instName);
+        if (!inst) {
+          // Dynamic Hot-Swap: Trigger background load if not yet requested
+          if (!this.loadingPromises.has(instName)) {
+            this.loadSoundfontInstrument(instName).catch(() => {});
+          }
+          // Seamless fallback to piano while instrument loads in background
+          inst = this.loadedInstruments.get("acoustic_grand_piano");
+        }
       }
 
-      let inst = this.loadedInstruments.get(instName);
-      if (!inst) {
-        // Fallback to piano if specific soundfont not loaded yet
-        inst = this.loadedInstruments.get("acoustic_grand_piano");
-      }
       if (!inst) return;
 
       const gain = Math.max(0.1, Math.min(1.0, velocity / 127));
@@ -330,22 +365,31 @@ export class TMDMidiPlayer {
       const player = smfData.player();
 
       // Route to destination synth based on current selection
-      if (this.currentSynthType === "piano") {
-        // Scan MIDI for used program changes and drum notes
-        const scan = scanMidiProgramsAndDrums(bytes);
-        const instrumentsToLoad = scan.instrumentNames.length > 0
-          ? scan.instrumentNames
-          : ["acoustic_grand_piano"];
+      if (this.currentSynthType === "gm" || this.currentSynthType === "piano") {
+        // 1. Ensure Grand Piano is loaded (cached or fast 1-instrument load)
+        if (!this.loadedInstruments.has("acoustic_grand_piano")) {
+          callbacks?.onLoadingStatus?.("Loading SoundFont...");
+          await this.loadSoundfontInstrument("acoustic_grand_piano");
+          callbacks?.onLoadingStatus?.(null);
+        }
 
-        await this.loadSoundfontInstruments(instrumentsToLoad, this.callbacks);
+        const widget = this.createSoundfontWidget();
+        player.connect(widget);
 
-        const hasAnySoundfont = this.loadedInstruments.size > 0;
-        if (hasAnySoundfont) {
-          const widget = this.createSoundfontWidget();
-          player.connect(widget);
-        } else {
-          // Fallback to Tiny Synth if soundfonts failed to load
-          player.connect(this.tinySynth);
+        // 2. If in GM mode, trigger non-blocking background pre-fetch for other tracks
+        if (this.currentSynthType === "gm") {
+          const scan = scanMidiProgramsAndDrums(bytes);
+          const otherInstruments = scan.instrumentNames.filter((name) => name !== "acoustic_grand_piano");
+          if (otherInstruments.length > 0) {
+            // Load remaining instruments asynchronously in background; Note On hot-swaps them seamlessly!
+            this.loadSoundfontInstruments(otherInstruments, {
+              onLoadingStatus: (msg) => {
+                if (this.callbacks.onLoadingStatus) {
+                  this.callbacks.onLoadingStatus(msg);
+                }
+              },
+            }).catch((err) => console.warn("[TMDMidiPlayer] Background instruments load error:", err));
+          }
         }
       } else if (this.currentSynthType === "webmidi") {
         let connectedToHardware = false;

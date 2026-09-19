@@ -133,4 +133,36 @@ describe("Soundfont Instrument Mapping & MIDI Scanning (TDD)", () => {
       expect(gmProgramToSoundfontName(channelPrograms[3])).toBe("acoustic_grand_piano");
     });
   });
+
+  describe("TMDMIDIGenerator multi-track channel allocation", () => {
+    it("shares channels among tracks with the same GM program without overflowing channels", async () => {
+      const { TmdParser, TMDMIDIGenerator } = await import("../src/index.js");
+      const tmd = `::SCORE::
+** Multi-Track Channel Invariant **
+!= 120
+<4/4>
+
+p1:Guitar-Clean@|0|{ <4*> 1 2 3 4 }
+p2:Guitar-Delay@|0|{ <4*> 1 2 3 4 }
+p3:Guitar-Pulse@|0|{ <4*> 1 2 3 4 }
+p4:Bass@|0|{ <4*> 1 2 3 4 }
+p5:Bass-Sub@|0|{ <4*> 1 2 3 4 }
+p6:Drum@|0|{ <4*> 1 2 3 4 }
+p7:Drum-Kick@|0|{ <4*> 1 2 3 4 }
+p8:Clarinet@|0|{ <4*> 1 2 3 4 }
+`;
+      const sheet = TmdParser.parse(tmd);
+      const midiBytes = TMDMIDIGenerator.generateMIDI(sheet);
+      const { programs, hasDrums, instrumentNames } = scanMidiProgramsAndDrums(midiBytes);
+
+      // Guitar (25), Bass (33), Clarinet (71)
+      expect(programs.sort((a, b) => a - b)).toEqual([25, 33, 71]);
+      expect(hasDrums).toBe(true);
+      expect(instrumentNames).toContain("acoustic_guitar_steel");
+      expect(instrumentNames).toContain("electric_bass_finger");
+      expect(instrumentNames).toContain("clarinet");
+      expect(instrumentNames).toContain("synth_drum");
+    });
+  });
 });
+
