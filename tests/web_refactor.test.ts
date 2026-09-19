@@ -254,6 +254,17 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(aiDrawerContent).toContain("launchProblemFix");
     expect(aiDrawerContent).toContain("ai-preview-problems-badge");
   });
+
+  it("ensures library drawer auto-refreshes and syncs active score state when opened or resumed open", () => {
+    const libPath = path.join(__dirname, "../web/src/ui/libraryDrawer.ts");
+    const libContent = fs.readFileSync(libPath, "utf-8");
+    expect(libContent).toContain("setActiveScore");
+
+    const mainPath = path.join(__dirname, "../web/src/main.ts");
+    const mainContent = fs.readFileSync(mainPath, "utf-8");
+    expect(mainContent).toContain("libraryController.setActiveScore");
+    expect(mainContent).toContain("libraryController.refreshLibraryScores");
+  });
 });
 
 

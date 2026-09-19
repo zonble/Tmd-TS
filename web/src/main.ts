@@ -711,6 +711,10 @@ async function init() {
 
   applyI18n(detectLanguage());
 
+  let initialScoreId: string | null = null;
+  let initialIsTemplate = true;
+  let initialTemplateId: string | null = defaultSample.id;
+
   try {
     const shared = await importSharedScore();
     if (shared) TmdStorage.setActiveScoreId(shared.id);
@@ -719,6 +723,9 @@ async function init() {
       const saved = shared ?? (await TmdStorage.getScore(activeId));
       if (saved) {
         initialContent = saved.content;
+        initialScoreId = saved.id;
+        initialIsTemplate = false;
+        initialTemplateId = null;
       }
     }
   } catch (e) {
@@ -750,6 +757,12 @@ async function init() {
     problemsPanel,
     btnToggleProblems,
   });
+
+  libraryController.setActiveScore(initialScoreId, initialIsTemplate, initialTemplateId);
+  if (!libraryDrawer.classList.contains("hidden")) {
+    libraryController.refreshLibraryScores();
+  }
+
   updateInspector(initialContent);
   updateProblems(initialContent);
 

@@ -38,6 +38,10 @@ export class TMDLibraryDrawerController {
       librarySamplesList,
     } = this.elements;
 
+    if (!libraryDrawer.classList.contains("hidden")) {
+      this.refreshLibraryScores();
+    }
+
     btnToggleLibrary?.addEventListener("click", () => {
       libraryDrawer.classList.toggle("hidden");
       if (!libraryDrawer.classList.contains("hidden")) {
@@ -119,6 +123,15 @@ export class TMDLibraryDrawerController {
 
   public getIsTemplateScore(): boolean {
     return this.isTemplateScore;
+  }
+
+  public setActiveScore(scoreId: string | null, isTemplate = false, templateId: string | null = null): void {
+    this.currentScoreId = scoreId;
+    this.isTemplateScore = isTemplate;
+    this.activeTemplateId = templateId;
+    if (!this.elements.libraryDrawer.classList.contains("hidden")) {
+      this.refreshLibraryScores();
+    }
   }
 
   public loadScoreIntoEditor(score: SavedScore): void {
