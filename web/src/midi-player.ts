@@ -6,6 +6,11 @@ import synthTiny from "jzz-synth-tiny";
 import smf from "jzz-midi-smf";
 // @ts-ignore
 import Soundfont from "soundfont-player";
+import {
+  scanMidiProgramsAndDrums,
+  gmProgramToSoundfontName,
+  getDrumSoundfontName,
+} from "./audio/soundfont-mapping.js";
 
 const JZZ: any = JZZModule;
 
@@ -23,8 +28,9 @@ export interface TMDPlayerCallbacks {
 
 export class TMDMidiPlayer {
   private tinySynth: any = null;
-  private pianoInstrument: any = null;
-  private pianoLoadingPromise: Promise<any> | null = null;
+  private loadedInstruments: Map<string, any> = new Map();
+  private loadingPromises: Map<string, Promise<any>> = new Map();
+  private channelPrograms: number[] = new Array(16).fill(0);
   private soundfontWidget: any = null;
   private webMidiPort: any = null;
   private audioContext: AudioContext | null = null;
@@ -37,7 +43,7 @@ export class TMDMidiPlayer {
   private isPausedState: boolean = false;
   private progressTimer: any = null;
 
-  // Track active notes for soundfont note-off
+  // Track active notes for soundfont note-off: composite key = (channel << 8) | note
   private activeNotes: Map<number, any> = new Map();
 
   constructor() {
@@ -170,33 +176,61 @@ export class TMDMidiPlayer {
     this.activeNotes.clear();
   }
 
-  private async loadPianoInstrument(): Promise<any> {
-    if (this.pianoInstrument) return this.pianoInstrument;
-    if (this.pianoLoadingPromise) return this.pianoLoadingPromise;
+  private async loadSoundfontInstrument(name: string): Promise<any> {
+    if (this.loadedInstruments.has(name)) {
+      return this.loadedInstruments.get(name);
+    }
+    if (this.loadingPromises.has(name)) {
+      return this.loadingPromises.get(name);
+    }
 
     const ctx = this.getAudioContext();
     if (!ctx) throw new Error("AudioContext not available");
 
-    this.callbacks.onLoadingStatus?.("Loading Piano SoundFont...");
-    this.pianoLoadingPromise = (async () => {
+    const promise = (async () => {
       try {
-        const inst = await Soundfont.instrument(ctx, "acoustic_grand_piano", {
+        const inst = await Soundfont.instrument(ctx, name as any, {
           soundfont: "FluidR3_GM",
           format: "mp3",
         });
-        this.pianoInstrument = inst;
-        this.callbacks.onLoadingStatus?.(null);
+        this.loadedInstruments.set(name, inst);
         return inst;
       } catch (err) {
-        console.warn("[TMDMidiPlayer] Soundfont load error, falling back to Tiny:", err);
-        this.callbacks.onLoadingStatus?.(null);
+        console.warn(`[TMDMidiPlayer] Failed to load soundfont instrument '${name}':`, err);
         return null;
       } finally {
-        this.pianoLoadingPromise = null;
+        this.loadingPromises.delete(name);
       }
     })();
 
-    return this.pianoLoadingPromise;
+    this.loadingPromises.set(name, promise);
+    return promise;
+  }
+
+  private async loadSoundfontInstruments(
+    instrumentNames: string[],
+    callbacks?: TMDPlayerCallbacks
+  ): Promise<boolean> {
+    const toLoad = instrumentNames.filter((name) => !this.loadedInstruments.has(name));
+    if (toLoad.length === 0) {
+      return true;
+    }
+
+    callbacks?.onLoadingStatus?.(`Loading SoundFont (${toLoad.length} instruments)...`);
+
+    try {
+      await Promise.all(toLoad.map((name) => this.loadSoundfontInstrument(name)));
+      // Ensure at least default piano is loaded as primary fallback
+      if (!this.loadedInstruments.has("acoustic_grand_piano")) {
+        await this.loadSoundfontInstrument("acoustic_grand_piano");
+      }
+      callbacks?.onLoadingStatus?.(null);
+      return true;
+    } catch (err) {
+      console.warn("[TMDMidiPlayer] Error loading soundfonts:", err);
+      callbacks?.onLoadingStatus?.(null);
+      return false;
+    }
   }
 
   private createSoundfontWidget(): any {
@@ -218,8 +252,14 @@ export class TMDMidiPlayer {
     const note = msg[1];
     const velocity = msg[2] || 0;
 
-    const inst = this.pianoInstrument;
-    if (!inst) return;
+    // Handle Program Change (0xC0)
+    if (status === 0xc0) {
+      const program = msg[1];
+      if (typeof program === "number") {
+        this.channelPrograms[channel] = program;
+      }
+      return;
+    }
 
     if (status === 0x90 && velocity > 0) {
       // Note On
@@ -228,6 +268,22 @@ export class TMDMidiPlayer {
       if (oldNode) {
         try { oldNode.stop(); } catch (_) {}
       }
+
+      // Determine instrument: Channel 9 (MIDI Ch 10) is always percussion/drum kit
+      let instName: string;
+      if (channel === 9) {
+        instName = getDrumSoundfontName();
+      } else {
+        const prog = this.channelPrograms[channel] ?? 0;
+        instName = gmProgramToSoundfontName(prog);
+      }
+
+      let inst = this.loadedInstruments.get(instName);
+      if (!inst) {
+        // Fallback to piano if specific soundfont not loaded yet
+        inst = this.loadedInstruments.get("acoustic_grand_piano");
+      }
+      if (!inst) return;
 
       const gain = Math.max(0.1, Math.min(1.0, velocity / 127));
       try {
@@ -262,6 +318,7 @@ export class TMDMidiPlayer {
     this.currentTitle = title;
     this.currentBytes = bytes;
     this.isPausedState = false;
+    this.channelPrograms = new Array(16).fill(0);
 
     const ctx = this.getAudioContext();
     if (ctx && typeof ctx.resume === "function" && ctx.state === "suspended") {
@@ -274,12 +331,20 @@ export class TMDMidiPlayer {
 
       // Route to destination synth based on current selection
       if (this.currentSynthType === "piano") {
-        const piano = await this.loadPianoInstrument();
-        if (piano) {
+        // Scan MIDI for used program changes and drum notes
+        const scan = scanMidiProgramsAndDrums(bytes);
+        const instrumentsToLoad = scan.instrumentNames.length > 0
+          ? scan.instrumentNames
+          : ["acoustic_grand_piano"];
+
+        await this.loadSoundfontInstruments(instrumentsToLoad, this.callbacks);
+
+        const hasAnySoundfont = this.loadedInstruments.size > 0;
+        if (hasAnySoundfont) {
           const widget = this.createSoundfontWidget();
           player.connect(widget);
         } else {
-          // Fallback to Tiny Synth if piano failed to load
+          // Fallback to Tiny Synth if soundfonts failed to load
           player.connect(this.tinySynth);
         }
       } else if (this.currentSynthType === "webmidi") {
