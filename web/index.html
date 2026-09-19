@@ -125,11 +125,6 @@
             </div>
           </div>
 
-          <button id="btn-share" class="btn" title="複製含有這份樂譜的分享連結" data-i18n-title="btnShareTitle">
-            <span class="btn-icon">🔗</span>
-            <span class="btn-text" data-i18n="btnShare">分享</span>
-          </button>
-
           <!-- Export Dropdown -->
           <div class="dropdown" id="export-dropdown">
             <button id="btn-export-menu" class="btn" title="匯出樂譜檔案" data-i18n-title="btnExportMenuTitle">
@@ -176,6 +171,10 @@
               </button>
             </div>
           </div>
+          <button id="btn-share" class="btn" title="複製含有這份樂譜的分享連結" data-i18n-title="btnShareTitle">
+            <span class="btn-icon">🔗</span>
+            <span class="btn-text" data-i18n="btnShare">分享</span>
+          </button>
         </div>
 
         <div class="nav-right">
@@ -840,7 +839,8 @@ verse:Lead@|0|{
             <div class="form-group">
               <label for="hum-key" data-i18n="humKey">預期調性：</label>
               <select id="hum-key" class="text-control">
-                <option value="C" selected>C</option>
+                <option value="AUTO" selected data-i18n="humKeyAuto">✨ 自動偵測調性 (Auto-Detect)</option>
+                <option value="C">C</option>
                 <option value="D">D</option>
                 <option value="E">E</option>
                 <option value="F">F</option>

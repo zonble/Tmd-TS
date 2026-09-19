@@ -50,6 +50,63 @@ const DIATONIC_SEMITONES: { [semitone: number]: number } = {
   11: 11, // 7
 };
 
+// Standard Krumhansl-Schmuckler Major Key Profile weights
+const MAJOR_PROFILE = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+
+// 12 root pitch classes
+const PITCH_CLASSES = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+
+/**
+ * Analyzes note events and detects the most likely musical key / tonic
+ * using duration and amplitude-weighted Krumhansl-Schmuckler key-finding algorithm.
+ */
+export function detectTonicAndScale(events: TmdNoteEventTime[]): string {
+  if (events.length === 0) return "C";
+
+  // Build 12-semitone pitch-class chroma vector weighted by duration * amplitude
+  const chroma = new Array(12).fill(0);
+  for (const ev of events) {
+    if (ev.amplitude <= 0.05 || ev.durationSeconds <= 0.05) continue;
+    const pitchMidi = Math.round(ev.pitchMidi);
+    const semitone = ((pitchMidi % 12) + 12) % 12;
+    // Weight by duration and amplitude, with slight emphasis on note endings/onsets
+    const weight = Math.max(0.1, ev.durationSeconds) * (ev.amplitude || 1.0);
+    chroma[semitone] += weight;
+  }
+
+  // Calculate correlation with Major profiles for each of the 12 candidate roots
+  let bestKey = "C";
+  let maxScore = -Infinity;
+
+  // Mean of chroma vector
+  const chromaMean = chroma.reduce((sum, v) => sum + v, 0) / 12;
+  const majorMean = MAJOR_PROFILE.reduce((sum, v) => sum + v, 0) / 12;
+
+  for (let root = 0; root < 12; root++) {
+    let num = 0;
+    let denomChroma = 0;
+    let denomProfile = 0;
+
+    for (let i = 0; i < 12; i++) {
+      const chromaVal = chroma[(root + i) % 12] - chromaMean;
+      const profileVal = MAJOR_PROFILE[i] - majorMean;
+      num += chromaVal * profileVal;
+      denomChroma += chromaVal * chromaVal;
+      denomProfile += profileVal * profileVal;
+    }
+
+    const denom = Math.sqrt(denomChroma * denomProfile);
+    const correlation = denom === 0 ? 0 : num / denom;
+
+    if (correlation > maxScore) {
+      maxScore = correlation;
+      bestKey = PITCH_CLASSES[root];
+    }
+  }
+
+  return bestKey;
+}
+
 /**
  * Converts a MIDI pitch (e.g. 60 for Middle C) into a Jianpu scale degree relative to the given Key Signature.
  */
@@ -101,8 +158,13 @@ export function quantizeNoteEventsToTmdSection(
   const instrument = options.instrument || "Vocal";
   const bpm = Math.max(20, options.bpm || 120);
   const grid = options.grid || 8; // default eighth notes
-  const key = options.key || "C";
   const beatsPerMeasure = Math.max(1, options.beatsPerMeasure || 4);
+
+  // Auto-detect key if requested ("AUTO" or omitted)
+  let key = options.key || "AUTO";
+  if (key === "AUTO" || !key) {
+    key = detectTonicAndScale(events);
+  }
 
   // Duration of one quarter note beat in seconds
   const beatDuration = 60.0 / bpm;

@@ -45,7 +45,7 @@ import { initTmdWebMcp } from "./mcp/webmcpIntegration.js";
 import { TmdStorage, SavedScore, extractTmdTitle } from "./storage/db.js";
 import { encodeShareHash, decodeShareHash } from "./share.js";
 import { escapeHtml } from "./html.js";
-import { quantizeNoteEventsToTmdSection, resampleAudioBuffer, TmdNoteEventTime } from "./audio/quantizer.js";
+import { quantizeNoteEventsToTmdSection, resampleAudioBuffer, detectTonicAndScale, TmdNoteEventTime } from "./audio/quantizer.js";
 
 let editor: TMDWebEditor;
 let currentSheet: Sheet | null = null;
@@ -1764,6 +1764,7 @@ function initEvents() {
   let metronomeTimer: any = null;
   let humAudioCtx: AudioContext | null = null;
   let humTranscribedSnippet = "";
+  let lastTranscribedKey = "C";
 
   const playClickSound = (isFirstBeat: boolean) => {
     try {
@@ -1938,7 +1939,11 @@ function initEvents() {
 
             const bpm = parseInt(humBpm?.value || "120", 10) || 120;
             const grid = parseInt(humGrid?.value || "8", 10) || 8;
-            const key = humKey?.value || "C";
+            let key = humKey?.value || "AUTO";
+            if (key === "AUTO") {
+              key = detectTonicAndScale(monophonicEvents);
+            }
+            lastTranscribedKey = key;
             const snapToScale = humSnapScale ? humSnapScale.checked : true;
             const secName = humSectionName?.value.trim() || "hummed";
             const instName = humInstrument?.value.trim() || "Vocal";
@@ -1955,7 +1960,9 @@ function initEvents() {
 
             humTranscribedSnippet = tmdSnippet;
             if (humResultCode) humResultCode.value = tmdSnippet;
-            if (humStatusIndicator) humStatusIndicator.textContent = t("humStatusSuccess");
+            if (humStatusIndicator) {
+              humStatusIndicator.textContent = `${t("humStatusSuccess")} (Key: ${key})`;
+            }
             if (humBtnApply) humBtnApply.disabled = false;
             if (humBtnPlayPreview) humBtnPlayPreview.style.display = "inline-flex";
           } catch (err: any) {
@@ -2033,7 +2040,10 @@ function initEvents() {
     if (!code) return;
     const secName = humSectionName?.value.trim() || "hummed";
     const instName = humInstrument?.value.trim() || "Vocal";
-    const key = humKey?.value || "C";
+    let key = humKey?.value || "C";
+    if (key === "AUTO") {
+      key = lastTranscribedKey || "C";
+    }
     const bpm = humBpm?.value || "120";
 
     const previewTmd = `::SCORE::\n** Hummed Preview **\n!= ${bpm}\n?= ${key}\n<4/4>\n\n${code}\n\n-> ${secName} ->#\n`;

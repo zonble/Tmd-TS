@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   quantizeNoteEventsToTmdSection,
   midiPitchToJianpu,
+  detectTonicAndScale,
   TmdNoteEventTime,
 } from "../web/src/audio/quantizer.js";
 
@@ -98,5 +99,32 @@ describe("Humming to TMD Quantizer (TDD)", () => {
     // When snapToScale is enabled, microtonal/drifting notes don't produce accidental sharps
     expect(midiPitchToJianpu(61, "C", true)).toBe("1"); // 61 snaps to 60
     expect(midiPitchToJianpu(63, "C", true)).toBe("2"); // 63 (D#) snaps to 62 (D)
+  });
+
+  it("detects key / tonic from note event distribution (Auto-Detect Key)", () => {
+    // A singer hums in G major: G4(67), A4(69), B4(71), C5(72), D5(74)
+    // weighted by duration
+    const gMajorEvents: TmdNoteEventTime[] = [
+      { startTimeSeconds: 0.0, durationSeconds: 1.0, pitchMidi: 67, amplitude: 0.9 }, // G
+      { startTimeSeconds: 1.0, durationSeconds: 0.5, pitchMidi: 69, amplitude: 0.8 }, // A
+      { startTimeSeconds: 1.5, durationSeconds: 0.5, pitchMidi: 71, amplitude: 0.8 }, // B
+      { startTimeSeconds: 2.0, durationSeconds: 0.5, pitchMidi: 72, amplitude: 0.8 }, // C
+      { startTimeSeconds: 2.5, durationSeconds: 1.0, pitchMidi: 74, amplitude: 0.9 }, // D
+      { startTimeSeconds: 3.5, durationSeconds: 1.5, pitchMidi: 67, amplitude: 0.9 }, // G (tonic resolution)
+    ];
+
+    const detectedKey = detectTonicAndScale(gMajorEvents);
+    expect(detectedKey).toBe("G");
+
+    // When quantizing with detectedKey "G", degrees become natural 1 2 3 4 5 instead of #4 etc.
+    const tmd = quantizeNoteEventsToTmdSection(gMajorEvents, {
+      bpm: 120,
+      grid: 4,
+      key: detectedKey,
+      snapToScale: true,
+    });
+    expect(tmd).toContain("1 - 2 3");
+    expect(tmd).toContain("4 5 - 1");
+    expect(tmd).not.toContain("4'");
   });
 });
