@@ -136,13 +136,18 @@ function initEvents() {
       btnCloseLibrary: dom.btnCloseLibrary,
       btnLibraryNew: dom.btnLibraryNew,
       inputImportTmd: dom.inputImportTmd,
+      btnImportGist: dom.btnImportGist,
+      importGistModal: dom.importGistModal,
+      inputGistUrl: dom.inputGistUrl,
+      btnConfirmImportGist: dom.btnConfirmImportGist,
       libraryScoresList: dom.libraryScoresList,
       librarySamplesList: dom.librarySamplesList,
       libraryScoresCount: dom.libraryScoresCount,
     },
     () => editor,
     (text: string) => handleScoreUpdated(text),
-    () => triggerSavePanelsState()
+    () => triggerSavePanelsState(),
+    (msg, type) => showToast(msg, type)
   );
   libraryController.init();
 
@@ -451,6 +456,7 @@ function initEvents() {
   // Close modals on cancel button click
   document.querySelectorAll(".btn-close-modal").forEach((btn) => {
     btn.addEventListener("click", () => {
+      dom.importGistModal?.close();
       dom.refactorInstrumentModal?.close();
       dom.refactorSectionModal?.close();
       dom.refactorExtractModal?.close();
@@ -477,6 +483,10 @@ async function init() {
 
   applyI18n(detectLanguage());
 
+  let initialScoreId: string | null = null;
+  let initialIsTemplate = true;
+  let initialTemplateId: string | null = defaultSample.id;
+
   try {
     const shared = await TMDScoreService.importSharedScore();
     if (shared) TmdStorage.setActiveScoreId(shared.id);
@@ -485,6 +495,9 @@ async function init() {
       const saved = shared ?? (await TmdStorage.getScore(activeId));
       if (saved) {
         initialContent = saved.content;
+        initialScoreId = saved.id;
+        initialIsTemplate = false;
+        initialTemplateId = null;
       }
     }
   } catch (e) {
@@ -516,6 +529,12 @@ async function init() {
     problemsPanel: dom.problemsPanel,
     btnToggleProblems: dom.btnToggleProblems,
   });
+
+  libraryController.setActiveScore(initialScoreId, initialIsTemplate, initialTemplateId);
+  if (!dom.libraryDrawer.classList.contains("hidden")) {
+    libraryController.refreshLibraryScores();
+  }
+
   updateInspector(initialContent);
   updateProblems(initialContent);
 

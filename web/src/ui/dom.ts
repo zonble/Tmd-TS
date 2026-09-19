@@ -22,6 +22,10 @@ export interface AppDOMElements {
   btnLibraryNew: HTMLButtonElement;
   btnBackupZip: HTMLButtonElement;
   inputImportTmd: HTMLInputElement;
+  btnImportGist: HTMLButtonElement;
+  importGistModal: HTMLDialogElement;
+  inputGistUrl: HTMLInputElement;
+  btnConfirmImportGist: HTMLButtonElement;
   libraryScoresList: HTMLElement;
   librarySamplesList: HTMLElement;
   libraryScoresCount: HTMLElement;
@@ -223,6 +227,10 @@ export function initAppDOMElements(): AppDOMElements {
     btnLibraryNew: getElement("btn-library-new"),
     btnBackupZip: getElement("btn-backup-zip"),
     inputImportTmd: getElement("input-import-tmd"),
+    btnImportGist: getElement("btn-import-gist"),
+    importGistModal: getElement("import-gist-modal"),
+    inputGistUrl: getElement("input-gist-url"),
+    btnConfirmImportGist: getElement("btn-confirm-import-gist"),
     libraryScoresList: getElement("library-scores-list"),
     librarySamplesList: getElement("library-samples-list"),
     libraryScoresCount: getElement("library-scores-count"),
