@@ -875,6 +875,36 @@ verse:Piano@|0|{
     expect(issue.instrument).toBe("Order");
     expect(issue.description).toContain("Playback order must terminate with '#'");
   });
+
+  it("reports unclosed paragraph instead of missing playback order when closing brace is omitted before order", () => {
+    const input = `::SCORE::
+** Missing Paragraph Closing Brace **
+!= 120
+?= C
+<4/4>
+
+Grand_Terminal_Arrival:Piano@|0|{
+    <4*>
+    | 1 2 3 4 |
+
+-> Concourse_Dawn
+-> Double_Train_Depart
+-> Rush_Hour_Surge
+-> Vaulted_Skywalk
+-> Grand_Terminal_Arrival
+-> #
+`;
+
+    const issues = TMDMeasureChecker.check(input);
+    const orderIssues = issues.filter((i) => i.instrument === "Order");
+    const unclosedParagraph = issues.find((i) => i.snippet.includes("Unclosed paragraph"));
+
+    expect(unclosedParagraph).toBeDefined();
+    expect(unclosedParagraph?.paragraphName).toBe("Grand_Terminal_Arrival");
+    expect(unclosedParagraph?.description).toContain("Unclosed paragraph");
+    // Should NOT report "Missing playback order" because order is clearly present
+    expect(orderIssues.some((i) => i.snippet.includes("Missing playback order"))).toBe(false);
+  });
 });
 
 describe("TMD CLI subcommands check, format, and refactor (TDD)", () => {

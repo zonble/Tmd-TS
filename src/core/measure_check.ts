@@ -55,6 +55,9 @@ function formatIssueDescription(issue: {
       return `Order (line ${issue.lineNumber}): ${issue.snippet}`;
     }
   }
+  if (issue.snippet.startsWith("Unclosed paragraph")) {
+    return `${issue.paragraphName}:${issue.instrument} (line ${issue.lineNumber}): ${issue.snippet}`;
+  }
   const diffStr = issue.deltaUnits > 0 ? `+${issue.deltaUnits}` : `${issue.deltaUnits}`;
   if (issue.measureIndex === 0) {
     return `${issue.paragraphName}:${issue.instrument} (line ${issue.lineNumber}): Expected ${issue.expectedUnits} measures (${issue.snippet}), found ${issue.actualUnits} measures (${diffStr} measures)`;
@@ -183,9 +186,23 @@ export class TMDMeasureChecker {
           return Math.max(1, Math.floor(numerator / beat.noteValue));
         }
 
+        let unclosedParagraph = false;
         while (pos < tokensWithRanges.length && current()?.token.type !== "closeBrace") {
           const item = current();
           if (!item) break;
+
+          // If we hit an order arrow (->) or arrowEnd (->#) or another paragraph header,
+          // the current paragraph was not properly closed with '}'. Break out to avoid swallowing orders!
+          if (
+            item.token.type === "arrow" ||
+            item.token.type === "arrowEnd" ||
+            (item.token.type === "identifier" &&
+              pos + 1 < tokensWithRanges.length &&
+              tokensWithRanges[pos + 1].token.type === "colon")
+          ) {
+            unclosedParagraph = true;
+            break;
+          }
 
           // Check for Section subdivision header: < noteLength * >
           if (item.token.type === "openAngle") {
@@ -331,6 +348,27 @@ export class TMDMeasureChecker {
 
         if (current()?.token.type === "closeBrace") {
           advance(); // }
+        } else {
+          unclosedParagraph = true;
+        }
+
+        if (unclosedParagraph) {
+          const issueObj = {
+            paragraphName: pName,
+            instrument: instName,
+            lineNumber: paraStartLine,
+            measureIndex: 0,
+            expectedUnits: 0,
+            actualUnits: 0,
+            deltaUnits: 0,
+            noteLength,
+            beat,
+            snippet: `Unclosed paragraph '{' for ${pName}:${instName}`,
+          };
+          issues.push({
+            ...issueObj,
+            description: formatIssueDescription(issueObj),
+          });
         }
 
         const nominalMeasureDur = (Math.max(1, beat.count) * 4.0) / Math.max(1, beat.noteValue);
