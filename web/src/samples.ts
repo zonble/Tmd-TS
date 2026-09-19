@@ -1,7 +1,7 @@
+import starter from "./samples/starter.tmd?raw";
 import sandiansanye from "./samples/sandiansanye.tmd?raw";
 import legacy from "./samples/legacy.tmd?raw";
 import aiMoon from "./samples/ai-moon.tmd?raw";
-import starter from "./samples/starter.tmd?raw";
 
 export interface TMDSample {
   id: string;
@@ -11,6 +11,12 @@ export interface TMDSample {
 }
 
 export const SAMPLES: TMDSample[] = [
+  {
+    id: "starter_template",
+    name: "《小星星》(入門示範 / Twinkle Twinkle)",
+    category: "Template",
+    content: starter,
+  },
   {
     id: "sandiansanye",
     name: "《三天三夜》(阿怪 / 張惠妹)",
@@ -28,11 +34,5 @@ export const SAMPLES: TMDSample[] = [
     name: "《月映寒江》(抒情五聲調式)",
     category: "Chamber / Classical",
     content: aiMoon,
-  },
-  {
-    id: "starter_template",
-    name: "入門基礎模板 (Starter Template)",
-    category: "Template",
-    content: starter,
   },
 ];
