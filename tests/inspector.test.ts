@@ -1,0 +1,170 @@
+import { describe, it, expect } from "vitest";
+import { TmdParser } from "../src/core/parser.js";
+import { TMDSongInspector } from "../src/core/inspector.js";
+
+describe("TMDSongInspector (TDD port from TmdSwift)", () => {
+  it("inspects song basic profile, timing, pitch ranges, harmony, and density", () => {
+    const tmd = `::SCORE::
+** Inspector Test Song **
+!= 120.0
+?= C
+<4/4>
+
+intro:Piano@|0|{
+    <4*>
+    1 2 3 4
+    [C] - [G] -
+}
+
+verse:Vocal@|0|{
+    <4*>
+    1 3 5 1^
+    [Am] - [F] -
+}
+
+verse:Bass@|0|{
+    <4*>
+    1_ - 5_ -
+    6_ - 4_ -
+}
+
+chorus:Vocal@|0|{
+    <4*>
+    5 1^ 3^ 5^
+    [C] - [G] -
+}
+
+chorus:Bass@|0|{
+    <4*>
+    1_ - - -
+    5_ - - -
+}
+
+-> intro -> verse -> {?+2} -> chorus ->#
+`;
+
+    const sheet = TmdParser.parse(tmd);
+    expect(sheet).toBeDefined();
+
+    const profile = TMDSongInspector.inspect(sheet);
+
+    // 1. Basic Metadata & Keys
+    expect(profile.title).toBe("Inspector Test Song");
+    expect(profile.initialTempo).toBe(120.0);
+    expect(profile.initialKey).toBe("C");
+    expect(profile.initialTimeSignature).toBe("4/4");
+
+    // 2. Playback Timing
+    // intro: 2 bars @ 4/4 @ 120bpm = 4.0s
+    // verse: 2 bars @ 4/4 @ 120bpm = 4.0s
+    // chorus: 2 bars @ 4/4 @ 120bpm = 4.0s
+    // Total = 6 bars = 12.0s
+    expect(profile.timing.totalMeasures).toBe(6);
+    expect(Math.abs(profile.timing.totalDurationSeconds - 12.0)).toBeLessThan(0.01);
+    expect(profile.timing.sections.length).toBe(3);
+    expect(profile.timing.sections[0].name).toBe("intro");
+    expect(Math.abs(profile.timing.sections[0].durationSeconds - 4.0)).toBeLessThan(0.01);
+    expect(profile.timing.sections[1].name).toBe("verse");
+    expect(profile.timing.sections[2].name).toBe("chorus");
+
+    // 3. Vocal Pitch Range & Tessitura (under {?+2} modulation)
+    // Vocal appears in:
+    // - verse in key C (keyOffset = 0): notes 1, 3, 5, 1^ -> MIDI 60 (C4), 64 (E4), 67 (G4), 72 (C5)
+    // - chorus in key C + 2 semitones = D (keyOffset = 2): notes 5, 1^, 3^, 5^
+    //   5 in D = 67 + 2 = 69 (A4)
+    //   1^ in D = 72 + 2 = 74 (D5)
+    //   3^ in D = 76 + 2 = 78 (F#5)
+    //   5^ in D = 79 + 2 = 81 (A5)
+    expect(profile.vocalRange).toBeDefined();
+    const vocal = profile.vocalRange!;
+    expect(vocal.instrument).toBe("Vocal");
+    expect(vocal.lowestNote.midiPitch).toBe(60); // C4
+    expect(vocal.lowestNote.noteName).toBe("C4");
+    expect(vocal.highestNote.midiPitch).toBe(81); // A5
+    expect(vocal.highestNote.noteName).toBe("A5");
+    expect(vocal.spanSemitones).toBe(21); // 81 - 60 = 21 semitones
+    expect(vocal.highestNote.sectionName).toBe("chorus");
+
+    // 4. Track Ranges
+    expect(profile.instrumentRanges.length).toBeGreaterThanOrEqual(2);
+    const bassRange = profile.instrumentRanges.find((r) => r.instrument === "Bass");
+    expect(bassRange).toBeDefined();
+    expect(bassRange!.lowestNote.midiPitch).toBeLessThan(60);
+
+    // 5. Harmony & Chords
+    expect(profile.harmony.distinctChords).toContain("[C]");
+    expect(profile.harmony.distinctChords).toContain("[G]");
+    expect(profile.harmony.distinctChords).toContain("[Am]");
+    expect(profile.harmony.distinctChords).toContain("[F]");
+    expect(profile.harmony.modulations.length).toBe(1);
+    expect(profile.harmony.modulations[0]).toContain("+2");
+
+    // 6. Arrangement Energy & Density
+    expect(profile.density.maxConcurrentTracks).toBe(2);
+    const verseDensity = profile.density.sectionDensities.find((s) => s.sectionName === "verse");
+    expect(verseDensity).toBeDefined();
+    expect(verseDensity!.trackCount).toBe(2);
+    expect(verseDensity!.instruments).toContain("Vocal");
+    expect(verseDensity!.instruments).toContain("Bass");
+
+    // 7. Human-readable Report
+    const report = TMDSongInspector.generateReport(profile);
+    expect(report).toContain("TMD Song Profile: [ Inspector Test Song ]");
+    expect(report).toContain("Duration:");
+    expect(report).toContain("Vocal Range:");
+    expect(report).toContain("Harmony:");
+  });
+
+  it("supports CLI inspect subcommand with human-readable and --json output", async () => {
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const path = await import("node:path");
+    const { main } = await import("../src/cli.js");
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "tmd-inspect-test-"));
+    const tmpFile = path.join(tmpDir, "test.tmd");
+    fs.writeFileSync(
+      tmpFile,
+      `::SCORE::
+** CLI Inspect Song **
+!= 100
+?= G
+<4/4>
+
+intro:Piano@|0|{
+<4*>
+1 2 3 4 |
+}
+-> intro ->#
+`,
+      "utf-8"
+    );
+
+    let output = "";
+    const originalLog = console.log;
+    console.log = (msg: any) => {
+      output += msg + "\n";
+    };
+
+    try {
+      // 1. Text report
+      let exitCode = main(["inspect", tmpFile]);
+      expect(exitCode).toBe(0);
+      expect(output).toContain("TMD Song Profile: [ CLI Inspect Song ]");
+
+      // 2. JSON report
+      output = "";
+      exitCode = main(["inspect", "--json", tmpFile]);
+      expect(exitCode).toBe(0);
+      const parsed = JSON.parse(output);
+      expect(parsed.title).toBe("CLI Inspect Song");
+      expect(parsed.initialTempo).toBe(100);
+      expect(parsed.initialKey).toBe("G");
+      expect(parsed.timing).toBeDefined();
+    } finally {
+      console.log = originalLog;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+

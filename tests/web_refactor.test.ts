@@ -283,6 +283,46 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(inspectorContent).toContain("btn-jump-orders");
     expect(inspectorContent).toContain("jumpToOrders");
   });
+
+  it("integrates TMDSongInspector into Web Studio inspector panel", () => {
+    // Check i18n keys for inspector
+    expect((zhTW as any).inspectorMetaTitle).toBeDefined();
+    expect((zhTW as any).statLabelDuration).toBeDefined();
+    expect((zhTW as any).statLabelMeasures).toBeDefined();
+    expect((zhTW as any).statLabelDensity).toBeDefined();
+    expect((zhTW as any).inspectorPitchTitle).toBeDefined();
+    expect((zhTW as any).statLabelVocalRange).toBeDefined();
+    expect((zhTW as any).statLabelVocalSpan).toBeDefined();
+    expect((zhTW as any).inspectorHarmonyTitle).toBeDefined();
+
+    expect((en as any).inspectorMetaTitle).toBeDefined();
+    expect((en as any).statLabelDuration).toBeDefined();
+    expect((en as any).statLabelMeasures).toBeDefined();
+    expect((en as any).statLabelDensity).toBeDefined();
+    expect((en as any).inspectorPitchTitle).toBeDefined();
+    expect((en as any).statLabelVocalRange).toBeDefined();
+    expect((en as any).statLabelVocalSpan).toBeDefined();
+    expect((en as any).inspectorHarmonyTitle).toBeDefined();
+
+    // Check web/index.html elements
+    const htmlPath = path.join(__dirname, "../web/index.html");
+    const html = fs.readFileSync(htmlPath, "utf-8");
+    expect(html).toContain('id="stat-duration"');
+    expect(html).toContain('id="stat-measures"');
+    expect(html).toContain('id="stat-density"');
+    expect(html).toContain('id="stat-vocal-range"');
+    expect(html).toContain('id="stat-vocal-span"');
+    expect(html).toContain('id="inspector-pitch-inst-select"');
+    expect(html).toContain('id="inspector-vocal-details"');
+    expect(html).toContain('id="inspector-harmony"');
+    expect(html).toContain('id="inspector-modulations"');
+
+    // Check inspector.ts integration
+    const inspectorPath = path.join(__dirname, "../web/src/ui/inspector.ts");
+    const inspectorContent = fs.readFileSync(inspectorPath, "utf-8");
+    expect(inspectorContent).toContain("TMDSongInspector.inspect");
+    expect(inspectorContent).toContain("inspectorPitchInstSelect");
+  });
 });
 
 

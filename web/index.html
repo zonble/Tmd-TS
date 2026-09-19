@@ -305,9 +305,9 @@
               <div id="inspector-status" class="status-badge success" data-i18n="statusValid">✓ 語法解析正確</div>
             </div>
 
-            <!-- Global Metadata -->
+            <!-- Global Overview & Metadata -->
             <div class="card">
-              <div class="card-title" data-i18n="inspectorMetaTitle">基本設定</div>
+              <div class="card-title" data-i18n="inspectorMetaTitle">樂譜總覽與基本設定</div>
               <div class="stat-grid">
                 <div class="stat-item">
                   <span class="stat-label" data-i18n="statLabelTitle">曲名</span>
@@ -325,7 +325,51 @@
                   <span class="stat-label" data-i18n="statLabelMeter">拍號 (Meter)</span>
                   <span class="stat-value" id="stat-meter">-</span>
                 </div>
+                <div class="stat-item">
+                  <span class="stat-label" data-i18n="statLabelDuration">演奏時長</span>
+                  <span class="stat-value" id="stat-duration">-</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label" data-i18n="statLabelMeasures">小節總數</span>
+                  <span class="stat-value" id="stat-measures">-</span>
+                </div>
+                <div class="stat-item" style="grid-column: span 2;">
+                  <span class="stat-label" data-i18n="statLabelDensity">同時最高軌數</span>
+                  <span class="stat-value" id="stat-density">-</span>
+                </div>
               </div>
+            </div>
+
+            <!-- Vocal Range & Pitch Profile -->
+            <div class="card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div class="card-title" data-i18n="inspectorPitchTitle" style="margin: 0;">音高分析</div>
+                <select id="inspector-pitch-inst-select" class="form-control" style="font-size: 11px; padding: 2px 6px; height: 24px; max-width: 140px;" title="選擇分析音軌">
+                  <!-- Dynamically populated -->
+                </select>
+              </div>
+              <div id="inspector-vocal" class="vocal-profile-container">
+                <div class="stat-grid" style="margin-bottom: 6px;">
+                  <div class="stat-item">
+                    <span class="stat-label" id="label-pitch-range" data-i18n="statLabelPitchRange">音軌音域</span>
+                    <span class="stat-value" id="stat-vocal-range" style="font-size: 13px;">-</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label" data-i18n="statLabelVocalSpan">音域跨度</span>
+                    <span class="stat-value" id="stat-vocal-span" style="font-size: 13px;">-</span>
+                  </div>
+                </div>
+                <div id="inspector-vocal-details" class="track-meta" style="font-size: 11px;"></div>
+              </div>
+            </div>
+
+            <!-- Harmony & Chords -->
+            <div class="card">
+              <div class="card-title" data-i18n="inspectorHarmonyTitle">和弦與轉調</div>
+              <div id="inspector-harmony" class="tags-list" style="margin-bottom: 6px;">
+                <span class="stat-label" data-i18n="noChords">無和弦標記</span>
+              </div>
+              <div id="inspector-modulations" class="tags-list"></div>
             </div>
 
             <!-- Playback Flow / Orders -->

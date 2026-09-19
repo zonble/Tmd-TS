@@ -1,0 +1,419 @@
+import {
+  KeySignature,
+  Order,
+  Paragraph,
+  ScaleDegree,
+  scaleDegreeLetter,
+  scaleDegreeSemitoneOffset,
+  Sheet,
+} from "./types.js";
+import { SheetInstrumentHelper } from "./instruments.js";
+import { TMDPlaybackRenderer, PlaybackState, PlaybackEvent } from "./playback.js";
+
+/**
+ * Pitch descriptor with MIDI note number, canonical note name (e.g. "C4", "A5"), and source section context.
+ */
+export interface TMDNotePitchInfo {
+  midiPitch: number;
+  noteName: string;
+  sectionName: string;
+  timelinePosition: number;
+}
+
+export namespace TMDNotePitchInfo {
+  const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+  /**
+   * Converts MIDI note number (0~127) to standard note name string (e.g. 60 -> "C4", 69 -> "A4").
+   */
+  export function name(midiPitch: number): string {
+    const octave = Math.floor(midiPitch / 12) - 1;
+    const noteIndex = ((midiPitch % 12) + 12) % 12;
+    return `${NOTE_NAMES[noteIndex]}${octave}`;
+  }
+}
+
+/**
+ * Vocal or instrument pitch range and tessitura summary.
+ */
+export interface TMDPitchRangeProfile {
+  instrument: string;
+  lowestNote: TMDNotePitchInfo;
+  highestNote: TMDNotePitchInfo;
+  spanSemitones: number;
+  totalNotes: number;
+  averageMidiPitch: number;
+}
+
+/**
+ * Timing span descriptor for a section in the song's playback timeline.
+ */
+export interface TMDSectionTimingProfile {
+  name: string;
+  orderIndex: number;
+  startPositionQuarterNotes: number;
+  durationQuarterNotes: number;
+  startSeconds: number;
+  durationSeconds: number;
+  measures: number;
+  keyOffset: number;
+  tempo: number;
+}
+
+/**
+ * Song playback timeline timing and duration breakdown.
+ */
+export interface TMDTimingProfile {
+  totalDurationSeconds: number;
+  totalMeasures: number;
+  sections: TMDSectionTimingProfile[];
+}
+
+/**
+ * Harmonic content and progression analysis.
+ */
+export interface TMDHarmonyProfile {
+  distinctChords: string[];
+  chordCount: number;
+  modulations: string[];
+}
+
+/**
+ * Section arrangement density descriptor.
+ */
+export interface TMDSectionDensity {
+  sectionName: string;
+  trackCount: number;
+  instruments: string[];
+}
+
+/**
+ * Arrangement orchestration and concurrent track layering density.
+ */
+export interface TMDArrangementDensityProfile {
+  maxConcurrentTracks: number;
+  sectionDensities: TMDSectionDensity[];
+}
+
+/**
+ * Complete structural, vocal range, harmonic, and temporal profile of a TMD score.
+ */
+export interface TMDSongProfile {
+  title: string;
+  initialTempo: number;
+  initialKey: string;
+  initialTimeSignature: string;
+  timing: TMDTimingProfile;
+  vocalRange?: TMDPitchRangeProfile;
+  instrumentRanges: TMDPitchRangeProfile[];
+  harmony: TMDHarmonyProfile;
+  density: TMDArrangementDensityProfile;
+}
+
+/**
+ * Inspector engine extracting holistic musical metrics, vocal tessitura, and arrangement profiles from a TMD Sheet.
+ * Ported faithfully from TmdSwift.
+ */
+export class TMDSongInspector {
+  /**
+   * Inspects a parsed TMD Sheet and produces an in-depth TMDSongProfile.
+   */
+  public static inspect(sheet: Sheet, targetInstrument?: string): TMDSongProfile {
+    const title = sheet.name || "Untitled";
+    const initialTempo = sheet.speed && sheet.speed > 0 ? sheet.speed : 120.0;
+    const initialKey = sheet.keySignature ? sheet.keySignature.toString() : "C";
+    const initialMeter = sheet.beat ? `${sheet.beat.count}/${sheet.beat.noteValue}` : "4/4";
+
+    // 1. Timing Profile
+    const timingProfile = this.buildTimingProfile(sheet);
+
+    // 2. Instrument Ranges
+    const distinctInsts = SheetInstrumentHelper.distinctInstruments(sheet, false);
+    const instrumentRanges: TMDPitchRangeProfile[] = [];
+    for (const inst of distinctInsts) {
+      const profile = this.buildPitchProfile(inst, sheet, timingProfile);
+      if (profile) {
+        instrumentRanges.push(profile);
+      }
+    }
+
+    // 3. Target Range (picks target instrument or auto resolves)
+    const targetInst = targetInstrument && distinctInsts.includes(targetInstrument)
+      ? targetInstrument
+      : SheetInstrumentHelper.resolveVocalInstrument(sheet);
+    const vocalRange = instrumentRanges.find((r) => r.instrument === targetInst);
+
+    // 4. Harmony & Chord Profile
+    const harmonyProfile = this.buildHarmonyProfile(sheet);
+
+    // 5. Arrangement & Density Profile
+    const densityProfile = this.buildDensityProfile(sheet);
+
+    return {
+      title,
+      initialTempo,
+      initialKey,
+      initialTimeSignature: initialMeter,
+      timing: timingProfile,
+      vocalRange,
+      instrumentRanges,
+      harmony: harmonyProfile,
+      density: densityProfile,
+    };
+  }
+
+  private static buildTimingProfile(sheet: Sheet): TMDTimingProfile {
+    const orders: Order[] =
+      sheet.orders.length > 0
+        ? sheet.orders
+        : Array.from(new Set(sheet.paragraphs.map((p) => p.name))).map((n) => ({
+            type: "name",
+            name: n,
+          }));
+
+    let state: PlaybackState = {
+      tempo: sheet.speed && sheet.speed > 0 ? sheet.speed : 120.0,
+      keyOffset: sheet.keySignature ? sheet.keySignature.semitoneOffset : 0,
+      timeSignature: sheet.beat || { count: 4, noteValue: 4 },
+    };
+
+    const sections: TMDSectionTimingProfile[] = [];
+    let currentQuarterPosition = 0.0;
+    let currentSeconds = 0.0;
+    let totalMeasures = 0;
+
+    for (let idx = 0; idx < orders.length; idx++) {
+      const order = orders[idx];
+      if (order.type === "relative") {
+        const delta = parseInt(order.value.replace(/\+/g, ""), 10);
+        if (!isNaN(delta)) {
+          state = { ...state, keyOffset: state.keyOffset + delta };
+        }
+      } else if (order.type === "absolute") {
+        const offset = KeySignature.parse(order.value).semitoneOffset;
+        state = { ...state, keyOffset: offset };
+      } else if (order.type === "name") {
+        const durQuarterNotes = TMDPlaybackRenderer.durationOf(order.name, sheet);
+        const nominalMeasureDur =
+          (Math.max(1, state.timeSignature.count) * 4.0) / Math.max(1, state.timeSignature.noteValue);
+        const secMeasures = Math.max(1, Math.round(durQuarterNotes / nominalMeasureDur));
+        const secDurationSeconds = durQuarterNotes / (state.tempo / 60.0);
+
+        sections.push({
+          name: order.name,
+          orderIndex: idx,
+          startPositionQuarterNotes: currentQuarterPosition,
+          durationQuarterNotes: durQuarterNotes,
+          startSeconds: currentSeconds,
+          durationSeconds: secDurationSeconds,
+          measures: secMeasures,
+          keyOffset: state.keyOffset,
+          tempo: state.tempo,
+        });
+
+        currentQuarterPosition += durQuarterNotes;
+        currentSeconds += secDurationSeconds;
+        totalMeasures += secMeasures;
+      }
+    }
+
+    return {
+      totalDurationSeconds: currentSeconds,
+      totalMeasures,
+      sections,
+    };
+  }
+
+  private static buildPitchProfile(
+    instrument: string,
+    sheet: Sheet,
+    timingProfile: TMDTimingProfile
+  ): TMDPitchRangeProfile | null {
+    const timeline = TMDPlaybackRenderer.render(sheet, instrument);
+
+    interface NoteHit {
+      midi: number;
+      name: string;
+      pos: number;
+      sectionName: string;
+    }
+
+    const hits: NoteHit[] = [];
+
+    for (const event of timeline.events) {
+      if (event.content.type !== "note") continue;
+      const note = event.content.note;
+
+      // Note MIDI pitch calculation:
+      // 60 (Middle C) + keyOffset + degreeOffset + accidental + octave * 12
+      let pitch = 60 + event.state.keyOffset + scaleDegreeSemitoneOffset(note.degree);
+      if (note.accidental === "sharp") pitch += 1;
+      else if (note.accidental === "flat") pitch -= 1;
+      pitch += note.octave * 12;
+
+      const noteName = TMDNotePitchInfo.name(pitch);
+      const secProfile = timingProfile.sections.find(
+        (s) =>
+          event.position >= s.startPositionQuarterNotes &&
+          event.position < s.startPositionQuarterNotes + s.durationQuarterNotes + 0.001
+      );
+      const sectionName = secProfile ? secProfile.name : "";
+
+      hits.push({
+        midi: pitch,
+        name: noteName,
+        pos: event.position,
+        sectionName,
+      });
+    }
+
+    if (hits.length === 0) return null;
+
+    let lowest = hits[0];
+    let highest = hits[0];
+    let sumPitch = 0;
+
+    for (const hit of hits) {
+      if (hit.midi < lowest.midi) lowest = hit;
+      if (hit.midi > highest.midi) highest = hit;
+      sumPitch += hit.midi;
+    }
+
+    const avgPitch = sumPitch / hits.length;
+
+    return {
+      instrument,
+      lowestNote: {
+        midiPitch: lowest.midi,
+        noteName: lowest.name,
+        sectionName: lowest.sectionName,
+        timelinePosition: lowest.pos,
+      },
+      highestNote: {
+        midiPitch: highest.midi,
+        noteName: highest.name,
+        sectionName: highest.sectionName,
+        timelinePosition: highest.pos,
+      },
+      spanSemitones: highest.midi - lowest.midi,
+      totalNotes: hits.length,
+      averageMidiPitch: avgPitch,
+    };
+  }
+
+  private static buildHarmonyProfile(sheet: Sheet): TMDHarmonyProfile {
+    const chords: string[] = [];
+    for (const p of sheet.paragraphs) {
+      for (const sec of p.sections) {
+        for (const group of sec.unitGroups) {
+          for (const unit of group.units) {
+            if (unit.type === "chord") {
+              const raw = `[${unit.chord.toString()}]`;
+              if (!chords.includes(raw)) {
+                chords.push(raw);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const modulations: string[] = [];
+    for (const order of sheet.orders) {
+      if (order.type === "relative") {
+        modulations.push(`Relative: ${order.value} semitones`);
+      } else if (order.type === "absolute") {
+        modulations.push(`Key: ${order.value}`);
+      }
+    }
+
+    return {
+      distinctChords: chords,
+      chordCount: chords.length,
+      modulations,
+    };
+  }
+
+  private static buildDensityProfile(sheet: Sheet): TMDArrangementDensityProfile {
+    const sectionDict: Record<string, string[]> = {};
+    for (const p of sheet.paragraphs) {
+      if (!sectionDict[p.name]) {
+        sectionDict[p.name] = [];
+      }
+      sectionDict[p.name].push(p.instrument);
+    }
+
+    const sectionDensities: TMDSectionDensity[] = [];
+    let maxTracks = 0;
+
+    for (const [secName, instList] of Object.entries(sectionDict)) {
+      const uniqueInst = Array.from(new Set(instList)).sort();
+      if (uniqueInst.length > maxTracks) {
+        maxTracks = uniqueInst.length;
+      }
+      sectionDensities.push({
+        sectionName: secName,
+        trackCount: uniqueInst.length,
+        instruments: uniqueInst,
+      });
+    }
+
+    sectionDensities.sort((a, b) => a.sectionName.localeCompare(b.sectionName));
+
+    return {
+      maxConcurrentTracks: maxTracks,
+      sectionDensities,
+    };
+  }
+
+  /**
+   * Generates a human-readable plain text / ASCII inspection report.
+   */
+  public static generateReport(profile: TMDSongProfile): string {
+    const mins = Math.floor(profile.timing.totalDurationSeconds / 60);
+    const secs = Math.floor(profile.timing.totalDurationSeconds % 60);
+    const timeFormatted = `${mins}:${secs.toString().padStart(2, "0")} (${profile.timing.totalDurationSeconds.toFixed(1)}s)`;
+
+    const lines: string[] = [];
+    lines.push("================================================================================");
+    lines.push(`📊 TMD Song Profile: [ ${profile.title} ]`);
+    lines.push("================================================================================");
+    lines.push(`⏱  Duration:       ${timeFormatted}, ${profile.timing.totalMeasures} measures total`);
+    lines.push(
+      `🎼 Key & Tempo:    ${profile.initialKey} Major, != ${profile.initialTempo} BPM, <${profile.initialTimeSignature}>`
+    );
+
+    if (profile.vocalRange) {
+      const vocal = profile.vocalRange;
+      lines.push(
+        `🎤 Vocal Range:    ${vocal.lowestNote.noteName} (MIDI ${vocal.lowestNote.midiPitch}) – ${vocal.highestNote.noteName} (MIDI ${vocal.highestNote.midiPitch}) [Span: ${vocal.spanSemitones} semitones]`
+      );
+      lines.push(`   - Lowest Note:  ${vocal.lowestNote.noteName} in [${vocal.lowestNote.sectionName}]`);
+      lines.push(`   - Highest Note: ${vocal.highestNote.noteName} in [${vocal.highestNote.sectionName}]`);
+    }
+
+    lines.push(
+      "🏛  Structure:      " +
+        profile.timing.sections
+          .map((s) => `${s.name} (${s.durationSeconds.toFixed(1)}s)`)
+          .join(" -> ")
+    );
+    lines.push(`⚡ Density:        Peak ${profile.density.maxConcurrentTracks} tracks concurrently`);
+
+    if (profile.harmony.distinctChords.length > 0) {
+      lines.push("🎹 Harmony:        " + profile.harmony.distinctChords.join(" "));
+    }
+
+    lines.push("--------------------------------------------------------------------------------");
+    lines.push("Instrument Track Ranges:");
+    for (const inst of profile.instrumentRanges) {
+      const padded = inst.instrument.padEnd(14, " ");
+      lines.push(
+        `  - ${padded}: ${inst.lowestNote.noteName} – ${inst.highestNote.noteName} (${inst.spanSemitones} semitones, ${inst.totalNotes} notes)`
+      );
+    }
+    lines.push("================================================================================");
+
+    return lines.join("\n");
+  }
+}

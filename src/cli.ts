@@ -9,6 +9,7 @@ import {
   TMDRefactor,
   TMDOutlineGenerator,
   TMDOutlineNode,
+  TMDSongInspector,
 } from "./core/index.js";
 import {
   TMDABCGenerator,
@@ -35,6 +36,7 @@ SUBCOMMANDS:
   check <input-path>       Check measure consistency and report incorrect beat counts.
   format [<options>] <input-path> Format TMD file with standardized indentation and spacing.
   outline [--json] <input-path> Generate a document symbol outline of a TMD score.
+  inspect [--json] <input-path> Inspect full song musical profile, vocal tessitura, and arrangement density.
   refactor <subcommand>    Refactor TMD score (rename-instrument, rename-section, extract-instrument).
 
 OPTIONS:
@@ -175,6 +177,70 @@ OPTIONS:
     for (const node of nodes) {
       printNode(node, 0);
     }
+  }
+  return 0;
+}
+
+function handleInspectCommand(argv: string[]): number {
+  let inputPath: string | undefined;
+  let json = false;
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "-h" || arg === "--help") {
+      console.log(`USAGE: tmd inspect [--json] <input-path>
+
+Inspect full song musical profile, vocal tessitura, key modulations, and arrangement density.
+
+OPTIONS:
+  --json                  Output song profile as JSON.
+`);
+      return 0;
+    }
+    if (arg === "--json") {
+      json = true;
+      continue;
+    }
+    if (!arg.startsWith("-")) {
+      inputPath = arg;
+    } else {
+      console.error(`Unknown option: ${arg}`);
+      return 2;
+    }
+  }
+
+  if (!inputPath) {
+    console.error("Error: Missing expected argument '<input-path>' for inspect");
+    return 2;
+  }
+
+  let content: string;
+  try {
+    content = fs.readFileSync(inputPath, "utf-8");
+  } catch (error: any) {
+    console.error(`Error reading ${inputPath}: ${error.message || String(error)}`);
+    return 1;
+  }
+
+  let sheet;
+  try {
+    sheet = TmdParser.parse(content);
+  } catch (error: any) {
+    console.error(`Parse error in ${inputPath}: ${error.message || String(error)}`);
+    return 1;
+  }
+
+  if (!sheet) {
+    console.error(`Failed to parse TMD score: ${inputPath}`);
+    return 1;
+  }
+
+  const profile = TMDSongInspector.inspect(sheet);
+
+  if (json) {
+    console.log(JSON.stringify(profile, null, 2));
+  } else {
+    console.log(TMDSongInspector.generateReport(profile));
   }
   return 0;
 }
@@ -780,6 +846,9 @@ export function main(argv = process.argv.slice(2)): number {
     }
     if (first === "outline") {
       return handleOutlineCommand(argv.slice(1));
+    }
+    if (first === "inspect") {
+      return handleInspectCommand(argv.slice(1));
     }
     if (first === "refactor") {
       return handleRefactorCommand(argv.slice(1));

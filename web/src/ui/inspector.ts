@@ -1,5 +1,6 @@
 import { Sheet, scaleDegreeLetter, accidentalToSemitone } from "../../../src/core/types.js";
 import { TMDOutlineGenerator } from "../../../src/core/outline.js";
+import { TMDSongInspector } from "../../../src/core/inspector.js";
 import { t } from "../i18n.js";
 import { escapeHtml } from "../html.js";
 
@@ -9,10 +10,21 @@ export interface InspectorElements {
   statTempo: HTMLElement;
   statKey: HTMLElement;
   statMeter: HTMLElement;
+  statDuration?: HTMLElement;
+  statMeasures?: HTMLElement;
+  statDensity?: HTMLElement;
+  statVocalRange?: HTMLElement;
+  statVocalSpan?: HTMLElement;
+  inspectorPitchInstSelect?: HTMLSelectElement;
+  inspectorVocalDetails?: HTMLElement;
+  inspectorHarmony?: HTMLElement;
+  inspectorModulations?: HTMLElement;
   inspectorOrders: HTMLElement;
   inspectorTracks: HTMLElement;
   sbStatus: HTMLElement;
   sbSummary: HTMLElement;
+  selectedPitchInstrument?: string;
+  onSelectPitchInstrument?: (instrument: string) => void;
 }
 
 export function renderInspectorView(
@@ -26,6 +38,15 @@ export function renderInspectorView(
     statTempo,
     statKey,
     statMeter,
+    statDuration,
+    statMeasures,
+    statDensity,
+    statVocalRange,
+    statVocalSpan,
+    inspectorPitchInstSelect,
+    inspectorVocalDetails,
+    inspectorHarmony,
+    inspectorModulations,
     inspectorOrders,
     inspectorTracks,
     sbStatus,
@@ -68,6 +89,103 @@ export function renderInspectorView(
   }
 
   statMeter.textContent = currentSheet.beat ? `${currentSheet.beat.count}/${currentSheet.beat.noteValue}` : "4/4";
+
+  // Song Inspector Analysis
+  try {
+    // Track list for pitch analysis
+    const distinctInsts = Array.from(new Set(currentSheet.paragraphs.map((p) => p.instrument))).sort();
+    let currentInst = elements.selectedPitchInstrument;
+    if (!currentInst || !distinctInsts.includes(currentInst)) {
+      currentInst = distinctInsts.find((inst) => /^(main_?vocal|lead_?vocal|vocal|voice|主唱|人聲|歌|vo)$/i.test(inst))
+        || distinctInsts.find((inst) => /vocal|voice|miku|utau|teto|sing|melody|lead|主旋律/i.test(inst) && !/backing|harm|choir|guitar|synth|pad|bass|drum|beat/i.test(inst))
+        || distinctInsts[0];
+    }
+
+    if (inspectorPitchInstSelect) {
+      const prevVal = inspectorPitchInstSelect.value;
+      inspectorPitchInstSelect.innerHTML = distinctInsts
+        .map((inst) => `<option value="${escapeHtml(inst)}"${inst === currentInst ? " selected" : ""}>${escapeHtml(inst)}</option>`)
+        .join("");
+      if (currentInst) {
+        inspectorPitchInstSelect.value = currentInst;
+      }
+    }
+
+    const profile = TMDSongInspector.inspect(currentSheet, currentInst);
+
+    if (statDuration) {
+      const totalSec = profile.timing.totalDurationSeconds;
+      const mins = Math.floor(totalSec / 60);
+      const secs = Math.floor(totalSec % 60);
+      statDuration.textContent = `${mins}:${secs.toString().padStart(2, "0")} (${totalSec.toFixed(1)}s)`;
+    }
+
+    if (statMeasures) {
+      statMeasures.textContent = `${profile.timing.totalMeasures}`;
+    }
+
+    if (statDensity) {
+      const secCount = profile.density.sectionDensities.length;
+      const avg = secCount > 0 ? (profile.density.sectionDensities.reduce((acc, s) => acc + s.trackCount, 0) / secCount) : 0;
+      statDensity.textContent = `${profile.density.maxConcurrentTracks} tracks${avg > 0 ? ` (avg ${avg.toFixed(1)})` : ""}`;
+    }
+
+    // Pitch Profile (for the chosen instrument)
+    if (profile.vocalRange) {
+      const v = profile.vocalRange;
+      if (statVocalRange) {
+        statVocalRange.textContent = `${v.lowestNote.noteName} ～ ${v.highestNote.noteName}`;
+        statVocalRange.title = `MIDI: ${v.lowestNote.midiPitch} – ${v.highestNote.midiPitch}`;
+      }
+      if (statVocalSpan) {
+        const octaves = (v.spanSemitones / 12).toFixed(1);
+        const spanTmpl = t("vocalSpanFormat") || "{semitones} semitones ({octaves} octaves)";
+        statVocalSpan.textContent = spanTmpl
+          .replace("{semitones}", String(v.spanSemitones))
+          .replace("{octaves}", octaves);
+      }
+      if (inspectorVocalDetails) {
+        const detailTmpl = t("vocalDetailFormat") || "Track: {instrument} · Lowest in [{lowestSection}] · Highest in [{highestSection}]";
+        inspectorVocalDetails.textContent = detailTmpl
+          .replace("{instrument}", v.instrument)
+          .replace("{lowestSection}", v.lowestNote.sectionName)
+          .replace("{highestSection}", v.highestNote.sectionName);
+      }
+    } else {
+      if (statVocalRange) {
+        statVocalRange.textContent = "-";
+        statVocalRange.title = "";
+      }
+      if (statVocalSpan) statVocalSpan.textContent = "-";
+      if (inspectorVocalDetails) {
+        inspectorVocalDetails.textContent = t("noVocalTrack") || "No notes found on track";
+      }
+    }
+
+    // Harmony & Chords
+    if (inspectorHarmony) {
+      if (profile.harmony.distinctChords.length > 0) {
+        inspectorHarmony.innerHTML = profile.harmony.distinctChords
+          .map((ch: string) => `<span class="order-tag">${escapeHtml(ch)}</span>`)
+          .join(" ");
+      } else {
+        inspectorHarmony.innerHTML = `<span class="stat-label">${escapeHtml(t("noChords") || "None")}</span>`;
+      }
+    }
+
+    // Modulations
+    if (inspectorModulations) {
+      if (profile.harmony.modulations.length > 0) {
+        inspectorModulations.innerHTML = profile.harmony.modulations
+          .map((mod: string) => `<span class="order-tag order-tag-directive">${escapeHtml(mod)}</span>`)
+          .join(" ");
+      } else {
+        inspectorModulations.innerHTML = `<span class="stat-label">${escapeHtml(t("noModulations") || "No modulations")}</span>`;
+      }
+    }
+  } catch (inspectErr) {
+    console.warn("Inspector analysis error:", inspectErr);
+  }
 
   // Tracks & Orders / Outline Hierarchy
   const outlineNodes = TMDOutlineGenerator.generate(text);
@@ -202,11 +320,13 @@ export function setupInspectorPanelEvents(
     inspectorTracks: HTMLElement;
     inspectorOrders: HTMLElement;
     btnJumpOrders?: HTMLButtonElement;
+    inspectorPitchInstSelect?: HTMLSelectElement;
   },
   editor: any,
   onSavePanelsState: () => void,
   playSectionOrTrack: (section: string, instrument?: string) => void,
-  playFromOrderIndex: (orderIndex: number) => void
+  playFromOrderIndex: (orderIndex: number) => void,
+  onPitchInstrumentChanged?: (instrument: string) => void
 ): void {
   const {
     inspectorPanel,
@@ -215,7 +335,15 @@ export function setupInspectorPanelEvents(
     inspectorTracks,
     inspectorOrders,
     btnJumpOrders,
+    inspectorPitchInstSelect,
   } = elements;
+
+  inspectorPitchInstSelect?.addEventListener("change", () => {
+    const selected = inspectorPitchInstSelect.value;
+    if (selected && onPitchInstrumentChanged) {
+      onPitchInstrumentChanged(selected);
+    }
+  });
 
   btnToggleInspector.addEventListener("click", () => {
     inspectorPanel.classList.toggle("hidden");

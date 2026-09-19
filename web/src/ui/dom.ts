@@ -60,6 +60,15 @@ export interface AppDOMElements {
   statTempo: HTMLElement;
   statKey: HTMLElement;
   statMeter: HTMLElement;
+  statDuration: HTMLElement;
+  statMeasures: HTMLElement;
+  statDensity: HTMLElement;
+  statVocalRange: HTMLElement;
+  statVocalSpan: HTMLElement;
+  inspectorPitchInstSelect: HTMLSelectElement;
+  inspectorVocalDetails: HTMLElement;
+  inspectorHarmony: HTMLElement;
+  inspectorModulations: HTMLElement;
   inspectorOrders: HTMLElement;
   btnJumpOrders: HTMLButtonElement;
   inspectorTracks: HTMLElement;
@@ -264,6 +273,15 @@ export function initAppDOMElements(): AppDOMElements {
     statTempo: getElement("stat-tempo"),
     statKey: getElement("stat-key"),
     statMeter: getElement("stat-meter"),
+    statDuration: getElement("stat-duration"),
+    statMeasures: getElement("stat-measures"),
+    statDensity: getElement("stat-density"),
+    statVocalRange: getElement("stat-vocal-range"),
+    statVocalSpan: getElement("stat-vocal-span"),
+    inspectorPitchInstSelect: getElement("inspector-pitch-inst-select"),
+    inspectorVocalDetails: getElement("inspector-vocal-details"),
+    inspectorHarmony: getElement("inspector-harmony"),
+    inspectorModulations: getElement("inspector-modulations"),
     inspectorOrders: getElement("inspector-orders"),
     btnJumpOrders: getElement("btn-jump-orders"),
     inspectorTracks: getElement("inspector-tracks"),

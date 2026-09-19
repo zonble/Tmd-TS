@@ -77,6 +77,8 @@ function updateProblems(text: string) {
   });
 }
 
+let selectedPitchInstrument: string | undefined = undefined;
+
 function updateInspector(text: string) {
   currentSheet = renderInspectorView(
     text,
@@ -86,10 +88,23 @@ function updateInspector(text: string) {
       statTempo: dom.statTempo,
       statKey: dom.statKey,
       statMeter: dom.statMeter,
+      statDuration: dom.statDuration,
+      statMeasures: dom.statMeasures,
+      statDensity: dom.statDensity,
+      statVocalRange: dom.statVocalRange,
+      statVocalSpan: dom.statVocalSpan,
+      inspectorPitchInstSelect: dom.inspectorPitchInstSelect,
+      inspectorVocalDetails: dom.inspectorVocalDetails,
+      inspectorHarmony: dom.inspectorHarmony,
+      inspectorModulations: dom.inspectorModulations,
       inspectorOrders: dom.inspectorOrders,
       inspectorTracks: dom.inspectorTracks,
       sbStatus: dom.sbStatus,
       sbSummary: dom.sbSummary,
+      selectedPitchInstrument,
+      onSelectPitchInstrument: (inst) => {
+        selectedPitchInstrument = inst;
+      },
     },
     (code) => TmdParser.parse(code)
   );
@@ -211,11 +226,18 @@ function initEvents() {
       inspectorTracks: dom.inspectorTracks,
       inspectorOrders: dom.inspectorOrders,
       btnJumpOrders: dom.btnJumpOrders,
+      inspectorPitchInstSelect: dom.inspectorPitchInstSelect,
     },
     editor,
     () => triggerSavePanelsState(),
     (sec, inst) => playerController.playSectionOrTrack(sec, inst),
-    (idx) => playerController.playFromOrderIndex(idx)
+    (idx) => playerController.playFromOrderIndex(idx),
+    (selectedInst) => {
+      selectedPitchInstrument = selectedInst;
+      if (editor) {
+        updateInspector(editor.getContent());
+      }
+    }
   );
 
   // 6. Export Menu

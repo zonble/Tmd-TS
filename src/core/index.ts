@@ -7,4 +7,5 @@ export * from './refactor.js';
 export * from './measure_check.js';
 export * from './outline.js';
 export * from './instruments.js';
+export * from './inspector.js';
 
