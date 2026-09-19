@@ -96,12 +96,14 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(mainContent).toContain("problems-list");
   });
 
-  it("editor.ts supports onFormat hotkey extension (Shift-Alt-F / Shift-Option-F) and getCursorContext()", () => {
+  it("editor.ts supports onFormat hotkey extension, toggleComment (Mod-/ and Shift-Alt-A), and getCursorContext()", () => {
     const editorPath = path.join(__dirname, "../web/src/editor.ts");
     const editorContent = fs.readFileSync(editorPath, "utf-8");
 
     expect(editorContent).toContain("onFormat");
     expect(editorContent).toContain("getCursorContext");
+    expect(editorContent).toContain("toggleComment");
+    expect(editorContent).toContain("commentTokens");
   });
 
   it("includes editor context menu element in web/index.html", () => {
@@ -110,6 +112,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
 
     expect(html).toContain('id="editor-context-menu"');
     expect(html).toContain('id="ctx-format"');
+    expect(html).toContain('id="ctx-comment"');
     expect(html).toContain('id="ctx-double-grid"');
     expect(html).toContain('id="ctx-halve-grid"');
     expect(html).toContain('id="ctx-duplicate-track"');
@@ -134,6 +137,8 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(mainContent).toContain("editor-context-menu");
     expect(mainContent).toContain("getCursorContext");
     expect(mainContent).toContain("contextmenu");
+    expect(mainContent).toContain("ctx-comment");
+    expect(mainContent).toContain("toggleComment");
     expect(mainContent).toContain("refactor-dup-scope-section");
     expect(mainContent).toContain("refactor-harm-scope-section");
     expect(mainContent).toContain("ctx-insert-section");

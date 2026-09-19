@@ -27,6 +27,7 @@ export const en = {
   btnToolsMenuTitle: "Score formatting and refactoring tools",
   btnToolsText: "Tools",
   toolFormatDocument: "Format Document (Shift+Alt+F)",
+  ctxComment: "Toggle Comment (Cmd+/)",
   toolDoubleGrid: "Subdivide Grid (Double Grid: <4*> ➔ <8*>)",
   toolHalveGrid: "Compress Grid (Halve Grid: <8*> ➔ <4*>)",
   toolDuplicateTrack: "Duplicate Track...",

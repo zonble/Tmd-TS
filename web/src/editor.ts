@@ -1,6 +1,7 @@
 import { EditorView, basicSetup } from "codemirror";
 import { EditorState, Compartment } from "@codemirror/state";
 import { StreamLanguage, StringStream } from "@codemirror/language";
+import { toggleComment } from "@codemirror/commands";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { keymap, gutter, GutterMarker, BlockInfo } from "@codemirror/view";
 
@@ -9,6 +10,11 @@ interface TMDParserState {
 }
 
 export const tmdLanguage = StreamLanguage.define<TMDParserState>({
+  languageData: {
+    commentTokens: {
+      block: { open: "/*", close: "*/" },
+    },
+  },
   startState(): TMDParserState {
     return { inComment: false };
   },
@@ -131,6 +137,7 @@ export interface TMDWebEditor {
   scrollToLine(line: number): void;
   scrollToRange(startLine: number, startCol: number, endLine: number, endCol: number): void;
   getCursorContext(): CursorContext;
+  toggleComment(): void;
   focus(): void;
 }
 
@@ -181,7 +188,7 @@ export function createTmdEditor(
     }
   });
 
-  const formatKeymap = keymap.of([
+  const editorKeymap = keymap.of([
     {
       key: "Shift-Alt-f",
       run: () => {
@@ -191,6 +198,14 @@ export function createTmdEditor(
         }
         return false;
       },
+    },
+    {
+      key: "Mod-/",
+      run: toggleComment,
+    },
+    {
+      key: "Shift-Alt-a",
+      run: toggleComment,
     },
   ]);
 
@@ -215,7 +230,7 @@ export function createTmdEditor(
       oneDark,
       languageCompartment.of(tmdLanguage),
       updateListener,
-      formatKeymap,
+      editorKeymap,
       EditorView.lineWrapping,
       EditorView.theme({
         "&": {
@@ -338,6 +353,10 @@ export function createTmdEditor(
         hasSelection,
         selectionText: hasSelection ? view.state.sliceDoc(selection.from, selection.to) : "",
       };
+    },
+    toggleComment() {
+      toggleComment(view);
+      view.focus();
     },
     focus() {
       view.focus();

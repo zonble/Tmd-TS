@@ -214,6 +214,7 @@ const editorContextMenu = document.getElementById("editor-context-menu") as HTML
 const ctxHeaderInfo = document.getElementById("ctx-header-info") as HTMLElement;
 const ctxFormat = document.getElementById("ctx-format") as HTMLButtonElement;
 const ctxFormatLabel = document.getElementById("ctx-format-label") as HTMLElement;
+const ctxComment = document.getElementById("ctx-comment") as HTMLButtonElement;
 const ctxInsertSection = document.getElementById("ctx-insert-section") as HTMLButtonElement;
 const ctxDoubleGrid = document.getElementById("ctx-double-grid") as HTMLButtonElement;
 const ctxHalveGrid = document.getElementById("ctx-halve-grid") as HTMLButtonElement;
@@ -1656,6 +1657,11 @@ function initEvents() {
   ctxFormat?.addEventListener("click", () => {
     closeContextMenu();
     handleFormatDocument();
+  });
+
+  ctxComment?.addEventListener("click", () => {
+    closeContextMenu();
+    editor.toggleComment();
   });
 
   ctxDoubleGrid?.addEventListener("click", () => {
