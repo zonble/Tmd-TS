@@ -116,7 +116,7 @@ export const zhTW = {
   langToggle: "English",
   langToggleTitle: "切換為英文",
   synthSelectTitle: "選擇合成器音色庫",
-  synthOptionPiano: "🎹 Grand Piano (FluidR3)",
+  synthOptionPiano: "🎼 Multi-Track GM (FluidR3 多軌音源與鼓組)",
   synthOptionTiny: "⚡ Tiny Synth (Chiptune)",
   synthOptionWebMidi: "🎛 System MIDI Out",
   inspectorTitle: "樂譜資訊",

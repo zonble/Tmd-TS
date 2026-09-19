@@ -116,7 +116,7 @@ export const en = {
   langToggle: "繁體中文",
   langToggleTitle: "Switch to Traditional Chinese",
   synthSelectTitle: "Select Synthesizer / SoundFont",
-  synthOptionPiano: "🎹 Grand Piano (FluidR3)",
+  synthOptionPiano: "🎼 Multi-Track GM (FluidR3)",
   synthOptionTiny: "⚡ Tiny Synth (Chiptune)",
   synthOptionWebMidi: "🎛 System MIDI Out",
   inspectorTitle: "Score Inspector",
