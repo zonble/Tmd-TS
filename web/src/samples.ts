@@ -1,5 +1,6 @@
 import starter from "./samples/starter.tmd?raw";
 import sandiansanye from "./samples/sandiansanye.tmd?raw";
+import landingAtTaoyuan from "./samples/landing-at-taoyuan.tmd?raw";
 import tchaikovsky54 from "./samples/tchaikovsky-5-4.tmd?raw";
 import legacy from "./samples/legacy.tmd?raw";
 import aiMoon from "./samples/ai-moon.tmd?raw";
@@ -23,6 +24,12 @@ export const SAMPLES: TMDSample[] = [
     name: "《三天三夜》(阿怪 / 張惠妹)",
     category: "Classic Pop / Dance",
     content: sandiansanye,
+  },
+  {
+    id: "landing_at_taoyuan",
+    name: "《降落桃園：管弦狂想曲》(Antigravity & zonble)",
+    category: "Orchestral / Rhapsody",
+    content: landingAtTaoyuan,
   },
   {
     id: "tchaikovsky_5_4",
