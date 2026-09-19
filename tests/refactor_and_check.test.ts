@@ -43,6 +43,38 @@ intro:Piano@|0|{
     expect(origSheet.orders.length).toBe(newSheet.orders.length);
   });
 
+  it("formats multi-line block comments with correct indentation on all lines", () => {
+    const input = `::SCORE::
+/*
+ * Header multi-line comment
+ * line 2
+ */
+** My Song **
+!= 120
+?= C
+<4/4>
+
+intro:Piano@|0|{
+<4*>
+    /*
+     * Section multi-line comment
+     * line 2
+     */
+1 2 3 4
+}
+
+-> intro ->#
+`;
+
+    const formatted = TMDRefactor.format(input);
+    // At root level, comments should not have leading indentation on any line
+    expect(formatted).toContain("/*\n * Header multi-line comment\n * line 2\n */");
+
+    // Inside paragraph (indentLevel = 1, 4 spaces), every line of comment should be indented with 4 spaces
+    expect(formatted).toContain("    /*\n     * Section multi-line comment\n     * line 2\n     */");
+  });
+
+
   it("renames instrument across paragraphs in TMD document", () => {
     const input = `::SCORE::
 ** Test Song **

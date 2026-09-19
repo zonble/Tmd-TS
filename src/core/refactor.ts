@@ -45,6 +45,28 @@ function formatMusicalUnits(text: string): string {
   return output.trim();
 }
 
+function reindentBlockComment(lines: string[], indentPrefix: string): string[] {
+  if (lines.length === 1) {
+    return [indentPrefix + lines[0].trim()];
+  }
+  const firstLine = lines[0];
+  const firstMatch = firstLine.match(/^(\s*)/);
+  const baseIndent = firstMatch ? firstMatch[1].length : 0;
+
+  return lines.map((line, idx) => {
+    if (idx === 0) {
+      return indentPrefix + line.trimStart();
+    }
+    if (line.trim().length === 0) {
+      return "";
+    }
+    const match = line.match(/^(\s*)/);
+    const lineIndent = match ? match[1].length : 0;
+    const relIndent = Math.max(0, lineIndent - baseIndent);
+    return indentPrefix + " ".repeat(relIndent) + line.trimStart();
+  });
+}
+
 function formatLine(line: string, indent = 0): string {
   const indentPrefix = "    ".repeat(indent);
   let working = line;
@@ -138,8 +160,10 @@ export class TMDRefactor {
     const rawLines = source.split(/\r?\n/);
     let inProgramBlock = false;
     let indentLevel = 0;
+    let i = 0;
 
-    for (const line of rawLines) {
+    while (i < rawLines.length) {
+      const line = rawLines[i];
       const trimmed = line.trim();
 
       if (trimmed.includes('"""')) {
@@ -148,29 +172,47 @@ export class TMDRefactor {
           inProgramBlock = !inProgramBlock;
         }
         resultLines.push(line);
+        i++;
         continue;
       }
 
       if (inProgramBlock) {
         resultLines.push(line);
+        i++;
         continue;
       }
 
       if (trimmed.length === 0) {
         resultLines.push("");
+        i++;
         continue;
       }
 
       if (trimmed === "}") {
         indentLevel = Math.max(0, indentLevel - 1);
         resultLines.push(formatLine(line, 0));
+        i++;
         continue;
       }
 
-      // If line is pure block comment
-      if (trimmed.startsWith("/*") && trimmed.endsWith("*/")) {
+      // If line is starting a standalone block comment
+      if (trimmed.startsWith("/*")) {
+        const commentLines = [line];
+        if (!trimmed.includes("*/") || trimmed === "/*") {
+          let j = i + 1;
+          while (j < rawLines.length) {
+            commentLines.push(rawLines[j]);
+            if (rawLines[j].includes("*/")) {
+              break;
+            }
+            j++;
+          }
+          i = j + 1;
+        } else {
+          i++;
+        }
         const indent = "    ".repeat(indentLevel);
-        resultLines.push(indent + trimmed);
+        resultLines.push(...reindentBlockComment(commentLines, indent));
         continue;
       }
 
@@ -180,6 +222,7 @@ export class TMDRefactor {
       if (trimmed.endsWith("{")) {
         indentLevel++;
       }
+      i++;
     }
 
     // Clean up excessive empty lines (> 2 consecutive empty lines to 1)
