@@ -4,52 +4,45 @@ A modern TypeScript/JavaScript implementation of the **TMD** (Timebase Mark Down
 
 In memory of **Chen, Chih-Han / [aguai](https://github.com/aguai)** (阿怪, 1974–2019).
 
-- **Original project**: [https://github.com/aguai/TMDLang](https://github.com/aguai/TMDLang)
-- **TMD Samples & Editor Extensions**: [https://github.com/zonble/TmdSwift](https://github.com/zonble/TmdSwift)
+- Original project: [https://github.com/aguai/TMDLang](https://github.com/aguai/TMDLang)
+- Swift Implementation & Samples: [https://github.com/zonble/TmdSwift](https://github.com/zonble/TmdSwift)
 
-## Samples & Editor Extensions
+## The Markdown of Music
 
-TMD score samples (`.tmd` files) and editor extensions (such as syntax highlighting for VS Code, TextMate, and other editors) can be obtained from the [**TmdSwift**](https://github.com/zonble/TmdSwift) repository:
+### Origins & Heritage
 
-- 🎼 **TMD Score Samples**: [https://github.com/zonble/TmdSwift](https://github.com/zonble/TmdSwift)
-- 💻 **Editor Extensions & Syntax Highlighting**: [https://github.com/zonble/TmdSwift](https://github.com/zonble/TmdSwift)
+**TMD** (Timebase Mark Down) was originally conceived and designed by the celebrated Taiwanese songwriter, composer, and producer **Chen, Chih-Han / [aguai](https://github.com/aguai) (阿怪, 1974–2019)**, renowned for Mandopop classics such as A-Mei's 《三天三夜》 (*Three Days and Three Nights*).
 
-## About TMD
+### Designed for Songwriters, Not Print Shops nor Archives
 
-TMD is a plain-text musical notation DSL designed by composer and music producer 阿怪 (aguai, known for classics such as A-Mei's 《三天三夜》). It allows musicians and arrangers to describe multi-track songs, numbered musical notation (jianpu), chord progressions, tuplets, and playback arrangements in a concise, human-readable text format.
+Just as **Markdown** freed writers from the tedious tags of HTML, **TMD (Timebase Mark Down)** brings that same simplicity to music.
 
-In the age of generative AI, TMD can also serve as a music-native intermediate representation between a creator's intent and final music files:
-- **More reliable musical generation**: AI can describe reusable motifs, chord progressions, arrangement changes, and key transpositions without regenerating every note, reducing structural and consistency errors.
-- **Lower token usage**: Repetition, variation, and transposition can be expressed as structure instead of duplicated note data.
-- **Preserved musical relationships**: The connection between a motif, its variations, and the overall song arrangement remains explicit.
-- **Verifiable and reproducible output**: Structured text is easier to validate, edit, regenerate, and review than unstructured generated audio.
-- **Interoperability**: TMD can be converted into MIDI, MusicXML, LilyPond, ABC notation, ChordPro, VOCALOID, or audio for downstream tools.
+Existing musical formats serve other masters: **DAWs** treat music as audio engineering (faders, millisecond waveforms); **Engravers** (LilyPond, Sibelius) focus on printing layout; and **ABC notation** was designed decades ago to archive folk melodies. Their workflow assumes the song is already finished on paper. Furthermore, in multi-instrument arrangements, ABC quickly devolves into "rest hell" (`| z4 | z4 |`), cluttering the page and exhausting LLM context windows.
 
-At its core, TMD reflects the practical workflow and mental model of modern popular music songwriting and arrangement:
-- **Lead-sheet and Jianpu thinking**: Melodies are expressed in movable-do numbered scale degrees (`1`–`7`), octaves (`^`, `_`), and accidentals (`'`, `,`), making transpositions and melodic contours intuitive without the visual clutter of traditional staves.
-- **Harmony-first architecture**: Chord symbols (both harmonic scale degrees like `[1]`, `[6m]` and standard chord names like `[Cmaj7]`) are treated as first-class citizens alongside melody lines.
-- **Section-oriented modularity**: Songs are broken down into named song forms (`intro`, `verse`, `chorus`, `bridge`), with independent multi-instrument tracks entering at specified measure offsets (`@|+4|`).
-- **Arrangement as linear execution flow**: Song playback and modulations (`{?+3}`, `{?-3}`) are declared as an explicit execution sequence (`-> intro -> A -> B -> C ->#`), mirroring how musicians and producers compose, rehearse, and structure arrangements in their minds.
+**TMD moves the songwriter's creative notebook directly onto the computer—making it effortlessly mutable and AI-ready.**
 
-**Tmd-TS** re-implements the original parser into a clean, modern TypeScript architecture featuring:
-- A two-stage Lexer + TokenParser pipeline with expected token error reporting.
-- Normalized musical AST structures (`Beat`, `Note`, `Unit`, `Section`, `Paragraph`, `Order`, `Sheet`).
-- Formatter to serialize AST back to standard TMD syntax.
-- **Multi-track MIDI (SMF Type 1)** exporter with full General MIDI instrument mapping.
-- **REAPER Project (.rpp)** exporter for DAW arrangement, multi-track layout, color-coded tracks, stereo panning, section markers, and inline MIDI.
-- **ChordPro (.cho)** lead sheet exporter for charts, lead sheets, and songbooks.
-- **VOCALOID2 (.vsq)** and **VOCALOID3/4 (.vsqx)** project exporters for vocal synthesizers.
-- **MusicXML 4.0** notation exporter for MuseScore, Sibelius, and web renderers.
-- **LilyPond** engraver exporter for publication-grade score typesetting and PDF rendering.
-- **ABC Notation** exporter for web sheet rendering (`abcjs`) and text-based score sharing.
-- **Lightweight Fallback WAV Audio** synthesizer (pure software sine-wave synthesizer for pitch/rhythm audition without platform dependencies; see [Audio Limitations](#audio-rendering--wav-limitations)).
-- A command-line interface (`tmd`) with built-in MCP server support.
+Conceived by pop composer **aguai (阿怪)**, TMD reflects how songwriters actually create: humming in movable-do, auditioning chords, testing vocal ranges, and rearranging song blocks on the fly. As a music-native Intermediate Representation (IR), it provides:
+
+- **Zero "Rest Hell"**: Instruments enter with measure offsets (`verse:Guitar@|+4|{ ... }`). Unused tracks in a section are simply omitted—no filler tokens, no empty measures.
+- **Modular Blocks & Road Maps**: Sections (`intro`, `verse`, `chorus`) are defined once and arranged into a playback execution flow (`-> intro -> verse -> chorus -> {?+1} -> chorus ->#`), enabling instant MIDI/audio preview of isolated sections or solo tracks.
+- **Movable-Do (Jianpu) Thinking**: Melodies use numbered scale degrees (`1`–`7`). Transposing for a singer's vocal range is as simple as changing `?= C` to `?= Eb`—the melody notes never need rewriting.
+- **Built-in Typechecking & Diagnostics**: `tmd check` verifies measure beat math like a compiler linter, while `tmd inspect` acts as a profiler—analyzing vocal tessitura (highest/lowest notes), song timeline ratios, and arrangement density.
+
+Yet because of its structural purity, a `.tmd` score compiles cleanly to virtually any downstream format: **MIDI**, **REAPER (.rpp)**, **MusicXML**, **LilyPond (.ly / .pdf)**, **ABC**, **ChordPro**, **VOCALOID**, **UTAU**, or **WAV audio**.
+
+### Divide and Conquer: Composable Music Architecture
+
+Writing an entire multi-movement symphony, orchestral score, or intricate pop arrangement in a single monolithic file or prompt is impractical—human focus scatters, and AI context windows drift into hallucination. TMD inherently supports a **Divide-and-Conquer** architecture:
+
+1. **Atomic Motifs & Sections**: Draft isolated thematic components (`intro`, `verse`, `chorus`, or motivic variations) independently without carrying the baggage of the rest of the score.
+2. **Instant Sensory Feedback Loop**: Inspect vocal tessitura (`tmd inspect`), lint measure rhythm math (`tmd check`), and render preview audio in seconds directly from the command line or web studio. Tweak each part in a rapid, tight verification loop.
+3. **Macro Integration**: Assemble verified sectional blocks into full-length arrangements or multi-movement suites using the conductor timeline (`-> intro -> verse -> motif_a -> chorus -> {?+1} -> chorus ->#`).
 
 ## Co-Composing with AI Using TMD
 
-Because TMD is a concise, text-based, and human-readable musical notation DSL, it serves as an ideal bridge between human musical ideas and generative AI / Large Language Models (LLMs). Instead of wrestling with opaque binary formats (MIDI) or unstructured audio waveforms, creators and AI agents can pair-program music interactively in TMD.
+Because TMD is concise, human-readable, and free of syntactic noise, it serves as the ideal shared language between creators and Large Language Models (LLMs). While AI can generate valid LilyPond or MusicXML, those formats are hostile to human reading and editing. TMD balances expressive power with human readability, allowing creators and AI agents to pair-program music interactively.
 
-### 🚀 Equip Your AI Assistant in One Command
+### Equip Your AI Assistant in One Command
 
 `Tmd-TS` comes with an official AI Agent skill (`SKILL.md`) covering TMD syntax, modular section chunking, human composition principles, motif development, and counterpoint rules. You can install it directly into your local AI environment (supporting Codex, Claude Code, Antigravity, and Gemini):
 
@@ -57,7 +50,17 @@ Because TMD is a concise, text-based, and human-readable musical notation DSL, i
 tmd --install-skills
 ```
 
-Once installed, your AI agent will automatically understand how to compose, arrange, debug, and orchestrate music using TMD.
+### Model Context Protocol (MCP) Server Support
+
+`Tmd-TS` comes with full **Model Context Protocol (MCP)** server integration for AI tools (Claude Desktop, Cursor, Gemini, and Antigravity):
+
+```bash
+# Register TMD MCP server into Claude Desktop, Cursor, and Gemini configurations
+tmd --install-mcp
+
+# Or start the MCP server directly via stdio
+tmd --mcp
+```
 
 ### What AI Can Help You Achieve
 
@@ -73,20 +76,30 @@ Once installed, your AI agent will automatically understand how to compose, arra
 4. **Macro Song Structuring & Modulations**:
    Compose core song blocks (`intro`, `verse`, `chorus`, `bridge`) and have the AI plan the overarching playback sequence (`-> intro -> A -> B -> {?+1} -> B ->#`), complete with key modulations and emotional dynamics.
 
-5. **Textural Layering & Arrangement Build-Up**:
+5. **Textural Layering & Dynamic Contrast**:
    Use measure entry offsets (`@|0|`, `@|+4|`, `@|-1|`) to guide the AI in orchestrating gradual instrumentation build-ups, pick-up measures (anticipation notes), and dynamic contrast across sections.
 
 6. **Style & Metric Variations**:
    Prompt the AI to adapt a 4/4 ballad into a 3/4 waltz, re-groove straight rhythms into syncopated Funk/R&B patterns, or add tuplet ornaments `(1 2 3)%(--)`.
 
-## Online Web Studio (GitHub Pages)
+See [`docs/AI-Co-Composing-With-TMD.md`](docs/AI-Co-Composing-With-TMD.md) for concrete workflows, step-by-step examples, and copy-pasteable prompt templates.
+
+## Automated Arrangement & Macro Song Inspection
+
+Beyond AI pair-programming, TMD provides automated tools tailored for the real-world songwriting and arranging process:
+
+- **Song Inspector (`tmd inspect`)**: Analyzes vocal tessitura (exact highest/lowest notes and semitone span to verify whether a singer can hit the notes), song section timing (seconds and measures), chord vocabulary, and peak arrangement density. Supports `--json` for dashboards and automated pipelines.
+- **Arrangement & Score Operations (`tmd refactor`)**: Perform common arranging chores in seconds—scale rhythm grids (`double-grid` / `halve-grid`), rename instruments or sections globally, extract isolated tracks, duplicate melodies with octave shifts, generate parallel diatonic harmonies, or inline repeating orders into a linear score.
+
+## Online Web Studio
 
 Experience TMD editing and playback directly in your browser without installing anything:
 
 - **Interactive Editor**: Syntax highlighting for TMD metadata, numbered notation (`1`–`7`), octaves, chords (`[1]`, `[6m]`), and directives.
-- **Multi-Format Export**: One-click download for Standard MIDI (`.mid`), MusicXML 4.0 (`.musicxml`), LilyPond (`.ly`), ABC Notation (`.abc`), and WAV audio.
-- **In-Browser Audio Player**: Floating playback bar matching `zago`'s WebAssembly edition, featuring Grand Piano (FluidR3 SoundFont), Chiptune TinySynth, and Web MIDI hardware output.
-- **Preset Scores**: Instant loading for classic tunes such as 《三天三夜》, 《少年》, and contrapuntal canons.
+- **Multi-Format Export**: One-click download for Standard MIDI (`.mid`), REAPER (`.rpp`), MusicXML 4.0 (`.musicxml`), LilyPond (`.ly`), ABC Notation (`.abc`), VOCALOID (`.vsq`, `.vsqx`), UTAU (`.ust`), and WAV audio.
+- **In-Browser Audio Player**: Real-time playback featuring Grand Piano (FluidR3 SoundFont), Multi-Track General MIDI with dynamic soundfont hot-swapping, Chiptune TinySynth, and Web MIDI hardware output.
+- **Visual Song Inspector**: Built-in vocal tessitura analyzer and arrangement density overview.
+- **Preset Scores**: Instant loading for classic tunes such as 《三天三夜》, 《Legacy》, and contrapuntal chamber works.
 
 Run the web studio locally:
 
@@ -94,11 +107,16 @@ Run the web studio locally:
 npm run web:dev
 ```
 
-## Requirements
+## Platform & Runtime Support
 
-- **Node.js**: `v20.0.0` or newer.
+| Runtime / OS | Parser & AST (`tmd-ts`) | MIDI Exporter | MusicXML Exporter | LilyPond Exporter | ABC Exporter | REAPER (.rpp) | VOCALOID / UTAU | Audio Playback |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Node.js (macOS / Linux / Windows)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ *(CLI preview / system audio)* |
+| **Browser (Web Studio / WebAssembly)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ *(FluidR3 GM / Web MIDI)* |
 
-## Installation
+## Installation & Build
+
+Requires Node.js `v20.0.0` or newer.
 
 ### Global Installation (CLI)
 
@@ -108,7 +126,7 @@ Install globally via `npm` to use the `tmd` command anywhere:
 npm install -g tmd-ts
 ```
 
-Or run directly without permanent installation via `npx`:
+Or execute directly without permanent installation via `npx`:
 
 ```bash
 npx tmd-ts <input-path> [options]
@@ -134,39 +152,99 @@ npm link    # Optional: creates global `tmd` symlink to local build
 
 ## CLI Usage (`tmd`)
 
+The `tmd` CLI tool provides comprehensive score compilation, export, verification, inspection, and refactoring commands:
+
+### Compilation, Export & Rendering
+
 ```bash
-# 1. Parse and print score summary
-tmd score.tmd -p
+# Parse and print score summary
+tmd sample.tmd -p
 
-# 2. Export to Standard MIDI file
-tmd score.tmd -m score.mid
+# Export to Standard MIDI file (.mid)
+tmd sample.tmd -m score.mid
 
-# 3. Export to REAPER Project (.rpp) with tracks, colors, panning, markers & inline MIDI
-tmd score.tmd -r score.rpp
+# Export to REAPER project (.rpp) with tempo, section markers, and color-coded tracks
+tmd sample.tmd -r score.rpp
 
-# 4. Export to MusicXML (open with MuseScore, Sibelius, Finale, etc.)
-tmd score.tmd -x score.musicxml
+# Export to MusicXML 4.0 (for MuseScore, Sibelius, Finale, Dorico)
+tmd sample.tmd -x score.musicxml
 
-# 5. Export to LilyPond (.ly) source file
-tmd score.tmd -l score.ly
+# Export to LilyPond (.ly) source file or render directly to PDF
+tmd sample.tmd -l score.ly
+tmd sample.tmd --pdf-output score.pdf
 
-# 6. Render directly to PDF using local lilypond compiler
-tmd score.tmd --pdf-output score.pdf
+# Export to ABC notation (.abc) for web score sharing (abcjs)
+tmd sample.tmd -a score.abc
 
-# 7. Export to ABC notation file (for abcjs or Markdown web rendering)
-tmd score.tmd -a score.abc
+# Export to ChordPro lead sheet (.cho / .chordpro)
+tmd sample.tmd -c score.cho
 
-# 8. Render to lightweight WAV audio preview (pure sine wave fallback)
-tmd score.tmd -w preview.wav
+# Export vocal track to VOCALOID (.vsq, .vsqx) or UTAU (.ust)
+tmd sample.tmd --vsq-output score.vsq
+tmd sample.tmd --vsqx-output score.vsqx
+tmd sample.tmd -u score.ust
 
-# 9. Play preview through system audio player (afplay on macOS, aplay on Linux)
-tmd score.tmd --play
+# Render to offline WAV audio preview
+tmd sample.tmd -w score.wav
 
-# 10. Install TMD skill definition for AI agents (Codex, Antigravity, Claude, etc.)
-tmd --install-skills
+# Play preview through system audio player (afplay on macOS, aplay on Linux)
+tmd sample.tmd --play
 ```
 
-## TypeScript / JavaScript API Usage
+### Inspection, Diagnostics & AI Skills
+
+```bash
+# Check measure consistency (detect beat count discrepancies between bar lines '|')
+tmd check sample.tmd
+
+# Inspect song profile (vocal tessitura, pitch ranges, duration, chord vocabulary, density)
+tmd inspect sample.tmd
+
+# Inspect song profile in structured JSON format
+tmd inspect sample.tmd --json
+
+# Generate document symbol outline (sections and tracks with line/col offsets)
+tmd outline sample.tmd
+
+# Install TMD skill definition into local AI agent environments (Codex, Antigravity, Claude, etc.)
+tmd --install-skills
+
+# Register TMD Model Context Protocol (MCP) server for Claude Desktop, Cursor, and Gemini
+tmd --install-mcp
+```
+
+### Formatting & Arrangement Operations
+
+```bash
+# Format score with standardized indentation, spacing, and preserved comments
+tmd format sample.tmd -i
+
+# Double grid resolution (<4*> -> <8*>) padding units with ties
+tmd refactor double-grid sample.tmd -i
+
+# Halve grid resolution (<8*> -> <4*>) collapsing ties
+tmd refactor halve-grid sample.tmd -i
+
+# Rename instrument or section globally across paragraphs and orders
+tmd refactor rename-instrument sample.tmd --from "Piano" --to "Keys" -i
+tmd refactor rename-section sample.tmd --from "verse" --to "A" -i
+
+# Duplicate track with optional octave transposition
+tmd refactor duplicate-track sample.tmd --source "Lead" --target "LeadOct" --octave 1 -i
+
+# Generate parallel diatonic harmony for an instrument (e.g. 3rd above: interval 2)
+tmd refactor generate-harmony sample.tmd --source "Vocal" --target "Harmony" --interval 2 -i
+
+# Extract an instrument's tracks into an isolated score
+tmd refactor extract-instrument sample.tmd --instrument "Guitar" -o guitar_only.tmd
+
+# Unroll / inline playback orders into a linear score
+tmd refactor inline-orders sample.tmd -i
+```
+
+## TypeScript / JavaScript Package Usage
+
+Import `tmd-ts` into your application:
 
 ```typescript
 import {
@@ -177,10 +255,16 @@ import {
   TMDMusicXMLGenerator,
   TMDLilyPondGenerator,
   TMDABCGenerator,
+  TMDChordProGenerator,
+  TMDVSQGenerator,
+  TMDVSQXGenerator,
+  TMDUSTGenerator,
+  TMDSongInspector,
+  TMDMeasureChecker,
+  TMDRefactor,
   TMDWAVRenderer,
 } from "tmd-ts";
 
-// Parse TMD from a string or file path
 const scoreText = `
 ::SCORE::
 ** My Song **
@@ -189,70 +273,82 @@ const scoreText = `
 <4/4>
 
 intro:Piano@|0|{
-<4*>
-1 2 3 4
+  <4*>
+  1 2 3 4
 }
-
 -> intro ->#
 `;
 
+// 1. Parse TMD score
 const sheet = TmdParser.parse(scoreText);
 if (!sheet) {
   throw new Error("Failed to parse TMD score");
 }
 
-// Inspect summary
+// 2. Summary & Diagnostics
 console.log(formatSummary(sheet));
+const profile = TMDSongInspector.inspect(sheet);
+console.log(`Vocal range: ${profile.lowestNote?.name} to ${profile.highestNote?.name}`);
 
-// Export to MIDI Uint8Array
-const midiData = TMDMIDIGenerator.generateMIDI(sheet);
+const issues = TMDMeasureChecker.check(scoreText);
+console.log(`Measure issues: ${issues.length}`);
 
-// Export to REAPER project (.rpp) string
-const rppProject = TMDReaperGenerator.generateRPP(sheet);
-
-// Export to MusicXML string
-const musicXML = TMDMusicXMLGenerator.generateMusicXML(sheet);
-
-// Export to LilyPond string
-const lilyPond = TMDLilyPondGenerator.generateLilyPond(sheet);
-
-// Export to ABC notation string
-const abc = TMDABCGenerator.generateABC(sheet);
-
-// Render to lightweight WAV Uint8Array preview (sine wave fallback)
-const wavData = TMDWAVRenderer.renderWAV(sheet);
+// 3. Exporters
+const midiBytes: Uint8Array = TMDMIDIGenerator.generateMIDI(sheet);
+const rppProject: string = TMDReaperGenerator.generateRPP(sheet);
+const musicXML: string = TMDMusicXMLGenerator.generateMusicXML(sheet);
+const lilyPond: string = TMDLilyPondGenerator.generateLilyPond(sheet);
+const abcScore: string = TMDABCGenerator.generateABC(sheet);
+const chordPro: string = TMDChordProGenerator.generateChordPro(sheet);
+const vsqXml: string = TMDVSQXGenerator.generateVSQX(sheet);
+const ustText: string = TMDUSTGenerator.generateUST(sheet);
+const wavBytes: Uint8Array = TMDWAVRenderer.renderWAV(sheet);
 ```
 
-## Audio Rendering & WAV Limitations
+## The Tmd-TS Implementation
 
-Unlike [**TmdSwift**](https://github.com/zonble/TmdSwift) on macOS (which leverages the system-level CoreAudio / AudioToolbox engine with built-in Roland GS DLS SoundFonts to synthesize full General MIDI instrument arrangements), Node.js environments lack native access to OS-level soundbanks.
+**Tmd-TS** re-implements the original parser into a clean, modern TypeScript architecture featuring:
+- A two-stage Lexer + TokenParser pipeline with accurate character and line ranges.
+- Normalized musical AST structures (`Beat`, `Note`, `Unit`, `Section`, `Paragraph`, `Order`, `Sheet`).
+- Complete AST-to-TMD serialization and round-trip formatter.
+- Multi-format exporters (MIDI, REAPER, MusicXML, LilyPond, ABC, ChordPro, VOCALOID, UTAU, WAV).
+- Built-in Model Context Protocol (MCP) server for deep AI IDE and agent integration.
+- Full browser runtime compatibility for the online Web Studio.
 
-- **Fallback Synth Only**: `Tmd-TS` includes a minimal, pure TypeScript sine-wave synthesizer in `src/audio.ts` solely as a zero-dependency fallback for quick offline pitch and rhythm checks.
-- **No SoundFont / Sampler Support**: It does not synthesize realistic acoustic instruments, drum kits, or load `.sf2` / `.dls` soundbanks.
-- **Recommended Workflow for High-Quality Audio**:
-  - Export to Standard MIDI (`tmd score.tmd -m score.mid`) and import the file into your favorite DAW (Logic Pro, GarageBand, Ableton Live, Reaper, Cubase, etc.) or software synth.
-  - Or use **TmdSwift** on macOS for direct DLS / SoundFont offline rendering.
+## Editor Support
 
-## Modules & Architecture
+You can edit TMD files with syntax highlighting, snippets, and in-editor diagnostics using Visual Studio Code:
 
-- **`core/`**: Lexer, Parser, AST data structures, playback timeline, and TMD source formatter.
-- **`exporters/`**:
-  - `midi.ts`: Binary SMF Type 1 multi-track MIDI file generator.
-  - `musicxml.ts`: W3C MusicXML 4.0 Partwise generator.
-  - `lilypond.ts`: LilyPond engraving source generator.
-  - `abc.ts`: Standard ABC Notation (v2.1+) generator.
-- **`audio.ts`**: Portable 16-bit stereo PCM WAV synthesizer (pure sine-wave fallback).
-- **`skill.ts`**: AI agent skill definitions and automated installation utilities for AI assistants.
-- **`utils/`**: Cross-platform file path normalizer and character encoding detector.
-- **`cli.ts`**: Command-line interface executable (`tmd`).
+### Visual Studio Code Extension
 
-## Development
+The official VS Code extension is maintained in the [**TmdSwift repository (`editor/vscode`)**](https://github.com/zonble/TmdSwift/tree/main/editor/vscode). 
 
+Because the CLI interfaces and command flags of `TmdSwift` and `Tmd-TS` are designed to be interchangeable, this extension **works seamlessly with `Tmd-TS`**! Once you install `tmd-ts` globally (`npm install -g tmd-ts`), the extension will automatically pick up your `tmd` CLI for diagnostics, song inspection, formatting, and exports:
+
+- **Syntax Highlighting & Snippets**: Full grammar for TMD metadata, tracks, numbered notation, chords, tuplets, and arrangement flow.
+- **Interactive Web MIDI Player**: Built-in Web MIDI player panel with SoundFont selection, play/stop controls, and position scrub bar.
+- **Outline & Breadcrumb Navigation**: Explorer sidebar tree view displaying all sections, track counts, and execution orders with inline section/track play buttons.
+- **CodeLens In-Editor Audition**: Click `▶ Play Section` or `▶ Play Track` directly above paragraph headers to preview individual sections or solo instruments on the fly.
+- **Measure Consistency Diagnostics**: Real-time linter checking beat count math against time signatures on save and as you type, reporting issues in the Problems panel.
+- **Song Inspector**: Run `TMD: Inspect Song Profile` to display vocal tessitura, pitch ranges, duration, chord vocabulary, and arrangement density directly in an Output Channel.
+- **In-Editor Arrangement Operations**: Interactive commands to double/halve rhythm resolution, duplicate tracks with octave shifts, generate natural harmonies, rename instruments/sections globally, or inline orders.
+- **GitHub Copilot Chat & LM Tools**: Chat participant `@tmd` (`/check`, `/inspect`, `/compose`, `/fix`, `/explain`) and language model tools (`tmd_check`, `tmd_inspect`, `tmd_format`, `tmd_get_specification`).
+- **Export & Render Commands**: Export to MIDI, REAPER, MusicXML, ABC, LilyPond, PDF, VOCALOID (.vsq, .vsqx), UTAU (.ust), or offline WAV audio.
+
+To install the extension locally from source:
 ```bash
-npm install
-npm test         # Run Vitest test suite
-npm run build    # Compile TypeScript to dist/
+git clone https://github.com/zonble/TmdSwift.git
+ln -s "$(pwd)/TmdSwift/editor/vscode" ~/.vscode/extensions/tmd-vscode
 ```
+
+## Documentation & Language Specification
+
+- Frequently Asked Questions: [`docs/FAQ.md`](docs/FAQ.md)
+- Formal Language Specification (English): [`docs/TMD-Language-Specification.en.md`](docs/TMD-Language-Specification.en.md)
+- Formal Language Specification (Traditional Chinese): [`docs/TMD-Language-Specification.zh-TW.md`](docs/TMD-Language-Specification.zh-TW.md)
+- AI Co-Composing Guide: [`docs/AI-Co-Composing-With-TMD.md`](docs/AI-Co-Composing-With-TMD.md)
+
+Historical draft notes and original design concepts are preserved in [`docs/Band-Score.syntax.zh_TW.md`](docs/Band-Score.syntax.zh_TW.md).
 
 ## License
 
