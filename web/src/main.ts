@@ -1,23 +1,7 @@
 import { TmdParser } from "../../src/core/parser.js";
-import { Sheet, scaleDegreeLetter, accidentalToSemitone } from "../../src/core/types.js";
+import { Sheet } from "../../src/core/types.js";
 import { TMDRefactor } from "../../src/core/refactor.js";
-import { TMDMeasureChecker, TMDMeasureIssue } from "../../src/core/measure_check.js";
-import { TMDOutlineGenerator, TMDOutlineNode } from "../../src/core/outline.js";
-import {
-  TMDMIDIGenerator,
-  TMDMusicXMLGenerator,
-  TMDLilyPondGenerator,
-  TMDABCGenerator,
-  TMDReaperGenerator,
-  TMDVSQGenerator,
-  TMDVSQXGenerator,
-} from "../../src/exporters/index.js";
-import { TMDWAVRenderer } from "../../src/audio.js";
-import { TmdSkill } from "../../src/skill.js";
-import JSZip from "jszip";
-
 import { createTmdEditor, TMDWebEditor } from "./editor.js";
-import { tmdPlayer, TMDMidiSynthType } from "./midi-player.js";
 import { SAMPLES } from "./samples.js";
 import {
   applyI18n,
@@ -27,36 +11,23 @@ import {
   onLanguageChange,
   Locale,
 } from "./i18n.js";
-
-import {
-  loadAISettings,
-  saveAISettings,
-  looksLikeApiKey,
-  callAI,
-  extractTmdCode,
-  buildRepairPrompt,
-  validateTmdCode,
-  MODEL_PRESETS,
-  DEFAULT_MODELS,
-  AIProviderType,
-  AISettingsState,
-} from "./ai/index.js";
+import { AIProviderType } from "./ai/index.js";
 import { initTmdWebMcp } from "./mcp/webmcpIntegration.js";
 import { TmdStorage, SavedScore, extractTmdTitle } from "./storage/db.js";
-import { encodeShareHash, decodeShareHash } from "./share.js";
-import { escapeHtml } from "./html.js";
-import { quantizeNoteEventsToTmdSection, resampleAudioBuffer, detectTonicAndScale, TmdNoteEventTime } from "./audio/quantizer.js";
+import { decodeShareHash } from "./share.js";
 
-let editor: TMDWebEditor;
-let currentSheet: Sheet | null = null;
-let isSeeking = false;
-let aiAbortController: AbortController | null = null;
-let aiCurrentGeneratedCode: string = "";
-let currentScoreId: string | null = null; // null means viewing a read-only template
-let isTemplateScore: boolean = false;
-let activeTemplateId: string | null = null;
-let autoSaveTimer: any = null;
-let refreshLibraryScoresHandler: (() => Promise<void>) | null = null;
+// Extracted UI Controllers & Helpers
+import { renderInspectorView, setupInspectorPanelEvents } from "./ui/inspector.js";
+import { updateProblemsPanel, setupProblemsPanelEvents } from "./ui/problemsPanel.js";
+import { loadPanelsState, savePanelsState, applyPanelsState } from "./ui/panelState.js";
+import { TMDPlayerController } from "./ui/playerBar.js";
+import { TMDLibraryDrawerController } from "./ui/libraryDrawer.js";
+import { TMDAIDrawerController } from "./ui/aiDrawer.js";
+import { setupExportMenu } from "./ui/exportMenu.js";
+import { TMDToolsAndContextMenuController } from "./ui/toolsMenu.js";
+import { setupRefactorModals } from "./ui/modals/refactorModals.js";
+import { setupInsertSectionModal } from "./ui/modals/insertSectionModal.js";
+import { setupHumModal } from "./ui/modals/humModal.js";
 
 // DOM Elements
 const btnToggleLibrary = document.getElementById("btn-toggle-library") as HTMLButtonElement;
@@ -108,8 +79,8 @@ const sbSummary = document.getElementById("sb-summary") as HTMLElement;
 const sbCursor = document.getElementById("sb-cursor") as HTMLElement;
 
 // Help Modal
-const btnHelp = document.getElementById("btn-help") as HTMLButtonElement;
 const helpModal = document.getElementById("help-modal") as HTMLDialogElement;
+const btnHelp = document.getElementById("btn-help") as HTMLButtonElement;
 const btnCloseHelp = document.getElementById("btn-close-help") as HTMLButtonElement;
 const btnDismissHelp = document.getElementById("btn-dismiss-help") as HTMLButtonElement;
 
@@ -145,6 +116,7 @@ const aiSettingsKey = document.getElementById("ai-settings-key") as HTMLInputEle
 const aiKeyOfficialLink = document.getElementById("ai-key-official-link") as HTMLAnchorElement;
 const aiKeyAskAiLink = document.getElementById("ai-key-ask-ai-link") as HTMLAnchorElement;
 const aiSettingsBaseUrl = document.getElementById("ai-settings-baseurl") as HTMLInputElement;
+const aiSettingsBaseUrlGroup = document.getElementById("ai-settings-baseurl-group") as HTMLElement;
 
 // Tools Dropdown
 const toolsDropdown = document.getElementById("tools-dropdown") as HTMLElement;
@@ -165,87 +137,6 @@ const problemsPanel = document.getElementById("problems-panel") as HTMLElement;
 const btnToggleProblems = document.getElementById("btn-toggle-problems") as HTMLButtonElement;
 const problemsCountBadge = document.getElementById("problems-count-badge") as HTMLElement;
 const problemsList = document.getElementById("problems-list") as HTMLElement;
-
-// Panel State Persistence (Library, AI Drawer, Inspector, Problems)
-interface PanelsState {
-  libraryOpen: boolean;
-  aiOpen: boolean;
-  inspectorOpen: boolean;
-  problemsCollapsed: boolean;
-}
-
-const PANELS_STATE_KEY = "tmd-panels-state";
-
-function loadPanelsState(): PanelsState {
-  const defaultState: PanelsState = {
-    libraryOpen: false,
-    aiOpen: false,
-    inspectorOpen: true,
-    problemsCollapsed: false,
-  };
-  try {
-    if (typeof localStorage !== "undefined") {
-      const raw = localStorage.getItem(PANELS_STATE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        return {
-          libraryOpen: typeof parsed.libraryOpen === "boolean" ? parsed.libraryOpen : defaultState.libraryOpen,
-          aiOpen: typeof parsed.aiOpen === "boolean" ? parsed.aiOpen : defaultState.aiOpen,
-          inspectorOpen: typeof parsed.inspectorOpen === "boolean" ? parsed.inspectorOpen : defaultState.inspectorOpen,
-          problemsCollapsed: typeof parsed.problemsCollapsed === "boolean" ? parsed.problemsCollapsed : defaultState.problemsCollapsed,
-        };
-      }
-    }
-  } catch (err) {
-    console.warn("Failed to load panels state from localStorage:", err);
-  }
-  return defaultState;
-}
-
-function savePanelsState(): void {
-  try {
-    if (typeof localStorage !== "undefined") {
-      const state: PanelsState = {
-        libraryOpen: !libraryDrawer.classList.contains("hidden"),
-        aiOpen: !aiDrawer.classList.contains("hidden"),
-        inspectorOpen: !inspectorPanel.classList.contains("hidden"),
-        problemsCollapsed: problemsPanel.classList.contains("collapsed"),
-      };
-      localStorage.setItem(PANELS_STATE_KEY, JSON.stringify(state));
-    }
-  } catch (err) {
-    console.warn("Failed to save panels state to localStorage:", err);
-  }
-}
-
-function applyPanelsState(): void {
-  const state = loadPanelsState();
-  if (state.libraryOpen) {
-    libraryDrawer.classList.remove("hidden");
-  } else {
-    libraryDrawer.classList.add("hidden");
-  }
-
-  if (state.aiOpen) {
-    aiDrawer.classList.remove("hidden");
-  } else {
-    aiDrawer.classList.add("hidden");
-  }
-
-  if (state.inspectorOpen) {
-    inspectorPanel.classList.remove("hidden");
-  } else {
-    inspectorPanel.classList.add("hidden");
-  }
-
-  if (state.problemsCollapsed) {
-    problemsPanel.classList.add("collapsed");
-    if (btnToggleProblems) btnToggleProblems.textContent = "▲";
-  } else {
-    problemsPanel.classList.remove("collapsed");
-    if (btnToggleProblems) btnToggleProblems.textContent = "▼";
-  }
-}
 
 // Refactor Modals
 const refactorInstrumentModal = document.getElementById("refactor-instrument-modal") as HTMLDialogElement;
@@ -305,7 +196,6 @@ const ctxExtractInstrument = document.getElementById("ctx-extract-instrument") a
 const ctxRenameInstrument = document.getElementById("ctx-rename-instrument") as HTMLButtonElement;
 const ctxRenameSection = document.getElementById("ctx-rename-section") as HTMLButtonElement;
 const ctxHumRecording = document.getElementById("ctx-hum-recording") as HTMLButtonElement;
-const aiSettingsBaseUrlGroup = document.getElementById("ai-settings-baseurl-group") as HTMLElement;
 
 // Hum to TMD elements
 const toolHumRecording = document.getElementById("tool-hum-recording") as HTMLButtonElement;
@@ -326,7 +216,7 @@ const humResultCode = document.getElementById("hum-result-code") as HTMLTextArea
 const humBtnPlayPreview = document.getElementById("hum-btn-play-preview") as HTMLButtonElement;
 const humBtnApply = document.getElementById("hum-btn-apply") as HTMLButtonElement;
 
-// Player Bar (Matching zago)
+// Player Bar
 const tmdPlayerBar = document.getElementById("tmd-player-bar") as HTMLElement;
 const playerTitle = document.getElementById("player-title") as HTMLElement;
 const playerTime = document.getElementById("player-time") as HTMLElement;
@@ -335,36 +225,20 @@ const synthSelect = document.getElementById("synth-select") as HTMLSelectElement
 const playerBtnPause = document.getElementById("player-btn-pause") as HTMLButtonElement;
 const playerBtnClose = document.getElementById("player-btn-close") as HTMLButtonElement;
 
-function formatTime(seconds: number): string {
-  if (isNaN(seconds) || seconds < 0) seconds = 0;
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-}
+let editor: TMDWebEditor;
+let currentSheet: Sheet | null = null;
+let autoSaveTimer: any = null;
 
-function getSafeFilename(title?: string, ext: string = "mid"): string {
-  const safe = (title || "untitled")
-    .replace(/[^\w\u4e00-\u9fa5-_]+/g, "_")
-    .replace(/^_+|_+$/g, "") || "score";
-  return `${safe}.${ext}`;
-}
-
-function downloadBlob(filename: string, blob: Blob) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+// Controller instances
+let playerController: TMDPlayerController;
+let libraryController: TMDLibraryDrawerController;
+let aiDrawerController: TMDAIDrawerController;
+let toolsAndContextController: TMDToolsAndContextMenuController;
 
 function clearShareHash() {
   history.replaceState(null, "", window.location.pathname + window.location.search);
 }
 
-// Toast notification helper
 function showToast(message: string, type: "success" | "error" = "success") {
   let container = document.querySelector(".toast-container") as HTMLElement | null;
   if (!container) {
@@ -381,81 +255,24 @@ function showToast(message: string, type: "success" | "error" = "success") {
   }, 3000);
 }
 
+function triggerSavePanelsState() {
+  savePanelsState({
+    libraryDrawer,
+    aiDrawer,
+    inspectorPanel,
+    problemsPanel,
+    btnToggleProblems,
+  });
+}
+
 function updateProblems(text: string) {
-  if (!problemsPanel || !problemsList || !problemsCountBadge) return;
-
-  // First check if parse fails
-  let syntaxError = false;
-  try {
-    TmdParser.parse(text);
-  } catch (err: any) {
-    syntaxError = true;
-    problemsCountBadge.className = "problems-badge error";
-    problemsCountBadge.textContent = "1";
-    problemsList.innerHTML = `
-      <div class="problem-item error" data-line="1">
-        <span class="problem-item-line">Ln 1</span>
-        <span class="problem-item-msg">${escapeHtml(err.message || "Syntax Error")}</span>
-      </div>
-    `;
-    return;
-  }
-
-  // If syntax is valid, run TMDMeasureChecker
-  const issues: TMDMeasureIssue[] = TMDMeasureChecker.check(text);
-  if (issues.length === 0) {
-    problemsCountBadge.className = "problems-badge valid";
-    problemsCountBadge.textContent = "0";
-    problemsList.innerHTML = `<div class="problem-empty-hint">${escapeHtml(t("problemsAllValid"))}</div>`;
-  } else {
-    problemsCountBadge.className = "problems-badge warning";
-    problemsCountBadge.textContent = issues.length.toString();
-    problemsList.innerHTML = issues
-      .map((issue) => {
-        const line = issue.lineNumber || 1;
-        const msg = issue.description || `${issue.paragraphName}:${issue.instrument} measure issue`;
-        return `
-          <div class="problem-item warning" data-line="${line}">
-            <span class="problem-item-line">Ln ${line}</span>
-            <span class="problem-item-msg">${escapeHtml(msg)}</span>
-          </div>
-        `;
-      })
-      .join("");
-  }
+  updateProblemsPanel(text, {
+    problemsPanel,
+    btnToggleProblems,
+    problemsCountBadge,
+    problemsList,
+  });
 }
-
-// Saves the score of a "#tmd=..." link to the library and removes the hash,
-// so a reload does not import it again. A saved score with the same content is
-// reused, so opening one link twice does not add a copy.
-// Returns null when the URL has no share link.
-async function importSharedScore(): Promise<SavedScore | null> {
-  let text: string | null;
-  try {
-    text = await decodeShareHash(window.location.hash);
-  } catch (err) {
-    console.warn("Invalid share link:", err);
-    clearShareHash();
-    alert(t("shareInvalidLink"));
-    return null;
-  }
-  if (text === null) return null;
-  let score: SavedScore;
-  try {
-    score = (await TmdStorage.findScoreByContent(text)) ?? (await TmdStorage.saveScore({ content: text }));
-  } catch (err) {
-    // Keep the hash, so a reload tries the import again.
-    // This app has no toast component, so the message uses alert().
-    // If a toast component is added later, show this message as a toast instead.
-    console.error("Could not save the shared score:", err);
-    alert(t("shareSaveFailed"));
-    return null;
-  }
-  clearShareHash();
-  return score;
-}
-
-import { renderInspectorView } from "./ui/inspector.js";
 
 function updateInspector(text: string) {
   currentSheet = renderInspectorView(
@@ -475,6 +292,11 @@ function updateInspector(text: string) {
   );
 }
 
+function handleScoreUpdated(newText: string) {
+  updateInspector(newText);
+  updateProblems(newText);
+}
+
 let parseDebounceTimer: any = null;
 function handleEditorChange(text: string) {
   clearTimeout(parseDebounceTimer);
@@ -484,44 +306,31 @@ function handleEditorChange(text: string) {
   }, 200);
 
   // Auto-save to IndexedDB (Debounced 500ms)
-  // Known gap, not fixed: each switch to another score (a library item, a sample, New,
-  // an import, or a share link) calls editor.setContent(), which runs this function.
-  // The clearTimeout below then cancels the pending save of the previous score, so edits
-  // from the last 500 ms before the switch are lost. Fix this for all switch actions
-  // together, for example by saving the pending text before the switch.
   clearTimeout(autoSaveTimer);
   autoSaveTimer = setTimeout(async () => {
     try {
-      if (isTemplateScore) {
-        // If the user hasn't actually modified the template content, do NOT create a copy!
-        const activeSample = SAMPLES.find((s) => s.id === activeTemplateId);
-        if (activeSample && text.trim() === activeSample.content.trim()) {
-          return;
-        }
-
-        // Copy-on-write: When modifying a template, create a user draft in IndexedDB
+      if (libraryController.getIsTemplateScore()) {
         const title = extractTmdTitle(text);
         const newScore = await TmdStorage.saveScore({
           title,
           content: text,
         });
-        currentScoreId = newScore.id;
-        isTemplateScore = false;
-        activeTemplateId = null;
-        TmdStorage.setActiveScoreId(newScore.id);
-        if (refreshLibraryScoresHandler) await refreshLibraryScoresHandler();
-      } else if (currentScoreId) {
-        const title = extractTmdTitle(text);
-        await TmdStorage.saveScore({
-          id: currentScoreId,
-          title,
-          content: text,
-        });
-        TmdStorage.setActiveScoreId(currentScoreId);
-        if (refreshLibraryScoresHandler) await refreshLibraryScoresHandler();
+        libraryController.loadScoreIntoEditor(newScore);
+        await libraryController.refreshLibraryScores();
+      } else {
+        const currentId = libraryController.getCurrentScoreId();
+        if (currentId) {
+          const title = extractTmdTitle(text);
+          await TmdStorage.saveScore({
+            id: currentId,
+            title,
+            content: text,
+          });
+          TmdStorage.setActiveScoreId(currentId);
+          await libraryController.refreshLibraryScores();
+        }
       }
 
-      // Visual auto-save feedback in status bar
       if (sbStatus) {
         const prevText = sbStatus.textContent;
         sbStatus.textContent = t("savedAutoNotice");
@@ -537,372 +346,288 @@ function handleEditorChange(text: string) {
   }, 500);
 }
 
-// Playback handling
-async function playSectionOrTrack(sectionName: string, instrumentName?: string) {
-  const text = editor.getContent();
-  let sheet: Sheet | null = null;
+async function importSharedScore(): Promise<SavedScore | null> {
+  let text: string | null;
   try {
-    sheet = TmdParser.parse(text);
-  } catch (err: any) {
-    alert(`${t("alertCannotPlaySyntax")}\n${err.message}`);
-    return;
+    text = await decodeShareHash(window.location.hash);
+  } catch (err) {
+    console.warn("Invalid share link:", err);
+    clearShareHash();
+    alert(t("shareInvalidLink"));
+    return null;
   }
-
-  if (!sheet) {
-    alert(t("alertCannotPlayMissingHeader"));
-    return;
-  }
-
-  const title = instrumentName
-    ? `${sheet.name || "score"} - ${sectionName} (${instrumentName})`
-    : `${sheet.name || "score"} - ${sectionName}`;
-
-  let midiBytes: Uint8Array;
+  if (text === null) return null;
+  let score: SavedScore;
   try {
-    midiBytes = TMDMIDIGenerator.generateMIDI(sheet, undefined, {
-      targetParagraph: sectionName,
-      targetInstrument: instrumentName,
-    });
-  } catch (err: any) {
-    alert(`${t("alertMidiFailed")}: ${err.message}`);
-    return;
+    score = (await TmdStorage.findScoreByContent(text)) ?? (await TmdStorage.saveScore({ content: text }));
+  } catch (err) {
+    console.error("Could not save the shared score:", err);
+    alert(t("shareSaveFailed"));
+    return null;
   }
-
-  if (playerTitle) playerTitle.textContent = title;
-  if (playerTime) playerTime.textContent = "00:00 / 00:00";
-  if (playerProgress) {
-    playerProgress.value = "0";
-    playerProgress.max = "100";
-  }
-  if (tmdPlayerBar) tmdPlayerBar.style.display = "flex";
-  if (playerBtnPause) playerBtnPause.textContent = "⏸";
-
-  await tmdPlayer.play(midiBytes, title, {
-    onStart: (_title, durationSec) => {
-      if (playerProgress) {
-        playerProgress.max = Math.max(1, durationSec).toString();
-        playerProgress.value = "0";
-      }
-      if (playerTime) {
-        playerTime.textContent = `00:00 / ${formatTime(durationSec)}`;
-      }
-    },
-    onProgress: (currentSec, totalSec) => {
-      if (playerTime) {
-        playerTime.textContent = `${formatTime(currentSec)} / ${formatTime(totalSec)}`;
-      }
-      if (playerProgress && !isSeeking) {
-        if (playerProgress.max !== totalSec.toString()) {
-          playerProgress.max = Math.max(1, totalSec).toString();
-        }
-        playerProgress.value = currentSec.toString();
-      }
-    },
-    onPause: () => {
-      if (playerBtnPause) playerBtnPause.textContent = "▶";
-    },
-    onResume: () => {
-      if (playerBtnPause) playerBtnPause.textContent = "⏸";
-    },
-    onLoadingStatus: (status) => {
-      if (status && playerTime) {
-        playerTime.textContent = status;
-      }
-    },
-    onStop: () => {
-      if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
-      if (playerBtnPause) playerBtnPause.textContent = "⏸";
-      if (playerProgress) playerProgress.value = "0";
-    },
-    onEnd: () => {
-      if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
-      if (playerBtnPause) playerBtnPause.textContent = "⏸";
-      if (playerProgress) playerProgress.value = "0";
-    },
-  });
-}
-
-async function playFromOrderIndex(orderIndex: number) {
-  const text = editor.getContent();
-  let sheet: Sheet | null = null;
-  try {
-    sheet = TmdParser.parse(text);
-  } catch (err: any) {
-    alert(`${t("alertCannotPlaySyntax")}\n${err.message}`);
-    return;
-  }
-
-  if (!sheet) {
-    alert(t("alertCannotPlayMissingHeader"));
-    return;
-  }
-
-  const targetOrder = sheet.orders[orderIndex];
-  const orderLabel = targetOrder
-    ? (targetOrder.type === "name" ? targetOrder.name : `{${targetOrder.value}}`)
-    : `#${orderIndex + 1}`;
-  const title = `${sheet.name || "score"} [➔ ${orderLabel}]`;
-
-  let midiBytes: Uint8Array;
-  try {
-    midiBytes = TMDMIDIGenerator.generateMIDI(sheet, undefined, {
-      startOrderIndex: orderIndex,
-    });
-  } catch (err: any) {
-    alert(`${t("alertMidiFailed")}: ${err.message}`);
-    return;
-  }
-
-  if (playerTitle) playerTitle.textContent = title;
-  if (playerTime) playerTime.textContent = "00:00 / 00:00";
-  if (playerProgress) {
-    playerProgress.value = "0";
-    playerProgress.max = "100";
-  }
-  if (tmdPlayerBar) tmdPlayerBar.style.display = "flex";
-  if (playerBtnPause) playerBtnPause.textContent = "⏸";
-
-  await tmdPlayer.play(midiBytes, title, {
-    onStart: (_title, durationSec) => {
-      if (playerProgress) {
-        playerProgress.max = Math.max(1, durationSec).toString();
-        playerProgress.value = "0";
-      }
-      if (playerTime) {
-        playerTime.textContent = `00:00 / ${formatTime(durationSec)}`;
-      }
-    },
-    onProgress: (currentSec, totalSec) => {
-      if (playerTime) {
-        playerTime.textContent = `${formatTime(currentSec)} / ${formatTime(totalSec)}`;
-      }
-      if (playerProgress && !isSeeking) {
-        if (playerProgress.max !== totalSec.toString()) {
-          playerProgress.max = Math.max(1, totalSec).toString();
-        }
-        playerProgress.value = currentSec.toString();
-      }
-    },
-    onPause: () => {
-      if (playerBtnPause) playerBtnPause.textContent = "▶";
-    },
-    onResume: () => {
-      if (playerBtnPause) playerBtnPause.textContent = "⏸";
-    },
-    onLoadingStatus: (status) => {
-      if (status && playerTime) {
-        playerTime.textContent = status;
-      }
-    },
-    onStop: () => {
-      if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
-      if (playerBtnPause) playerBtnPause.textContent = "⏸";
-      if (playerProgress) playerProgress.value = "0";
-    },
-    onEnd: () => {
-      if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
-      if (playerBtnPause) playerBtnPause.textContent = "⏸";
-      if (playerProgress) playerProgress.value = "0";
-    },
-  });
-}
-
-async function startPlayback(customText?: string) {
-  const text = customText !== undefined ? customText : editor.getContent();
-  let sheet: Sheet | null = null;
-  try {
-    sheet = TmdParser.parse(text);
-  } catch (err: any) {
-    alert(`${t("alertCannotPlaySyntax")}\n${err.message}`);
-    return;
-  }
-
-  if (!sheet) {
-    alert(t("alertCannotPlayMissingHeader"));
-    return;
-  }
-
-  const title = sheet.name || "score.mid";
-  let midiBytes: Uint8Array;
-  try {
-    midiBytes = TMDMIDIGenerator.generateMIDI(sheet);
-  } catch (err: any) {
-    alert(`${t("alertMidiFailed")}: ${err.message}`);
-    return;
-  }
-
-  if (playerTitle) playerTitle.textContent = title;
-  if (playerTime) playerTime.textContent = "00:00 / 00:00";
-  if (playerProgress) {
-    playerProgress.value = "0";
-    playerProgress.max = "100";
-  }
-  if (tmdPlayerBar) tmdPlayerBar.style.display = "flex";
-  if (playerBtnPause) playerBtnPause.textContent = "⏸";
-
-  await tmdPlayer.play(midiBytes, title, {
-    onStart: (_title, durationSec) => {
-      if (playerProgress) {
-        playerProgress.max = Math.max(1, durationSec).toString();
-        playerProgress.value = "0";
-      }
-      if (playerTime) {
-        playerTime.textContent = `00:00 / ${formatTime(durationSec)}`;
-      }
-    },
-    onProgress: (currentSec, totalSec) => {
-      if (playerTime) {
-        playerTime.textContent = `${formatTime(currentSec)} / ${formatTime(totalSec)}`;
-      }
-      if (playerProgress && !isSeeking) {
-        if (playerProgress.max !== totalSec.toString()) {
-          playerProgress.max = Math.max(1, totalSec).toString();
-        }
-        playerProgress.value = currentSec.toString();
-      }
-    },
-    onPause: () => {
-      if (playerBtnPause) playerBtnPause.textContent = "▶";
-    },
-    onResume: () => {
-      if (playerBtnPause) playerBtnPause.textContent = "⏸";
-    },
-    onLoadingStatus: (status) => {
-      if (status && playerTime) {
-        playerTime.textContent = status;
-      }
-    },
-    onStop: () => {
-      if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
-      if (playerBtnPause) playerBtnPause.textContent = "⏸";
-      if (playerProgress) playerProgress.value = "0";
-    },
-    onEnd: () => {
-      if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
-      if (playerBtnPause) playerBtnPause.textContent = "⏸";
-      if (playerProgress) playerProgress.value = "0";
-    },
-  });
-}
-
-function makeDraggable(element: HTMLElement) {
-  let isDragging = false;
-  let startPointerX = 0;
-  let startPointerY = 0;
-  let startElementX = 0;
-  let startElementY = 0;
-
-  element.addEventListener("pointerdown", (e: PointerEvent) => {
-    // Ignore clicks on inputs, buttons, selects, or other interactive elements
-    const target = e.target as HTMLElement | null;
-    if (target && target.closest("button, input, select, a")) {
-      return;
-    }
-
-    // Only respond to primary mouse click or touch
-    if (e.button !== 0 && e.pointerType === "mouse") return;
-
-    isDragging = true;
-    startPointerX = e.clientX;
-    startPointerY = e.clientY;
-
-    const rect = element.getBoundingClientRect();
-    startElementX = rect.left;
-    startElementY = rect.top;
-
-    // Reset right/bottom positioning to explicit top/left
-    element.style.right = "auto";
-    element.style.bottom = "auto";
-    element.style.left = `${startElementX}px`;
-    element.style.top = `${startElementY}px`;
-
-    element.classList.add("dragging");
-    element.setPointerCapture(e.pointerId);
-  });
-
-  element.addEventListener("pointermove", (e: PointerEvent) => {
-    if (!isDragging) return;
-
-    const deltaX = e.clientX - startPointerX;
-    const deltaY = e.clientY - startPointerY;
-
-    const rect = element.getBoundingClientRect();
-    const maxX = Math.max(0, window.innerWidth - rect.width);
-    const maxY = Math.max(0, window.innerHeight - rect.height);
-
-    const newX = Math.min(Math.max(0, startElementX + deltaX), maxX);
-    const newY = Math.min(Math.max(0, startElementY + deltaY), maxY);
-
-    element.style.left = `${newX}px`;
-    element.style.top = `${newY}px`;
-  });
-
-  const stopDrag = (e: PointerEvent) => {
-    if (!isDragging) return;
-    isDragging = false;
-    element.classList.remove("dragging");
-    if (element.hasPointerCapture(e.pointerId)) {
-      element.releasePointerCapture(e.pointerId);
-    }
-  };
-
-  element.addEventListener("pointerup", stopDrag);
-  element.addEventListener("pointercancel", stopDrag);
+  clearShareHash();
+  return score;
 }
 
 function initEvents() {
-  if (tmdPlayerBar) {
-    makeDraggable(tmdPlayerBar);
-  }
-  // Play Button
-  btnPlay.addEventListener("click", () => {
-    startPlayback();
-  });
+  // Setup Controllers
+  playerController = new TMDPlayerController(
+    {
+      tmdPlayerBar,
+      playerTitle,
+      playerTime,
+      playerProgress,
+      synthSelect,
+      playerBtnPause,
+      playerBtnClose,
+      btnPlay,
+    },
+    () => editor
+  );
+  playerController.init();
 
-  // Player controls
-  playerBtnPause.addEventListener("click", () => {
-    tmdPlayer.togglePause();
-  });
+  libraryController = new TMDLibraryDrawerController(
+    {
+      libraryDrawer,
+      btnToggleLibrary,
+      btnCloseLibrary,
+      btnLibraryNew,
+      inputImportTmd,
+      libraryScoresList,
+      librarySamplesList,
+      libraryScoresCount,
+    },
+    () => editor,
+    (text) => handleScoreUpdated(text),
+    () => triggerSavePanelsState()
+  );
+  libraryController.init();
 
-  playerBtnClose.addEventListener("click", () => {
-    tmdPlayer.stop();
-    tmdPlayerBar.style.display = "none";
-  });
+  toolsAndContextController = new TMDToolsAndContextMenuController(
+    {
+      editorContextMenu,
+      ctxHeaderInfo,
+      ctxFormat,
+      ctxFormatLabel,
+      ctxComment,
+      ctxInsertSection,
+      ctxDoubleGrid,
+      ctxHalveGrid,
+      ctxDuplicateTrack,
+      ctxGenerateHarmony,
+      ctxExtractInstrument,
+      ctxRenameInstrument,
+      ctxRenameSection,
+      ctxHumRecording,
+    },
+    {
+      toolsDropdown,
+      btnToolsMenu,
+      toolFormatDocument,
+      toolDoubleGrid,
+      toolHalveGrid,
+      exportDropdown,
+    },
+    () => editor,
+    (text) => handleScoreUpdated(text),
+    (msg, type) => showToast(msg, type)
+  );
+  toolsAndContextController.init();
 
-  // Seek slider
-  playerProgress.addEventListener("mousedown", () => {
-    isSeeking = true;
-  });
-  playerProgress.addEventListener("touchstart", () => {
-    isSeeking = true;
-  }, { passive: true });
+  setupInspectorPanelEvents(
+    {
+      inspectorPanel,
+      btnToggleInspector,
+      btnCloseInspector,
+      inspectorTracks,
+      inspectorOrders,
+    },
+    editor,
+    () => triggerSavePanelsState(),
+    (sec, inst) => playerController.playSectionOrTrack(sec, inst),
+    (idx) => playerController.playFromOrderIndex(idx)
+  );
 
-  playerProgress.addEventListener("input", () => {
-    const targetSec = parseFloat(playerProgress.value);
-    const totalSec = tmdPlayer.getDuration();
-    if (playerTime) {
-      playerTime.textContent = `${formatTime(targetSec)} / ${formatTime(totalSec)}`;
-    }
-  });
+  setupProblemsPanelEvents(
+    {
+      problemsPanel,
+      btnToggleProblems,
+      problemsCountBadge,
+      problemsList,
+    },
+    editor,
+    () => triggerSavePanelsState()
+  );
 
-  const commitSeek = () => {
-    if (isSeeking) {
-      const targetSec = parseFloat(playerProgress.value);
-      tmdPlayer.seek(targetSec);
-      isSeeking = false;
-    }
-  };
+  setupExportMenu(
+    {
+      exportDropdown,
+      btnExportMenu,
+      btnExportTmd,
+      btnExportMidi,
+      btnExportReaper,
+      btnExportMusicXML,
+      btnExportLilyPond,
+      btnExportABC,
+      btnExportVsq,
+      btnExportVsqx,
+      btnExportWAV,
+      btnExportSkill,
+      btnExportLibraryZip,
+      btnBackupZip,
+      btnShare,
+      toolsDropdown,
+    },
+    () => editor
+  );
 
-  playerProgress.addEventListener("change", commitSeek);
-  playerProgress.addEventListener("mouseup", commitSeek);
-  playerProgress.addEventListener("touchend", commitSeek);
+  const { openDuplicateModal, openHarmonyModal } = setupRefactorModals(
+    {
+      refactorInstrumentModal,
+      refactorOldInst,
+      refactorNewInst,
+      btnConfirmRenameInst,
+      toolRenameInstrument,
+      ctxRenameInstrument,
 
-  // Synth select
-  synthSelect.value = tmdPlayer.getSynthType();
-  synthSelect.addEventListener("change", async () => {
-    const selected = synthSelect.value as TMDMidiSynthType;
-    await tmdPlayer.setSynthType(selected);
-  });
+      refactorSectionModal,
+      refactorOldSec,
+      refactorNewSec,
+      btnConfirmRenameSec,
+      toolRenameSection,
+      ctxRenameSection,
+
+      refactorExtractModal,
+      refactorExtractInst,
+      btnConfirmExtract,
+      toolExtractInstrument,
+      ctxExtractInstrument,
+
+      refactorDuplicateModal,
+      refactorDupSource,
+      refactorDupTarget,
+      refactorDupOctave,
+      refactorDupScopeGroup,
+      refactorDupScopeSection,
+      refactorDupScopeGlobal,
+      refactorDupScopeSectionLabel,
+      btnConfirmDuplicate,
+      toolDuplicateTrack,
+      ctxDuplicateTrack,
+
+      refactorHarmonyModal,
+      refactorHarmSource,
+      refactorHarmTarget,
+      refactorHarmInterval,
+      refactorHarmScopeGroup,
+      refactorHarmScopeSection,
+      refactorHarmScopeGlobal,
+      refactorHarmScopeSectionLabel,
+      btnConfirmHarmony,
+      toolGenerateHarmony,
+      ctxGenerateHarmony,
+
+      toolInlineOrders,
+      toolsDropdown,
+      closeContextMenu: () => toolsAndContextController.closeContextMenu(),
+      showToast,
+      onScoreUpdated: (text) => handleScoreUpdated(text),
+      loadScoreIntoEditor: (score) => libraryController.loadScoreIntoEditor(score),
+    },
+    editor
+  );
+
+  setupInsertSectionModal(
+    {
+      insertSectionModal,
+      insertSecName,
+      insertSecInst,
+      insertSecTemplate,
+      insertSecMeasures,
+      btnConfirmInsertSec,
+      toolInsertSection,
+      ctxInsertSection,
+      toolsDropdown,
+      closeContextMenu: () => toolsAndContextController.closeContextMenu(),
+      showToast,
+      onScoreUpdated: (text) => handleScoreUpdated(text),
+    },
+    editor
+  );
+
+  setupHumModal(
+    {
+      humModal,
+      toolHumRecording,
+      ctxHumRecording,
+      humBtnRecord,
+      humRecordIcon,
+      humRecordText,
+      humStatusIndicator,
+      humBpm,
+      humKey,
+      humGrid,
+      humSnapScale,
+      humEnableMetronome,
+      humEnableCountIn,
+      humSectionName,
+      humInstrument,
+      humResultCode,
+      humBtnPlayPreview,
+      humBtnApply,
+      getCurrentSheet: () => currentSheet,
+      closeContextMenu: () => toolsAndContextController.closeContextMenu(),
+      showToast,
+      onScoreUpdated: (text) => handleScoreUpdated(text),
+      startPlayback: (code) => playerController.startPlayback(code),
+    },
+    editor
+  );
+
+  aiDrawerController = new TMDAIDrawerController(
+    {
+      aiDrawer,
+      btnToggleAi,
+      btnCloseAiDrawer,
+      btnOpenAiSettings,
+      btnCloseAiSettings,
+      btnDismissAiSettings,
+      btnSaveAiSettings,
+      aiPromptInput,
+      btnAiGenerate,
+      btnAiStop,
+      btnAiRetryRepair,
+      btnAiPreviewPlay,
+      btnAiCopyCode,
+      btnAiApplyReplace,
+      btnAiApplyInsert,
+      aiStatusText,
+      aiResultContainer,
+      aiResultOutput,
+      aiValidationBanner,
+      aiValidationMsg,
+      aiSettingsModal,
+      aiSettingsProvider,
+      aiSettingsModelPreset,
+      aiSettingsModelCustom,
+      aiSettingsKey,
+      aiKeyOfficialLink,
+      aiKeyAskAiLink,
+      aiSettingsBaseUrl,
+      aiSettingsBaseUrlGroup,
+      aiBtnDownload,
+      aiBtnCopySkill,
+      inspectorPanel,
+    },
+    () => editor,
+    (text) => handleScoreUpdated(text),
+    () => triggerSavePanelsState(),
+    () => {
+      btnExportSkill.click();
+    },
+    (code) => playerController.startPlayback(code)
+  );
+  aiDrawerController.init();
 
   // Language switcher
   btnLangToggle.addEventListener("click", () => {
@@ -923,448 +648,19 @@ function initEvents() {
 
   onLanguageChange(() => {
     if (editor) {
-      updateInspector(editor.getContent());
-      updateProblems(editor.getContent());
+      handleScoreUpdated(editor.getContent());
     }
-    const selectedProvider = (aiSettingsProvider?.value as AIProviderType) || aiSettings.activeProvider;
-    populateModelPresets(selectedProvider);
+    const selectedProvider = (aiSettingsProvider?.value as AIProviderType) || "gemini";
+    aiDrawerController.populateModelPresets(selectedProvider);
     updateWebMcpAskLink();
   });
 
-  // Export dropdown menu
-  btnExportMenu.addEventListener("click", (e) => {
-    e.stopPropagation();
-    exportDropdown.classList.toggle("open");
-    toolsDropdown?.classList.remove("open");
-  });
-
-  // Tools dropdown menu
-  btnToolsMenu?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    toolsDropdown?.classList.toggle("open");
-    exportDropdown.classList.remove("open");
-  });
-
-  window.addEventListener("click", (e) => {
-    if (!exportDropdown.contains(e.target as Node)) {
-      exportDropdown.classList.remove("open");
-    }
-    if (toolsDropdown && !toolsDropdown.contains(e.target as Node)) {
-      toolsDropdown.classList.remove("open");
-    }
-  });
-
-  // Export actions
-  btnExportTmd.addEventListener("click", () => {
-    exportDropdown.classList.remove("open");
-    const text = editor.getContent();
-    let filename = "score.tmd";
-    try {
-      const sheet = TmdParser.parse(text);
-      if (sheet?.name) {
-        filename = getSafeFilename(sheet.name, "tmd");
-      }
-    } catch {
-      // Even if syntax is incomplete, let user download their raw TMD code
-    }
-    downloadBlob(filename, new Blob([text], { type: "text/plain;charset=utf-8" }));
-  });
-
-  btnExportMidi.addEventListener("click", () => {
-    exportDropdown.classList.remove("open");
-    const text = editor.getContent();
-    const sheet = TmdParser.parse(text);
-    if (!sheet) return alert(t("alertCannotExport"));
-    const midi = TMDMIDIGenerator.generateMIDI(sheet);
-    downloadBlob(getSafeFilename(sheet.name, "mid"), new Blob([midi as any], { type: "audio/midi" }));
-  });
-
-  btnExportReaper.addEventListener("click", () => {
-    exportDropdown.classList.remove("open");
-    const text = editor.getContent();
-    const sheet = TmdParser.parse(text);
-    if (!sheet) return alert(t("alertCannotExport"));
-    const rpp = TMDReaperGenerator.generateRPP(sheet);
-    downloadBlob(getSafeFilename(sheet.name, "rpp"), new Blob([rpp], { type: "text/plain;charset=utf-8" }));
-  });
-
-  btnExportMusicXML.addEventListener("click", () => {
-    exportDropdown.classList.remove("open");
-    const text = editor.getContent();
-    const sheet = TmdParser.parse(text);
-    if (!sheet) return alert(t("alertCannotExport"));
-    const xml = TMDMusicXMLGenerator.generateMusicXML(sheet);
-    downloadBlob(getSafeFilename(sheet.name, "musicxml"), new Blob([xml], { type: "application/vnd.recordare.musicxml+xml;charset=utf-8" }));
-  });
-
-  btnExportLilyPond.addEventListener("click", () => {
-    exportDropdown.classList.remove("open");
-    const text = editor.getContent();
-    const sheet = TmdParser.parse(text);
-    if (!sheet) return alert(t("alertCannotExport"));
-    const ly = TMDLilyPondGenerator.generateLilyPond(sheet);
-    downloadBlob(getSafeFilename(sheet.name, "ly"), new Blob([ly], { type: "text/plain;charset=utf-8" }));
-  });
-
-  btnExportABC.addEventListener("click", () => {
-    exportDropdown.classList.remove("open");
-    const text = editor.getContent();
-    const sheet = TmdParser.parse(text);
-    if (!sheet) return alert(t("alertCannotExport"));
-    const abc = TMDABCGenerator.generateABC(sheet);
-    downloadBlob(getSafeFilename(sheet.name, "abc"), new Blob([abc], { type: "text/vnd.abc;charset=utf-8" }));
-  });
-
-  btnExportVsq?.addEventListener("click", () => {
-    exportDropdown.classList.remove("open");
-    const text = editor.getContent();
-    const sheet = TmdParser.parse(text);
-    if (!sheet) return alert(t("alertCannotExport"));
-    const vsq = TMDVSQGenerator.generateVSQ(sheet);
-    downloadBlob(getSafeFilename(sheet.name, "vsq"), new Blob([vsq as any], { type: "audio/x-vsq" }));
-  });
-
-  btnExportVsqx?.addEventListener("click", () => {
-    exportDropdown.classList.remove("open");
-    const text = editor.getContent();
-    const sheet = TmdParser.parse(text);
-    if (!sheet) return alert(t("alertCannotExport"));
-    const vsqx = TMDVSQXGenerator.generateVSQX(sheet);
-    downloadBlob(getSafeFilename(sheet.name, "vsqx"), new Blob([vsqx], { type: "application/xml;charset=utf-8" }));
-  });
-
-  btnExportWAV.addEventListener("click", () => {
-    exportDropdown.classList.remove("open");
-    const text = editor.getContent();
-    const sheet = TmdParser.parse(text);
-    if (!sheet) return alert(t("alertCannotExport"));
-    const wav = TMDWAVRenderer.renderWAV(sheet);
-    downloadBlob(getSafeFilename(sheet.name, "wav"), new Blob([wav as any], { type: "audio/wav" }));
-  });
-
-  const downloadSkillFile = () => {
-    downloadBlob("SKILL.md", new Blob([TmdSkill.skillMarkdown], { type: "text/markdown;charset=utf-8" }));
-  };
-
-  btnExportSkill.addEventListener("click", () => {
-    exportDropdown.classList.remove("open");
-    downloadSkillFile();
-  });
-
-  btnShare.addEventListener("click", async () => {
-    let url: string;
-    try {
-      url = window.location.origin + window.location.pathname + (await encodeShareHash(editor.getContent()));
-    } catch (err) {
-      // The score is too large for a link, or the browser cannot compress it.
-      // This app has no toast component, so the message uses alert().
-      // If a toast component is added later, show this message as a toast instead.
-      console.warn("Could not create a share link:", err);
-      alert(t("shareCreateFailed"));
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      // The browser can block clipboard access. Let the user copy the link by hand.
-      prompt(t("shareCopyPrompt"), url);
-      return;
-    }
-    const icon = btnShare.querySelector(".btn-icon")!;
-    const label = btnShare.querySelector(".btn-text")!;
-    icon.textContent = "✓";
-    label.textContent = t("shareCopied");
-    setTimeout(() => {
-      icon.textContent = "🔗";
-      label.textContent = t("btnShare");
-    }, 2000);
-  });
-
-
-
-  const exportAllScoresZip = async () => {
-    try {
-      const scores = await TmdStorage.listScores();
-      if (!scores || scores.length === 0) {
-        alert(t("noScoresToBackup"));
-        return;
-      }
-      const zip = new JSZip();
-      const usedFilenames = new Map<string, number>();
-
-      scores.forEach((s) => {
-        let baseName = s.title.replace(/[\\/:*?"<>|]/g, "_").trim() || "score";
-        let count = usedFilenames.get(baseName) || 0;
-        let filename = `${baseName}.tmd`;
-        if (count > 0) {
-          filename = `${baseName}_(${count}).tmd`;
-        }
-        usedFilenames.set(baseName, count + 1);
-        zip.file(filename, s.content);
-      });
-
-      const blob = await zip.generateAsync({ type: "blob" });
-      const dateStr = new Date().toISOString().slice(0, 10);
-      downloadBlob(`tmd-scores-backup-${dateStr}.zip`, blob);
-    } catch (e: any) {
-      console.error("Backup ZIP failed:", e);
-      alert(`備份失敗: ${e.message || String(e)}`);
-    }
-  };
-
-  btnBackupZip?.addEventListener("click", () => {
-    exportAllScoresZip();
-  });
-
-  btnExportLibraryZip?.addEventListener("click", () => {
-    exportDropdown.classList.remove("open");
-    exportAllScoresZip();
-  });
-
-  // Library Drawer Management
-  const loadScoreIntoEditor = (score: SavedScore) => {
-    currentScoreId = score.id;
-    isTemplateScore = false;
-    activeTemplateId = null;
-    TmdStorage.setActiveScoreId(score.id);
-    editor.setContent(score.content);
-    updateInspector(score.content);
-    refreshLibraryScores();
-  };
-
-  const loadTemplateIntoEditor = (sampleId: string) => {
-    const sample = SAMPLES.find((s) => s.id === sampleId);
-    if (!sample) return;
-    currentScoreId = null;
-    isTemplateScore = true;
-    activeTemplateId = sample.id;
-    TmdStorage.setActiveScoreId(null);
-    editor.setContent(sample.content);
-    updateInspector(sample.content);
-    refreshLibraryScores();
-  };
-
-  const createNewSong = async () => {
-    const starterSample = SAMPLES.find((s) => s.id === "starter_template") || SAMPLES[0];
-    const newScore = await TmdStorage.saveScore({
-      title: "未命名新歌",
-      content: starterSample.content,
-    });
-    loadScoreIntoEditor(newScore);
-    editor.focus();
-  };
-
-  const refreshLibraryScores = async () => {
-    try {
-      const scores = await TmdStorage.listScores();
-      if (libraryScoresCount) {
-        libraryScoresCount.textContent = String(scores.length);
-      }
-
-      if (libraryScoresList) {
-        if (scores.length === 0) {
-          libraryScoresList.innerHTML = `<div class="library-empty-hint">${t("emptyScoresHint")}</div>`;
-        } else {
-          libraryScoresList.innerHTML = scores
-            .map((score) => {
-              const isActive = currentScoreId === score.id;
-              const dateStr = new Date(score.updatedAt).toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              });
-              return `
-                <div class="library-item ${isActive ? "active" : ""}" data-id="${escapeHtml(score.id)}">
-                  <div class="library-item-content">
-                    <div class="library-item-title">${escapeHtml(score.title)}</div>
-                    <div class="library-item-meta">
-                      <span>🕒 ${dateStr}</span>
-                    </div>
-                  </div>
-                  <div class="library-item-actions">
-                    <button class="library-action-btn copy-btn" data-action="copy" title="複製副本">📋</button>
-                    <button class="library-action-btn delete-btn delete" data-action="delete" title="刪除">🗑️</button>
-                  </div>
-                </div>
-              `;
-            })
-            .join("");
-        }
-      }
-
-      // Render Templates List
-      if (librarySamplesList) {
-        librarySamplesList.innerHTML = SAMPLES.map((sample) => {
-          const isSelected = isTemplateScore && activeTemplateId === sample.id;
-          return `
-            <div class="library-item ${isSelected ? "active" : ""}" data-sample-id="${sample.id}">
-              <div class="library-item-content">
-                <div class="library-item-title">${sample.name}</div>
-                <div class="library-item-meta">
-                  <span>${sample.category}</span>
-                </div>
-              </div>
-            </div>
-          `;
-        }).join("");
-      }
-    } catch (e) {
-      console.error("Failed to refresh library scores:", e);
-    }
-  };
-
-  refreshLibraryScoresHandler = refreshLibraryScores;
-
-  // Library Drawer UI events
-  btnToggleLibrary?.addEventListener("click", () => {
-    libraryDrawer.classList.toggle("hidden");
-    if (!libraryDrawer.classList.contains("hidden")) {
-      refreshLibraryScores();
-    }
-    savePanelsState();
-  });
-
-  btnCloseLibrary?.addEventListener("click", () => {
-    libraryDrawer.classList.add("hidden");
-    savePanelsState();
-  });
-
-  btnLibraryNew?.addEventListener("click", () => {
-    createNewSong();
-  });
-
-  // Import TMD file from disk
-  inputImportTmd?.addEventListener("change", async (e) => {
-    const file = inputImportTmd.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const title = extractTmdTitle(text) || file.name.replace(/\.[^/.]+$/, "");
-      const newScore = await TmdStorage.saveScore({
-        title,
-        content: text,
-      });
-      loadScoreIntoEditor(newScore);
-      inputImportTmd.value = "";
-    } catch (err: any) {
-      alert(`匯入失敗: ${err.message || String(err)}`);
-    }
-  });
-
-  // A share link pasted into an open tab changes only the hash, and the page does not reload.
-  window.addEventListener("hashchange", () => {
-    importSharedScore()
-      .then((score) => score && loadScoreIntoEditor(score))
-      .catch((err) => console.error("Failed to import shared score:", err));
-  });
-
-  // Item clicks inside library list
-  libraryScoresList?.addEventListener("click", async (e) => {
-    const target = e.target as HTMLElement;
-    const item = target.closest(".library-item") as HTMLElement | null;
-    if (!item || !item.dataset.id) return;
-    const scoreId = item.dataset.id;
-
-    const action = target.closest("[data-action]")?.getAttribute("data-action");
-    if (action === "delete") {
-      e.stopPropagation();
-      const score = await TmdStorage.getScore(scoreId);
-      if (!score) return;
-      if (confirm(t("confirmDeleteScore").replace("{title}", score.title))) {
-        await TmdStorage.deleteScore(scoreId);
-        if (currentScoreId === scoreId) {
-          // If active score was deleted, fallback to starter template
-          loadTemplateIntoEditor("sandiansanye");
-        }
-        await refreshLibraryScores();
-      }
-      return;
-    }
-
-    if (action === "copy") {
-      e.stopPropagation();
-      const copy = await TmdStorage.duplicateScore(scoreId);
-      loadScoreIntoEditor(copy);
-      return;
-    }
-
-    // Load score
-    const score = await TmdStorage.getScore(scoreId);
-    if (score) {
-      loadScoreIntoEditor(score);
-    }
-  });
-
-  librarySamplesList?.addEventListener("click", (e) => {
-    const item = (e.target as HTMLElement).closest(".library-item") as HTMLElement | null;
-    if (!item || !item.dataset.sampleId) return;
-    loadTemplateIntoEditor(item.dataset.sampleId);
-  });
-
   // New Song Button
-  btnNewSong?.addEventListener("click", () => {
-    createNewSong();
+  btnNewSong.addEventListener("click", () => {
+    libraryController.createNewSong();
   });
 
-  // Inspector toggle
-  btnToggleInspector.addEventListener("click", () => {
-    inspectorPanel.classList.toggle("hidden");
-    savePanelsState();
-  });
-
-  btnCloseInspector.addEventListener("click", () => {
-    inspectorPanel.classList.add("hidden");
-    savePanelsState();
-  });
-
-  // Outline / Track item click -> Jump to editor range or line, or play individual section/track
-  inspectorTracks?.addEventListener("click", (e) => {
-    const target = e.target as HTMLElement;
-    const playBtn = target.closest(".outline-play-btn") as HTMLElement | null;
-    if (playBtn) {
-      e.stopPropagation();
-      e.preventDefault();
-      const sec = playBtn.dataset.playSection;
-      const inst = playBtn.dataset.playInstrument;
-      if (sec) {
-        playSectionOrTrack(sec, inst);
-      }
-      return;
-    }
-
-    const clickable = target.closest("[data-start-line]") as HTMLElement | null;
-    if (clickable && clickable.dataset.startLine) {
-      const sLine = parseInt(clickable.dataset.startLine, 10);
-      const sCol = clickable.dataset.startCol ? parseInt(clickable.dataset.startCol, 10) : 1;
-      const eLine = clickable.dataset.endLine ? parseInt(clickable.dataset.endLine, 10) : sLine;
-      const eCol = clickable.dataset.endCol ? parseInt(clickable.dataset.endCol, 10) : sCol;
-
-      if (!isNaN(sLine) && sLine > 0) {
-        if (typeof (editor as any).scrollToRange === "function") {
-          editor.scrollToRange(sLine, sCol, eLine, eCol);
-        } else {
-          editor.scrollToLine(sLine);
-        }
-      }
-    }
-  });
-
-  // Playback Order item click -> Play from that order index
-  inspectorOrders?.addEventListener("click", (e) => {
-    const target = e.target as HTMLElement;
-    const playBtn = target.closest(".order-play-btn") as HTMLElement | null;
-    if (playBtn && playBtn.dataset.playOrderIndex !== undefined) {
-      e.stopPropagation();
-      e.preventDefault();
-      const idx = parseInt(playBtn.dataset.playOrderIndex, 10);
-      if (!isNaN(idx) && idx >= 0) {
-        playFromOrderIndex(idx);
-      }
-    }
-  });
-
-  // Help modal
+  // Help Modal
   btnHelp.addEventListener("click", () => {
     helpModal.showModal();
   });
@@ -1375,305 +671,6 @@ function initEvents() {
 
   btnDismissHelp.addEventListener("click", () => {
     helpModal.close();
-  });
-
-  // Tools Actions
-  const handleFormatDocument = () => {
-    try {
-      const current = editor.getContent();
-      const formatted = TMDRefactor.format(current);
-      editor.setContent(formatted);
-      updateInspector(formatted);
-      updateProblems(formatted);
-      showToast(t("toastFormatted"));
-    } catch (err: any) {
-      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
-    }
-  };
-
-  toolFormatDocument?.addEventListener("click", () => {
-    toolsDropdown?.classList.remove("open");
-    handleFormatDocument();
-  });
-
-  // Grid Subdivision Transform (Double / Halve)
-  toolDoubleGrid?.addEventListener("click", () => {
-    toolsDropdown?.classList.remove("open");
-    const selection = editor.getSelection();
-    try {
-      if (selection && selection.trim().length > 0) {
-        const doubled = TMDRefactor.doubleGrid(selection);
-        editor.replaceSelection(doubled);
-      } else {
-        const full = editor.getContent();
-        const doubled = TMDRefactor.doubleGrid(full);
-        editor.setContent(doubled);
-      }
-      const updated = editor.getContent();
-      updateInspector(updated);
-      updateProblems(updated);
-      showToast(t("toastDoubleGrid"));
-    } catch (err: any) {
-      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
-    }
-  });
-
-  toolHalveGrid?.addEventListener("click", () => {
-    toolsDropdown?.classList.remove("open");
-    const selection = editor.getSelection();
-    try {
-      if (selection && selection.trim().length > 0) {
-        const halved = TMDRefactor.halveGrid(selection);
-        editor.replaceSelection(halved);
-      } else {
-        const full = editor.getContent();
-        const halved = TMDRefactor.halveGrid(full);
-        editor.setContent(halved);
-      }
-      const updated = editor.getContent();
-      updateInspector(updated);
-      updateProblems(updated);
-      showToast(t("toastHalveGrid"));
-    } catch (err: any) {
-      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
-    }
-  });
-
-  // Rename Instrument Modal
-  toolRenameInstrument?.addEventListener("click", () => {
-    toolsDropdown?.classList.remove("open");
-    const text = editor.getContent();
-    let sheet: Sheet | null = null;
-    try {
-      sheet = TmdParser.parse(text);
-    } catch (e) {
-      // ignore
-    }
-    const instruments = Array.from(new Set(sheet?.paragraphs.map((p) => p.instrument) || []));
-    refactorOldInst.innerHTML = instruments
-      .map((inst) => `<option value="${escapeHtml(inst)}">${escapeHtml(inst)}</option>`)
-      .join("");
-    refactorNewInst.value = "";
-    refactorInstrumentModal.showModal();
-  });
-
-  btnConfirmRenameInst?.addEventListener("click", () => {
-    const oldInst = refactorOldInst.value;
-    const newInst = refactorNewInst.value.trim();
-    if (!oldInst || !newInst) return;
-    try {
-      const text = editor.getContent();
-      const refactored = TMDRefactor.renameInstrument(text, oldInst, newInst);
-      editor.setContent(refactored);
-      updateInspector(refactored);
-      updateProblems(refactored);
-      refactorInstrumentModal.close();
-      showToast(t("toastRenamedInstrument"));
-    } catch (err: any) {
-      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
-    }
-  });
-
-  // Rename Section Modal
-  toolRenameSection?.addEventListener("click", () => {
-    toolsDropdown?.classList.remove("open");
-    const text = editor.getContent();
-    let sheet: Sheet | null = null;
-    try {
-      sheet = TmdParser.parse(text);
-    } catch (e) {
-      // ignore
-    }
-    const sections = Array.from(new Set(sheet?.paragraphs.map((p) => p.name) || []));
-    refactorOldSec.innerHTML = sections
-      .map((sec) => `<option value="${escapeHtml(sec)}">${escapeHtml(sec)}</option>`)
-      .join("");
-    refactorNewSec.value = "";
-    refactorSectionModal.showModal();
-  });
-
-  btnConfirmRenameSec?.addEventListener("click", () => {
-    const oldSec = refactorOldSec.value;
-    const newSec = refactorNewSec.value.trim();
-    if (!oldSec || !newSec) return;
-    try {
-      const text = editor.getContent();
-      const refactored = TMDRefactor.renameSection(text, oldSec, newSec);
-      editor.setContent(refactored);
-      updateInspector(refactored);
-      updateProblems(refactored);
-      refactorSectionModal.close();
-      showToast(t("toastRenamedSection"));
-    } catch (err: any) {
-      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
-    }
-  });
-
-  // Extract Instrument Modal
-  toolExtractInstrument?.addEventListener("click", () => {
-    toolsDropdown?.classList.remove("open");
-    const text = editor.getContent();
-    let sheet: Sheet | null = null;
-    try {
-      sheet = TmdParser.parse(text);
-    } catch (e) {
-      // ignore
-    }
-    const instruments = Array.from(new Set(sheet?.paragraphs.map((p) => p.instrument) || []));
-    refactorExtractInst.innerHTML = instruments
-      .map((inst) => `<option value="${escapeHtml(inst)}">${escapeHtml(inst)}</option>`)
-      .join("");
-    refactorExtractModal.showModal();
-  });
-
-  btnConfirmExtract?.addEventListener("click", async () => {
-    const inst = refactorExtractInst.value;
-    if (!inst) return;
-    try {
-      const text = editor.getContent();
-      const extractedTmd = TMDRefactor.extractInstrument(text, inst);
-      const title = extractTmdTitle(extractedTmd) || `${inst}_score`;
-      const newScore = await TmdStorage.saveScore({
-        title,
-        content: extractedTmd,
-      });
-      loadScoreIntoEditor(newScore);
-      refactorExtractModal.close();
-      showToast(t("toastExtracted"));
-    } catch (err: any) {
-      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
-    }
-  });
-
-  // Context-aware modal openers
-  let activeContextSection: string | undefined;
-
-  const openDuplicateModal = (initialSection?: string, initialInstrument?: string) => {
-    toolsDropdown?.classList.remove("open");
-    closeContextMenu();
-    const text = editor.getContent();
-    let sheet: Sheet | null = null;
-    try {
-      sheet = TmdParser.parse(text);
-    } catch (e) {
-      // ignore
-    }
-    const instruments = Array.from(new Set(sheet?.paragraphs.map((p) => p.instrument) || []));
-    refactorDupSource.innerHTML = instruments
-      .map((inst) => `<option value="${escapeHtml(inst)}" ${inst === initialInstrument ? "selected" : ""}>${escapeHtml(inst)}</option>`)
-      .join("");
-    refactorDupTarget.value = "";
-    refactorDupOctave.value = "0";
-
-    activeContextSection = initialSection;
-    if (initialSection) {
-      refactorDupScopeGroup.style.display = "block";
-      refactorDupScopeSection.checked = true;
-      refactorDupScopeSectionLabel.textContent = t("scopeSectionOnly").replace("{section}", initialSection);
-    } else {
-      refactorDupScopeGroup.style.display = "none";
-      refactorDupScopeGlobal.checked = true;
-    }
-
-    refactorDuplicateModal.showModal();
-  };
-
-  const openHarmonyModal = (initialSection?: string, initialInstrument?: string) => {
-    toolsDropdown?.classList.remove("open");
-    closeContextMenu();
-    const text = editor.getContent();
-    let sheet: Sheet | null = null;
-    try {
-      sheet = TmdParser.parse(text);
-    } catch (e) {
-      // ignore
-    }
-    const instruments = Array.from(new Set(sheet?.paragraphs.map((p) => p.instrument) || []));
-    refactorHarmSource.innerHTML = instruments
-      .map((inst) => `<option value="${escapeHtml(inst)}" ${inst === initialInstrument ? "selected" : ""}>${escapeHtml(inst)}</option>`)
-      .join("");
-    refactorHarmTarget.value = "";
-    refactorHarmInterval.value = "2";
-
-    activeContextSection = initialSection;
-    if (initialSection) {
-      refactorHarmScopeGroup.style.display = "block";
-      refactorHarmScopeSection.checked = true;
-      refactorHarmScopeSectionLabel.textContent = t("scopeSectionOnly").replace("{section}", initialSection);
-    } else {
-      refactorHarmScopeGroup.style.display = "none";
-      refactorHarmScopeGlobal.checked = true;
-    }
-
-    refactorHarmonyModal.showModal();
-  };
-
-  // Duplicate Track Modal
-  toolDuplicateTrack?.addEventListener("click", () => {
-    openDuplicateModal();
-  });
-
-  btnConfirmDuplicate?.addEventListener("click", () => {
-    const source = refactorDupSource.value;
-    const target = refactorDupTarget.value.trim();
-    const octaveShift = parseInt(refactorDupOctave.value, 10) || 0;
-    const isSectionOnly = refactorDupScopeSection.checked && activeContextSection;
-    const section = isSectionOnly ? activeContextSection : undefined;
-
-    if (!source || !target) return;
-    try {
-      const text = editor.getContent();
-      const refactored = TMDRefactor.duplicateTrack(text, source, target, { section, octaveShift });
-      editor.setContent(refactored);
-      updateInspector(refactored);
-      updateProblems(refactored);
-      refactorDuplicateModal.close();
-      showToast(t("toastDuplicatedTrack"));
-    } catch (err: any) {
-      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
-    }
-  });
-
-  // Generate Harmony Modal
-  toolGenerateHarmony?.addEventListener("click", () => {
-    openHarmonyModal();
-  });
-
-  btnConfirmHarmony?.addEventListener("click", () => {
-    const source = refactorHarmSource.value;
-    const target = refactorHarmTarget.value.trim();
-    const intervalSteps = parseInt(refactorHarmInterval.value, 10) || 0;
-    const isSectionOnly = refactorHarmScopeSection.checked && activeContextSection;
-    const section = isSectionOnly ? activeContextSection : undefined;
-
-    if (!source || !target) return;
-    try {
-      const text = editor.getContent();
-      const refactored = TMDRefactor.generateHarmony(text, source, target, { section, intervalSteps });
-      editor.setContent(refactored);
-      updateInspector(refactored);
-      updateProblems(refactored);
-      refactorHarmonyModal.close();
-      showToast(t("toastGeneratedHarmony"));
-    } catch (err: any) {
-      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
-    }
-  });
-
-  // Inline Orders
-  toolInlineOrders?.addEventListener("click", () => {
-    toolsDropdown?.classList.remove("open");
-    if (!confirm(t("confirmInlineOrders"))) return;
-    try {
-      const text = editor.getContent();
-      const inlined = TMDRefactor.inlineOrders(text);
-      editor.setContent(inlined);
-      updateInspector(inlined);
-      updateProblems(inlined);
-      showToast(t("toastInlinedOrders"));
-    } catch (err: any) {
-      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
-    }
   });
 
   // Close modals on cancel button click
@@ -1689,992 +686,19 @@ function initEvents() {
     });
   });
 
-  // Context Menu Handling
-  const closeContextMenu = () => {
-    if (editorContextMenu) {
-      editorContextMenu.style.display = "none";
-    }
-  };
-
-  window.addEventListener("click", (e) => {
-    if (!editorContextMenu.contains(e.target as Node)) {
-      closeContextMenu();
-    }
-  });
-
-  window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      closeContextMenu();
-    }
-  });
-
-  const editorContainerEl = document.getElementById("editor-container")!;
-  editorContainerEl.addEventListener("contextmenu", (e: MouseEvent) => {
-    e.preventDefault();
-    const ctx = editor.getCursorContext();
-
-    if (ctx.section && ctx.instrument) {
-      ctxHeaderInfo.style.display = "block";
-      ctxHeaderInfo.textContent = `📍 [${ctx.section}:${ctx.instrument}]`;
-    } else if (ctx.section) {
-      ctxHeaderInfo.style.display = "block";
-      ctxHeaderInfo.textContent = `📍 Section: [${ctx.section}]`;
-    } else {
-      ctxHeaderInfo.style.display = "none";
-    }
-
-    if (ctx.hasSelection) {
-      ctxFormatLabel.textContent = "格式化選取範圍 (Format Selection)";
-    } else {
-      ctxFormatLabel.textContent = t("toolFormatDocument");
-    }
-
-    // Position menu safely inside viewport
-    editorContextMenu.style.display = "flex";
-    const menuWidth = 220;
-    const menuHeight = 280;
-    let x = e.clientX;
-    let y = e.clientY;
-
-    if (x + menuWidth > window.innerWidth) {
-      x = Math.max(10, window.innerWidth - menuWidth - 10);
-    }
-    if (y + menuHeight > window.innerHeight) {
-      y = Math.max(10, window.innerHeight - menuHeight - 10);
-    }
-
-    editorContextMenu.style.left = `${x}px`;
-    editorContextMenu.style.top = `${y}px`;
-  });
-
-  ctxFormat?.addEventListener("click", () => {
-    closeContextMenu();
-    handleFormatDocument();
-  });
-
-  ctxComment?.addEventListener("click", () => {
-    closeContextMenu();
-    editor.toggleComment();
-  });
-
-  ctxDoubleGrid?.addEventListener("click", () => {
-    closeContextMenu();
-    toolDoubleGrid.click();
-  });
-
-  ctxHalveGrid?.addEventListener("click", () => {
-    closeContextMenu();
-    toolHalveGrid.click();
-  });
-
-  // Insert Section Modal & Snippet Generation
-  const openInsertSectionModal = () => {
-    toolsDropdown?.classList.remove("open");
-    closeContextMenu();
-    const ctx = editor.getCursorContext();
-    if (ctx.section) {
-      insertSecName.value = `${ctx.section}_new`;
-    } else {
-      insertSecName.value = "verse2";
-    }
-    if (ctx.instrument) {
-      insertSecInst.value = ctx.instrument;
-    } else {
-      insertSecInst.value = "Lead";
-    }
-    insertSectionModal.showModal();
-  };
-
-  toolInsertSection?.addEventListener("click", () => {
-    openInsertSectionModal();
-  });
-
-  ctxInsertSection?.addEventListener("click", () => {
-    openInsertSectionModal();
-  });
-
-  btnConfirmInsertSec?.addEventListener("click", () => {
-    const secName = insertSecName.value.trim() || "verse";
-    const instName = insertSecInst.value.trim() || "Lead";
-    const templateType = insertSecTemplate.value;
-    const measures = parseInt(insertSecMeasures.value, 10) || 4;
-
-    let bars = "";
-    if (templateType === "melody") {
-      const barPatterns = [
-        "| 1 2 3 5 |",
-        "| 6 5 3 - |",
-        "| 2 3 2 1 |",
-        "| 2 - - - |",
-        "| 1 2 3 5 |",
-        "| 6 1^ 6 5 |",
-        "| 3 5 2 3 |",
-        "| 1 - - - |",
-      ];
-      bars = Array.from({ length: measures }, (_, i) => barPatterns[i % barPatterns.length]).join("\n  ");
-    } else if (templateType === "chords") {
-      const chordPatterns = [
-        "| [1] - - - |",
-        "| [5] - - - |",
-        "| [6m] - - - |",
-        "| [4] - - - |",
-        "| [1] - - - |",
-        "| [4] - - - |",
-        "| [5] - - - |",
-        "| [1] - - - |",
-      ];
-      bars = Array.from({ length: measures }, (_, i) => chordPatterns[i % chordPatterns.length]).join("\n  ");
-    } else if (templateType === "drums") {
-      const drumPatterns = [
-        "| D - S - |",
-        "| D D S - |",
-        "| D - S - |",
-        "| D - (xxxx) - |",
-      ];
-      bars = Array.from({ length: measures }, (_, i) => drumPatterns[i % drumPatterns.length]).join("\n  ");
-    } else if (templateType === "bass") {
-      const bassPatterns = [
-        "| 1_ - - - |",
-        "| 5_ - - - |",
-        "| 6_ - - - |",
-        "| 4_ - - - |",
-      ];
-      bars = Array.from({ length: measures }, (_, i) => bassPatterns[i % bassPatterns.length]).join("\n  ");
-    }
-
-    const snippet = `\n${secName}:${instName}@|0|{\n  <4*>\n  ${bars}\n}\n`;
-
-    // Also update order if section not present in order sequence
-    let currentScore = editor.getContent();
-    editor.insertAtCursor(snippet);
-    const updated = editor.getContent();
-    updateInspector(updated);
-    updateProblems(updated);
-    insertSectionModal.close();
-    showToast(t("toastInsertedSection"));
-  });
-
-  // Hum to TMD Modal & Recording
-  let mediaRecorder: MediaRecorder | null = null;
-  let audioChunks: Blob[] = [];
-  let isHumRecording = false;
-  let isCountIn = false;
-  let countInTimer: any = null;
-  let metronomeTimer: any = null;
-  let humAudioCtx: AudioContext | null = null;
-  let humTranscribedSnippet = "";
-  let lastTranscribedKey = "C";
-
-  const playClickSound = (isFirstBeat: boolean) => {
-    try {
-      if (!humAudioCtx) {
-        humAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      if (humAudioCtx.state === "suspended") {
-        humAudioCtx.resume();
-      }
-      const osc = humAudioCtx.createOscillator();
-      const gain = humAudioCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = isFirstBeat ? 880 : 440; // High beep on first beat, standard beep on others
-      gain.gain.setValueAtTime(0.3, humAudioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, humAudioCtx.currentTime + 0.05);
-      osc.connect(gain);
-      gain.connect(humAudioCtx.destination);
-      osc.start();
-      osc.stop(humAudioCtx.currentTime + 0.05);
-    } catch {
-      // Ignore audio synthesis error if user interacted restricted
-    }
-  };
-
-  const stopMetronome = () => {
-    if (metronomeTimer) {
-      clearInterval(metronomeTimer);
-      metronomeTimer = null;
-    }
-    if (countInTimer) {
-      clearTimeout(countInTimer);
-      countInTimer = null;
-    }
-    isCountIn = false;
-  };
-
-  const startMetronomeClicks = (bpm: number, beatsPerMeasure: number = 4) => {
-    stopMetronome();
-    const intervalMs = (60.0 / bpm) * 1000;
-    let currentBeat = 0;
-    playClickSound(true); // First beat immediately
-    currentBeat = 1;
-    metronomeTimer = setInterval(() => {
-      const isFirst = currentBeat % beatsPerMeasure === 0;
-      playClickSound(isFirst);
-      currentBeat = (currentBeat + 1) % beatsPerMeasure;
-    }, intervalMs);
-  };
-
-  const openHumModal = () => {
-    if (currentSheet) {
-      if (humBpm) humBpm.value = currentSheet.speed > 0 ? String(currentSheet.speed) : "120";
-      if (humKey) humKey.value = currentSheet.keySignature ? currentSheet.keySignature.toString().replace("'", "#") : "C";
-    }
-    if (humResultCode) humResultCode.value = "";
-    if (humBtnApply) humBtnApply.disabled = true;
-    if (humBtnPlayPreview) humBtnPlayPreview.style.display = "none";
-    if (humStatusIndicator) humStatusIndicator.textContent = t("humStatusIdle");
-    humModal?.showModal();
-  };
-
-  toolHumRecording?.addEventListener("click", openHumModal);
-  ctxHumRecording?.addEventListener("click", () => {
-    closeContextMenu();
-    openHumModal();
-  });
-
-  humModal?.addEventListener("close", () => {
-    stopMetronome();
-    if (mediaRecorder && mediaRecorder.state !== "inactive") {
-      mediaRecorder.stop();
-    }
-    isHumRecording = false;
-  });
-
-  humBtnRecord?.addEventListener("click", async () => {
-    if (isCountIn) {
-      // Cancel count in
-      stopMetronome();
-      if (humRecordIcon) humRecordIcon.textContent = "🔴";
-      if (humRecordText) humRecordText.textContent = t("humBtnRecord");
-      if (humStatusIndicator) humStatusIndicator.textContent = t("humStatusIdle");
-      return;
-    }
-
-    if (!isHumRecording) {
-      // Start Recording
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioChunks = [];
-        mediaRecorder = new MediaRecorder(stream);
-
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) {
-            audioChunks.push(e.data);
-          }
-        };
-
-        mediaRecorder.onstop = async () => {
-          // Stop metronome if running
-          stopMetronome();
-          // Stop stream tracks
-          stream.getTracks().forEach((track) => track.stop());
-
-          if (humStatusIndicator) humStatusIndicator.textContent = t("humStatusProcessing");
-          if (humRecordIcon) humRecordIcon.textContent = "⏳";
-          if (humRecordText) humRecordText.textContent = t("humStatusProcessing");
-          humBtnRecord.disabled = true;
-
-          try {
-            const audioBlob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || "audio/webm" });
-            const arrayBuffer = await audioBlob.arrayBuffer();
-            const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const rawBuffer = await audioContext.decodeAudioData(arrayBuffer);
-            // Basic Pitch expects 22050 Hz mono audioBuffer
-            const audioBuffer = await resampleAudioBuffer(rawBuffer, 22050);
-
-            // Dynamically import @spotify/basic-pitch to avoid loading tensorflow at startup
-            const { BasicPitch, noteFramesToTime, outputToNotesPoly } = await import("@spotify/basic-pitch");
-            const basicPitch = new BasicPitch("https://unpkg.com/@spotify/basic-pitch@1.0.1/model/model.json");
-
-            const frames: number[][] = [];
-            const onsets: number[][] = [];
-            const contours: number[][] = [];
-
-            await basicPitch.evaluateModel(
-              audioBuffer,
-              (f: number[][], o: number[][], c: number[][]) => {
-                frames.push(...f);
-                onsets.push(...o);
-                contours.push(...c);
-              },
-              (_pct: number) => {}
-            );
-
-            // For humming/singing vocal lines:
-            // 1. onsetThreshold = 0.5 (filters out breath/glottal noise)
-            // 2. frameThreshold = 0.35 (keeps solid sustained notes)
-            // 3. minNoteLength = 11 frames (~120ms, eliminates ultra-short ghost blips)
-            const notes = outputToNotesPoly(frames, onsets, 0.5, 0.35, 11);
-            const rawEvents = noteFramesToTime(notes);
-
-            // Monophonic Vocal Filter:
-            // Humming is monophonic. If multiple notes overlap in time, keep the one with higher amplitude.
-            const sortedEvents = [...rawEvents].sort((a, b) => a.startTimeSeconds - b.startTimeSeconds);
-            const monophonicEvents: typeof rawEvents = [];
-
-            for (const ev of sortedEvents) {
-              if (monophonicEvents.length === 0) {
-                monophonicEvents.push(ev);
-                continue;
-              }
-              const prev = monophonicEvents[monophonicEvents.length - 1];
-              const prevEnd = prev.startTimeSeconds + prev.durationSeconds;
-
-              // Check if overlapping significantly (> 0.08s)
-              if (ev.startTimeSeconds < prevEnd - 0.08) {
-                if (ev.amplitude > prev.amplitude) {
-                  // Replace previous weaker note or truncate previous
-                  if (ev.startTimeSeconds <= prev.startTimeSeconds + 0.08) {
-                    monophonicEvents[monophonicEvents.length - 1] = ev;
-                  } else {
-                    prev.durationSeconds = Math.max(0.08, ev.startTimeSeconds - prev.startTimeSeconds);
-                    monophonicEvents.push(ev);
-                  }
-                }
-                // If current note is weaker, ignore ghost resonance
-              } else {
-                monophonicEvents.push(ev);
-              }
-            }
-
-            const bpm = parseInt(humBpm?.value || "120", 10) || 120;
-            const grid = parseInt(humGrid?.value || "8", 10) || 8;
-            let key = humKey?.value || "AUTO";
-            if (key === "AUTO") {
-              key = detectTonicAndScale(monophonicEvents);
-            }
-            lastTranscribedKey = key;
-            const snapToScale = humSnapScale ? humSnapScale.checked : true;
-            const secName = humSectionName?.value.trim() || "hummed";
-            const instName = humInstrument?.value.trim() || "Vocal";
-
-            const tmdSnippet = quantizeNoteEventsToTmdSection(monophonicEvents, {
-              sectionName: secName,
-              instrument: instName,
-              bpm,
-              grid,
-              key,
-              snapToScale,
-              beatsPerMeasure: currentSheet?.beat?.count || 4,
-            });
-
-            humTranscribedSnippet = tmdSnippet;
-            if (humResultCode) humResultCode.value = tmdSnippet;
-            if (humStatusIndicator) {
-              humStatusIndicator.textContent = `${t("humStatusSuccess")} (Key: ${key})`;
-            }
-            if (humBtnApply) humBtnApply.disabled = false;
-            if (humBtnPlayPreview) humBtnPlayPreview.style.display = "inline-flex";
-          } catch (err: any) {
-            console.error("Basic Pitch error:", err);
-            if (humStatusIndicator) {
-              humStatusIndicator.textContent = t("humStatusError").replace("{error}", err.message || String(err));
-            }
-          } finally {
-            humBtnRecord.disabled = false;
-            if (humRecordIcon) humRecordIcon.textContent = "🔴";
-            if (humRecordText) humRecordText.textContent = t("humBtnRecord");
-          }
-        };
-
-        const bpm = parseInt(humBpm?.value || "120", 10) || 120;
-        const enableMetronome = humEnableMetronome ? humEnableMetronome.checked : true;
-        const enableCountIn = humEnableCountIn ? humEnableCountIn.checked : true;
-
-        const actuallyStartRecording = () => {
-          mediaRecorder?.start();
-          isHumRecording = true;
-          isCountIn = false;
-          if (humRecordIcon) humRecordIcon.textContent = "⏹️";
-          if (humRecordText) humRecordText.textContent = t("humBtnStop");
-          if (humStatusIndicator) humStatusIndicator.textContent = t("humStatusRecording");
-          if (enableMetronome) {
-            startMetronomeClicks(bpm, currentSheet?.beat?.count || 4);
-          }
-        };
-
-        if (enableCountIn) {
-          // 4-beat count in
-          isCountIn = true;
-          if (humRecordIcon) humRecordIcon.textContent = "⏳";
-          if (humRecordText) humRecordText.textContent = t("btnCancel");
-          let count = 1;
-          const countInBeatInterval = (60.0 / bpm) * 1000;
-
-          const runCount = () => {
-            if (!isCountIn) return;
-            playClickSound(count === 1);
-            if (humStatusIndicator) {
-              humStatusIndicator.textContent = t("humStatusCountIn").replace("{count}", String(count));
-            }
-            if (count >= 4) {
-              countInTimer = setTimeout(() => {
-                if (isCountIn) {
-                  actuallyStartRecording();
-                }
-              }, countInBeatInterval);
-            } else {
-              count++;
-              countInTimer = setTimeout(runCount, countInBeatInterval);
-            }
-          };
-          runCount();
-        } else {
-          actuallyStartRecording();
-        }
-      } catch (err: any) {
-        alert(`無法存取麥克風: ${err.message}`);
-      }
-    } else {
-      // Stop Recording
-      stopMetronome();
-      if (mediaRecorder && mediaRecorder.state !== "inactive") {
-        mediaRecorder.stop();
-      }
-      isHumRecording = false;
-    }
-  });
-
-  humBtnPlayPreview?.addEventListener("click", () => {
-    const code = humResultCode?.value || humTranscribedSnippet;
-    if (!code) return;
-    const secName = humSectionName?.value.trim() || "hummed";
-    const instName = humInstrument?.value.trim() || "Vocal";
-    let key = humKey?.value || "C";
-    if (key === "AUTO") {
-      key = lastTranscribedKey || "C";
-    }
-    const bpm = humBpm?.value || "120";
-
-    const previewTmd = `::SCORE::\n** Hummed Preview **\n!= ${bpm}\n?= ${key}\n<4/4>\n\n${code}\n\n-> ${secName} ->#\n`;
-    startPlayback(previewTmd);
-  });
-
-  humBtnApply?.addEventListener("click", () => {
-    const code = humResultCode?.value || humTranscribedSnippet;
-    if (!code) return;
-    editor.insertAtCursor(`\n${code}\n`);
-    const updated = editor.getContent();
-    updateInspector(updated);
-    updateProblems(updated);
-    humModal.close();
-    showToast(t("toastInsertedSection"));
-  });
-
-  ctxDuplicateTrack?.addEventListener("click", () => {
-    const ctx = editor.getCursorContext();
-    openDuplicateModal(ctx.section, ctx.instrument);
-  });
-
-  ctxGenerateHarmony?.addEventListener("click", () => {
-    const ctx = editor.getCursorContext();
-    openHarmonyModal(ctx.section, ctx.instrument);
-  });
-
-  ctxExtractInstrument?.addEventListener("click", () => {
-    closeContextMenu();
-    toolExtractInstrument.click();
-  });
-
-  ctxRenameInstrument?.addEventListener("click", () => {
-    closeContextMenu();
-    toolRenameInstrument.click();
-  });
-
-  ctxRenameSection?.addEventListener("click", () => {
-    closeContextMenu();
-    toolRenameSection.click();
-  });
-
-  // Problems Panel Toggle and Jump
-  btnToggleProblems?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    problemsPanel.classList.toggle("collapsed");
-    btnToggleProblems.textContent = problemsPanel.classList.contains("collapsed") ? "▲" : "▼";
-    savePanelsState();
-  });
-
-  const problemsHeader = problemsPanel?.querySelector(".problems-panel-header");
-  problemsHeader?.addEventListener("click", () => {
-    problemsPanel.classList.toggle("collapsed");
-    if (btnToggleProblems) {
-      btnToggleProblems.textContent = problemsPanel.classList.contains("collapsed") ? "▲" : "▼";
-    }
-    savePanelsState();
-  });
-
-  problemsList?.addEventListener("click", (e) => {
-    const item = (e.target as HTMLElement).closest(".problem-item") as HTMLElement | null;
-    if (item && item.dataset.line) {
-      const line = parseInt(item.dataset.line, 10);
-      if (!isNaN(line) && line > 0) {
-        editor.scrollToLine(line);
-      }
-    }
-  });
-
-  // AI Assistant Drawer & Settings
-  let aiSettings = loadAISettings();
-
-  const populateModelPresets = (provider: AIProviderType) => {
-    aiSettingsModelPreset.innerHTML = "";
-    const presets = MODEL_PRESETS[provider] || [];
-    presets.forEach((p) => {
-      const opt = document.createElement("option");
-      opt.value = p.id;
-      opt.textContent = `${p.name}${p.recommended ? " ★" : ""}`;
-      aiSettingsModelPreset.appendChild(opt);
-    });
-
-    const currentCfg = aiSettings.providers[provider];
-    if (presets.some((p) => p.id === currentCfg.model)) {
-      aiSettingsModelPreset.value = currentCfg.model;
-      aiSettingsModelCustom.value = "";
-    } else {
-      aiSettingsModelCustom.value = currentCfg.model;
-    }
-
-    aiSettingsKey.value = currentCfg.apiKey || "";
-    aiSettingsBaseUrl.value = currentCfg.baseUrl || "";
-    aiSettingsBaseUrlGroup.style.display = (provider === "custom" || provider === "groq") ? "flex" : "none";
-
-    // Dynamic helper links for API Key
-    const providerOfficialUrls: Record<AIProviderType, string> = {
-      gemini: "https://aistudio.google.com/app/apikey",
-      openai: "https://platform.openai.com/api-keys",
-      anthropic: "https://console.anthropic.com/settings/keys",
-      groq: "https://console.groq.com/keys",
-      custom: "https://platform.deepseek.com/api_keys",
-    };
-
-    const providerNames: Record<AIProviderType, string> = {
-      gemini: "Google Gemini",
-      openai: "OpenAI",
-      anthropic: "Anthropic Claude",
-      groq: "Groq",
-      custom: "DeepSeek / Custom",
-    };
-
-    if (aiKeyOfficialLink) {
-      aiKeyOfficialLink.href = providerOfficialUrls[provider] || "https://aistudio.google.com/app/apikey";
-    }
-
-    if (aiKeyAskAiLink) {
-      const isZh = getCurrentLocale() === "zh-TW";
-      const q = isZh
-        ? encodeURIComponent(`如何申請 ${providerNames[provider]} API key 教學步驟`)
-        : encodeURIComponent(`How to get ${providerNames[provider]} API key step by step tutorial`);
-      const hl = isZh ? "zh-TW" : "en";
-      aiKeyAskAiLink.href = `https://www.google.com/search?q=${q}&hl=${hl}`;
-    }
-  };
-
-  const openAiSettingsModal = () => {
-    aiSettings = loadAISettings();
-    aiSettingsProvider.value = aiSettings.activeProvider;
-    populateModelPresets(aiSettings.activeProvider);
-    aiSettingsModal.showModal();
-  };
-
-
-  // Skill tab actions
-  aiBtnDownload?.addEventListener("click", () => {
-    downloadSkillFile();
-  });
-
-  aiBtnCopySkill?.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(TmdSkill.skillMarkdown);
-      const prevText = aiBtnCopySkill.textContent;
-      aiBtnCopySkill.textContent = `✓ ${t("aiSkillCopied")}`;
-      setTimeout(() => {
-        aiBtnCopySkill.textContent = prevText;
-      }, 2000);
-    } catch {
-      alert(t("aiSkillCopied"));
-    }
-  });
-
-
-  const updateAiSettingsButtonState = () => {
-    aiSettings = loadAISettings();
-    const currentProvider = aiSettings.activeProvider;
-    const currentConfig = aiSettings.providers[currentProvider];
-    const hasKey = Boolean(currentConfig?.apiKey?.trim()) || currentProvider === "custom";
-
-    if (!hasKey) {
-      btnOpenAiSettings.classList.add("needs-key");
-      btnOpenAiSettings.title = `${t("aiSettingsTitle")} (未設定 Key)`;
-    } else {
-      btnOpenAiSettings.classList.remove("needs-key");
-      btnOpenAiSettings.title = `${t("aiSettingsTitle")} (${currentProvider.toUpperCase()})`;
-    }
-  };
-
-  // Update initial button appearance
-  updateAiSettingsButtonState();
-
-  btnToggleAi?.addEventListener("click", () => {
-    aiDrawer.classList.toggle("hidden");
-    if (!aiDrawer.classList.contains("hidden")) {
-      // If on narrow screen, close inspector to avoid overcrowding
-      if (window.innerWidth < 800) {
-        inspectorPanel.classList.add("hidden");
-      }
-      aiPromptInput.focus();
-      updateAiSettingsButtonState();
-    }
-    savePanelsState();
-  });
-
-  btnCloseAiDrawer?.addEventListener("click", () => {
-    aiDrawer.classList.add("hidden");
-    savePanelsState();
-  });
-
-  btnOpenAiSettings?.addEventListener("click", () => {
-    openAiSettingsModal();
-  });
-
-  btnCloseAiSettings?.addEventListener("click", () => {
-    aiSettingsModal.close();
-  });
-
-  btnDismissAiSettings?.addEventListener("click", () => {
-    aiSettingsModal.close();
-  });
-
-  aiSettingsProvider.addEventListener("change", () => {
-    const selected = aiSettingsProvider.value as AIProviderType;
-    populateModelPresets(selected);
-  });
-
-  btnSaveAiSettings?.addEventListener("click", (e) => {
-    e.preventDefault();
-    const provider = aiSettingsProvider.value as AIProviderType;
-    let customModel = aiSettingsModelCustom.value.trim();
-    let key = aiSettingsKey.value.trim();
-    const baseUrl = aiSettingsBaseUrl.value.trim();
-
-    // Prevent API key from being accidentally saved or displayed as model name
-    if (looksLikeApiKey(customModel) || (key && customModel === key)) {
-      if (!key) {
-        key = customModel;
-        aiSettingsKey.value = key;
-      }
-      customModel = "";
-      aiSettingsModelCustom.value = "";
-    }
-
-    let selectedModel = customModel || aiSettingsModelPreset.value || DEFAULT_MODELS[provider];
-    if (looksLikeApiKey(selectedModel)) {
-      selectedModel = DEFAULT_MODELS[provider];
-    }
-
-    aiSettings.activeProvider = provider;
-    aiSettings.providers[provider] = {
-      apiKey: key,
-      model: selectedModel,
-      ...(baseUrl ? { baseUrl } : {}),
-    };
-
-    saveAISettings(aiSettings);
-    updateAiSettingsButtonState();
-    aiSettingsModal.close();
-    aiStatusText.textContent = t("aiModelApplied").replace("{model}", selectedModel);
-  });
-
-  // Preset Buttons
-  document.querySelectorAll<HTMLButtonElement>(".ai-preset-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const mode = btn.dataset.mode;
-      const prompts: Record<string, string> = {
-        compose: "請以流行流行放克風格 (110 BPM, G 大調) 創作一首完整的 4 軌 TMD 歌曲（旋律、和弦、貝斯、鼓組）。",
-        arrange: "請保留我現有的主旋律，為它編寫豐富的木吉他分解和弦 [CHORD]、走音貝斯 [Bass] 與動態鼓點 [Drums]。",
-        extend: "請接續這段主題動機，發展出情感昂揚的 8 小節副歌，並在最後一小節給予清晰的終止式收尾。",
-        reharm: "請重新為目前的旋律安排色彩更豐富的爵士/流行和弦進行（加入 maj7, m7, 7, sus4 或次屬和弦）。",
-        debug: "請診斷並修正我這份樂譜的小節拍數、格式錯誤與排版，確保各軌道長度平衡且能正常解析播放。",
-      };
-      if (mode && prompts[mode]) {
-        aiPromptInput.value = prompts[mode];
-        aiPromptInput.dataset.activeMode = mode;
-        aiPromptInput.focus();
-      }
-    });
-  });
-
-    let lastPromptForRepair = "";
-    let lastFaultyValidation: any = null;
-
-    const showValidationFailure = (validation: any) => {
-      if (aiValidationBanner) {
-        aiValidationBanner.style.display = "flex";
-        if (aiValidationMsg) {
-          aiValidationMsg.textContent = t("aiValidationError")
-            .replace("{line}", String(validation.line))
-            .replace("{error}", validation.message);
-        }
-      }
-      if (btnAiPreviewPlay) {
-        btnAiPreviewPlay.disabled = true;
-        btnAiPreviewPlay.title = t("aiInvalidTmdWarning");
-      }
-      aiStatusText.textContent = t("aiValidationError")
-        .replace("{line}", String(validation.line))
-        .replace("{error}", validation.message);
-    };
-
-    const handleValidationAndRepair = async (
-      tmdCode: string,
-      originalPrompt: string,
-      provider: AIProviderType,
-      config: any,
-      allowAutoRepair: boolean
-    ) => {
-      aiCurrentGeneratedCode = tmdCode;
-      const validation = validateTmdCode(tmdCode);
-
-      if (validation.valid) {
-        if (aiValidationBanner) aiValidationBanner.style.display = "none";
-        if (btnAiPreviewPlay) {
-          btnAiPreviewPlay.disabled = false;
-          btnAiPreviewPlay.title = t("aiBtnPlayPreview");
-        }
-        lastFaultyValidation = null;
-        aiStatusText.textContent = allowAutoRepair ? t("aiStatusDone") : t("aiStatusRepaired");
-        return;
-      }
-
-      // Syntax error detected
-      lastFaultyValidation = validation;
-      lastPromptForRepair = originalPrompt;
-
-      if (allowAutoRepair) {
-        // Auto-Repair loop: 1 automatic retry
-        aiStatusText.textContent = t("aiStatusAutoRepairing").replace("{line}", String(validation.line));
-        const repairPrompt = buildRepairPrompt({
-          originalPrompt,
-          faultyTmd: tmdCode,
-          errorMessage: validation.message,
-          line: validation.line,
-          column: validation.column,
-          snippet: validation.snippet,
-          expectedTokens: validation.expectedTokens,
-        });
-
-        let repairAccumulated = "";
-        aiResultOutput.textContent = "";
-
-        repairAccumulated = await callAI(provider, config, {
-          prompt: repairPrompt,
-          currentTmd: tmdCode,
-          mode: "debug",
-          signal: aiAbortController?.signal,
-          onChunk: (chunk) => {
-            repairAccumulated += chunk;
-            aiResultOutput.textContent = repairAccumulated;
-            aiResultOutput.scrollTop = aiResultOutput.scrollHeight;
-          },
-        });
-
-        aiResultOutput.textContent = repairAccumulated;
-        const repairedCode = extractTmdCode(repairAccumulated);
-        if (repairedCode) {
-          await handleValidationAndRepair(repairedCode, originalPrompt, provider, config, false);
-        } else {
-          showValidationFailure(validation);
-          aiStatusText.textContent = t("aiNoCodeFound");
-        }
-      } else {
-        showValidationFailure(validation);
-      }
-    };
-
-    // AI Generation
-    btnAiGenerate?.addEventListener("click", async () => {
-      const prompt = aiPromptInput.value.trim();
-      if (!prompt) {
-        aiPromptInput.focus();
-        return;
-      }
-
-      aiSettings = loadAISettings();
-      const provider = aiSettings.activeProvider;
-      const config = aiSettings.providers[provider];
-
-      if (!config.apiKey.trim() && provider !== "custom") {
-        alert(t("aiMissingApiKey"));
-        aiSettingsProvider.value = provider;
-        populateModelPresets(provider);
-        aiSettingsModal.showModal();
-        return;
-      }
-
-      aiAbortController = new AbortController();
-      btnAiGenerate.style.display = "none";
-      btnAiStop.style.display = "inline-flex";
-      aiStatusText.textContent = t("aiStatusGenerating");
-      aiResultContainer.style.display = "block";
-      if (aiValidationBanner) aiValidationBanner.style.display = "none";
-      if (btnAiPreviewPlay) {
-        btnAiPreviewPlay.disabled = false;
-        btnAiPreviewPlay.title = t("aiBtnPlayPreview");
-      }
-      aiResultOutput.textContent = "";
-      aiCurrentGeneratedCode = "";
-
-      const mode = (aiPromptInput.dataset.activeMode as any) || "compose";
-      let accumulatedText = "";
-
-      try {
-        accumulatedText = await callAI(provider, config, {
-          prompt,
-          currentTmd: editor.getContent(),
-          mode,
-          signal: aiAbortController.signal,
-          onChunk: (chunk) => {
-            accumulatedText += chunk;
-            aiResultOutput.textContent = accumulatedText;
-            aiResultOutput.scrollTop = aiResultOutput.scrollHeight;
-          },
-        });
-
-        aiResultOutput.textContent = accumulatedText;
-        const extracted = extractTmdCode(accumulatedText);
-        if (extracted) {
-          await handleValidationAndRepair(extracted, prompt, provider, config, true);
-        } else {
-          aiStatusText.textContent = t("aiNoCodeFound");
-        }
-      } catch (err: any) {
-        if (err.name === "AbortError") {
-          aiStatusText.textContent = "已停止生成。";
-        } else {
-          aiStatusText.textContent = `生成失敗: ${err.message}`;
-        }
-      } finally {
-        btnAiGenerate.style.display = "inline-flex";
-        btnAiStop.style.display = "none";
-        aiAbortController = null;
-      }
-    });
-
-    btnAiRetryRepair?.addEventListener("click", async () => {
-      if (!aiCurrentGeneratedCode || !lastFaultyValidation) return;
-      const provider = aiSettings.activeProvider;
-      const config = aiSettings.providers[provider];
-
-      aiAbortController = new AbortController();
-      btnAiGenerate.style.display = "none";
-      btnAiStop.style.display = "inline-flex";
-      aiStatusText.textContent = t("aiStatusAutoRepairing").replace("{line}", String(lastFaultyValidation.line));
-
-      try {
-        const repairPrompt = buildRepairPrompt({
-          originalPrompt: lastPromptForRepair || "Fix TMD syntax",
-          faultyTmd: aiCurrentGeneratedCode,
-          errorMessage: lastFaultyValidation.message,
-          line: lastFaultyValidation.line,
-          column: lastFaultyValidation.column,
-          snippet: lastFaultyValidation.snippet,
-          expectedTokens: lastFaultyValidation.expectedTokens,
-        });
-
-        let repairAccumulated = "";
-        aiResultOutput.textContent = "";
-
-        repairAccumulated = await callAI(provider, config, {
-          prompt: repairPrompt,
-          currentTmd: aiCurrentGeneratedCode,
-          mode: "debug",
-          signal: aiAbortController.signal,
-          onChunk: (chunk) => {
-            repairAccumulated += chunk;
-            aiResultOutput.textContent = repairAccumulated;
-            aiResultOutput.scrollTop = aiResultOutput.scrollHeight;
-          },
-        });
-
-        aiResultOutput.textContent = repairAccumulated;
-        const repairedCode = extractTmdCode(repairAccumulated);
-        if (repairedCode) {
-          await handleValidationAndRepair(repairedCode, lastPromptForRepair, provider, config, false);
-        } else {
-          showValidationFailure(lastFaultyValidation);
-          aiStatusText.textContent = t("aiNoCodeFound");
-        }
-      } catch (err: any) {
-        if (err.name === "AbortError") {
-          aiStatusText.textContent = "已停止生成。";
-        } else {
-          aiStatusText.textContent = `生成失敗: ${err.message}`;
-        }
-      } finally {
-        btnAiGenerate.style.display = "inline-flex";
-        btnAiStop.style.display = "none";
-        aiAbortController = null;
-      }
-    });
-
-    btnAiStop?.addEventListener("click", () => {
-      if (aiAbortController) {
-        aiAbortController.abort();
-      }
-    });
-
-    btnAiPreviewPlay?.addEventListener("click", () => {
-      const codeToPlay = aiCurrentGeneratedCode || extractTmdCode(aiResultOutput.textContent || "");
-      if (!codeToPlay) {
-        return alert(t("aiNoCodeFound"));
-      }
-      const check = validateTmdCode(codeToPlay);
-      if (!check.valid) {
-        return alert(t("aiInvalidTmdWarning"));
-      }
-      startPlayback(codeToPlay);
-    });
-
-  btnAiCopyCode?.addEventListener("click", async () => {
-    const codeToCopy = aiCurrentGeneratedCode || extractTmdCode(aiResultOutput.textContent || "") || aiResultOutput.textContent || "";
-    if (!codeToCopy) return;
-    try {
-      await navigator.clipboard.writeText(codeToCopy);
-      const prev = btnAiCopyCode.textContent;
-      btnAiCopyCode.textContent = "✓";
-      setTimeout(() => {
-        btnAiCopyCode.textContent = prev;
-      }, 2000);
-    } catch {
-      alert(t("codeCopied"));
-    }
-  });
-
-  btnAiApplyReplace?.addEventListener("click", () => {
-    const code = aiCurrentGeneratedCode || extractTmdCode(aiResultOutput.textContent || "");
-    if (!code) return alert(t("aiNoCodeFound"));
-    editor.setContent(code);
-    updateInspector(code);
-    aiStatusText.textContent = t("aiAppliedSuccess");
-  });
-
-  btnAiApplyInsert?.addEventListener("click", () => {
-    const code = aiCurrentGeneratedCode || extractTmdCode(aiResultOutput.textContent || "");
-    if (!code) return alert(t("aiNoCodeFound"));
-    editor.insertAtCursor(`\n${code}\n`);
-    updateInspector(editor.getContent());
-    aiStatusText.textContent = t("aiAppliedSuccess");
+  // A share link pasted into an open tab changes only the hash
+  window.addEventListener("hashchange", () => {
+    importSharedScore()
+      .then((score) => score && libraryController.loadScoreIntoEditor(score))
+      .catch((err) => console.error("Failed to import shared score:", err));
   });
 }
 
 async function init() {
   const container = document.getElementById("editor-container")!;
   const defaultSample = SAMPLES[0]; // 《三天三夜》
-
   let initialContent = defaultSample.content;
-  currentScoreId = null;
-  isTemplateScore = true;
-  activeTemplateId = defaultSample.id;
 
-  // Apply the language first, so a message about a bad share link uses the right language.
   applyI18n(detectLanguage());
 
   try {
@@ -2685,9 +709,6 @@ async function init() {
       const saved = shared ?? (await TmdStorage.getScore(activeId));
       if (saved) {
         initialContent = saved.content;
-        currentScoreId = saved.id;
-        isTemplateScore = false;
-        activeTemplateId = null;
       }
     }
   } catch (e) {
@@ -2704,24 +725,21 @@ async function init() {
       }
     },
     () => {
-      try {
-        const current = editor.getContent();
-        const formatted = TMDRefactor.format(current);
-        editor.setContent(formatted);
-        updateInspector(formatted);
-        updateProblems(formatted);
-        showToast(t("toastFormatted"));
-      } catch (err: any) {
-        showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
-      }
+      toolsAndContextController?.handleFormatDocument();
     },
     (section, instrument) => {
-      playSectionOrTrack(section, instrument);
+      playerController?.playSectionOrTrack(section, instrument);
     }
   );
 
   initEvents();
-  applyPanelsState();
+  applyPanelsState({
+    libraryDrawer,
+    aiDrawer,
+    inspectorPanel,
+    problemsPanel,
+    btnToggleProblems,
+  });
   updateInspector(initialContent);
   updateProblems(initialContent);
 
@@ -2734,7 +752,7 @@ async function init() {
         updateInspector(text);
       },
       startPlayback: () => {
-        startPlayback(editor.getContent());
+        playerController?.startPlayback(editor.getContent());
       },
     });
   } catch (err) {
@@ -2745,4 +763,3 @@ async function init() {
 window.addEventListener("DOMContentLoaded", () => {
   init().catch((err) => console.error("Initialization failed:", err));
 });
-

@@ -77,8 +77,12 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     const mainContent = fs.readFileSync(mainPath, "utf-8");
 
     // TMDRefactor and TMDMeasureChecker imported
-    expect(mainContent).toContain("TMDRefactor");
-    expect(mainContent).toContain("TMDMeasureChecker");
+    const problemsPath = path.join(__dirname, "../web/src/ui/problemsPanel.ts");
+    const problemsContent = fs.existsSync(problemsPath) ? fs.readFileSync(problemsPath, "utf-8") : "";
+    const fullContent = [mainContent, problemsContent].join("\n");
+
+    expect(fullContent).toContain("TMDRefactor");
+    expect(fullContent).toContain("TMDMeasureChecker");
 
     // Events bound
     expect(mainContent).toContain("tool-format-document");
@@ -133,16 +137,23 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
   it("binds context menu events, snippet insertion, and section-scoped refactor in web/src/main.ts", () => {
     const mainPath = path.join(__dirname, "../web/src/main.ts");
     const mainContent = fs.readFileSync(mainPath, "utf-8");
+    const toolsPath = path.join(__dirname, "../web/src/ui/toolsMenu.ts");
+    const toolsContent = fs.existsSync(toolsPath) ? fs.readFileSync(toolsPath, "utf-8") : "";
+    const refactorModalPath = path.join(__dirname, "../web/src/ui/modals/refactorModals.ts");
+    const refactorModalContent = fs.existsSync(refactorModalPath) ? fs.readFileSync(refactorModalPath, "utf-8") : "";
+    const insertModalPath = path.join(__dirname, "../web/src/ui/modals/insertSectionModal.ts");
+    const insertModalContent = fs.existsSync(insertModalPath) ? fs.readFileSync(insertModalPath, "utf-8") : "";
+    const fullContent = [mainContent, toolsContent, refactorModalContent, insertModalContent].join("\n");
 
-    expect(mainContent).toContain("editor-context-menu");
-    expect(mainContent).toContain("getCursorContext");
-    expect(mainContent).toContain("contextmenu");
-    expect(mainContent).toContain("ctx-comment");
-    expect(mainContent).toContain("toggleComment");
-    expect(mainContent).toContain("refactor-dup-scope-section");
-    expect(mainContent).toContain("refactor-harm-scope-section");
-    expect(mainContent).toContain("ctx-insert-section");
-    expect(mainContent).toContain("insert-section-modal");
+    expect(fullContent).toContain("editor-context-menu");
+    expect(fullContent).toContain("getCursorContext");
+    expect(fullContent).toContain("contextmenu");
+    expect(fullContent).toContain("ctx-comment");
+    expect(fullContent).toContain("toggleComment");
+    expect(fullContent).toContain("refactor-dup-scope-section");
+    expect(fullContent).toContain("refactor-harm-scope-section");
+    expect(fullContent).toContain("ctx-insert-section");
+    expect(fullContent).toContain("insert-section-modal");
   });
 
   it("supports playing individual section/track from editor line gutter and outline items in web/src/editor.ts and main.ts", () => {
@@ -157,10 +168,12 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     const mainContent = fs.readFileSync(mainPath, "utf-8");
     const inspectorPath = path.join(__dirname, "../web/src/ui/inspector.ts");
     const inspectorContent = fs.existsSync(inspectorPath) ? fs.readFileSync(inspectorPath, "utf-8") : "";
-    const uiContent = mainContent + "\n" + inspectorContent;
+    const playerPath = path.join(__dirname, "../web/src/ui/playerBar.ts");
+    const playerContent = fs.existsSync(playerPath) ? fs.readFileSync(playerPath, "utf-8") : "";
+    const uiContent = [mainContent, inspectorContent, playerContent].join("\n");
 
-    // main.ts should handle onPlaySection and generate/play scoped MIDI
-    expect(mainContent).toContain("playSectionOrTrack");
+    // main/playerController should handle onPlaySection and generate/play scoped MIDI
+    expect(uiContent).toContain("playSectionOrTrack");
     // outline section and track items should have play buttons
     expect(uiContent).toContain("outline-play-btn");
     expect(uiContent).toContain("data-play-section");
@@ -168,7 +181,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     // inspector playback orders should have play buttons to play from that order index
     expect(uiContent).toContain("order-play-btn");
     expect(uiContent).toContain("data-play-order-index");
-    expect(mainContent).toContain("playFromOrderIndex");
+    expect(uiContent).toContain("playFromOrderIndex");
   });
 
   it("supports Humming to TMD section (Spotify Basic Pitch) in web UI and i18n", () => {
@@ -196,21 +209,28 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     // main.ts audio module, metronome, and quantizer wiring
     const mainPath = path.join(__dirname, "../web/src/main.ts");
     const mainContent = fs.readFileSync(mainPath, "utf-8");
-    expect(mainContent).toContain("quantizeNoteEventsToTmdSection");
-    expect(mainContent).toContain("detectTonicAndScale");
-    expect(mainContent).toContain("hum-modal");
-    expect(mainContent).toContain("startMetronomeClicks");
-    expect(mainContent).toContain("playClickSound");
+    const humPath = path.join(__dirname, "../web/src/ui/modals/humModal.ts");
+    const humContent = fs.existsSync(humPath) ? fs.readFileSync(humPath, "utf-8") : "";
+    const fullAudioUi = [mainContent, humContent].join("\n");
+
+    expect(fullAudioUi).toContain("quantizeNoteEventsToTmdSection");
+    expect(fullAudioUi).toContain("detectTonicAndScale");
+    expect(fullAudioUi).toContain("hum-modal");
+    expect(fullAudioUi).toContain("startMetronomeClicks");
+    expect(fullAudioUi).toContain("playClickSound");
   });
 
   it("persists and restores collapsed/hidden state of panels (lib, ai, inspector, problems) in localStorage", () => {
     const mainPath = path.join(__dirname, "../web/src/main.ts");
     const mainContent = fs.readFileSync(mainPath, "utf-8");
+    const panelStatePath = path.join(__dirname, "../web/src/ui/panelState.ts");
+    const panelStateContent = fs.existsSync(panelStatePath) ? fs.readFileSync(panelStatePath, "utf-8") : "";
+    const fullContent = [mainContent, panelStateContent].join("\n");
 
     // Keys or storage handling for panel states
-    expect(mainContent).toContain("tmd-panels-state");
-    expect(mainContent).toContain("savePanelsState");
-    expect(mainContent).toContain("loadPanelsState");
+    expect(fullContent).toContain("tmd-panels-state");
+    expect(fullContent).toContain("savePanelsState");
+    expect(fullContent).toContain("loadPanelsState");
   });
 });
 

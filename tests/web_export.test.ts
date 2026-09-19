@@ -20,9 +20,13 @@ describe('Web UI Exporters & REAPER support (TDD)', () => {
   it('binds export-reaper button in web/src/main.ts and handles RPP download', () => {
     const mainPath = path.join(__dirname, '../web/src/main.ts');
     const mainContent = fs.readFileSync(mainPath, 'utf-8');
-    expect(mainContent).toContain('export-reaper');
-    expect(mainContent).toContain('TMDReaperGenerator');
-    expect(mainContent).toContain('.generateRPP(');
+    const exportPath = path.join(__dirname, '../web/src/ui/exportMenu.ts');
+    const exportContent = fs.existsSync(exportPath) ? fs.readFileSync(exportPath, 'utf-8') : '';
+    const fullContent = [mainContent, exportContent].join('\n');
+
+    expect(fullContent).toContain('export-reaper');
+    expect(fullContent).toContain('TMDReaperGenerator');
+    expect(fullContent).toContain('.generateRPP(');
   });
 
   it('defines VOCALOID export i18n labels in zh-TW and en locales', () => {
@@ -44,10 +48,14 @@ describe('Web UI Exporters & REAPER support (TDD)', () => {
   it('binds export-vsq and export-vsqx buttons in web/src/main.ts', () => {
     const mainPath = path.join(__dirname, '../web/src/main.ts');
     const mainContent = fs.readFileSync(mainPath, 'utf-8');
-    expect(mainContent).toContain('export-vsq');
-    expect(mainContent).toContain('export-vsqx');
-    expect(mainContent).toContain('TMDVSQGenerator');
-    expect(mainContent).toContain('TMDVSQXGenerator');
+    const exportPath = path.join(__dirname, '../web/src/ui/exportMenu.ts');
+    const exportContent = fs.existsSync(exportPath) ? fs.readFileSync(exportPath, 'utf-8') : '';
+    const fullContent = [mainContent, exportContent].join('\n');
+
+    expect(fullContent).toContain('export-vsq');
+    expect(fullContent).toContain('export-vsqx');
+    expect(fullContent).toContain('TMDVSQGenerator');
+    expect(fullContent).toContain('TMDVSQXGenerator');
   });
 
   it('removes top toolbar sample-select dropdown and relies on drawer samples list', () => {
@@ -70,8 +78,12 @@ describe('Web UI Exporters & REAPER support (TDD)', () => {
 
     const mainPath = path.join(__dirname, '../web/src/main.ts');
     const mainContent = fs.readFileSync(mainPath, 'utf-8');
-    expect(mainContent).toContain('validateTmdCode');
-    expect(mainContent).toContain('buildRepairPrompt');
-    expect(mainContent).toContain('btn-ai-retry-repair');
+    const aiPath = path.join(__dirname, '../web/src/ui/aiDrawer.ts');
+    const aiContent = fs.existsSync(aiPath) ? fs.readFileSync(aiPath, 'utf-8') : '';
+    const fullContent = [mainContent, aiContent].join('\n');
+
+    expect(fullContent).toContain('validateTmdCode');
+    expect(fullContent).toContain('buildRepairPrompt');
+    expect(fullContent).toContain('btn-ai-retry-repair');
   });
 });

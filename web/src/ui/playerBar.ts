@@ -1,0 +1,255 @@
+import { Sheet } from "../../../src/core/types.js";
+import { TmdParser } from "../../../src/core/parser.js";
+import { TMDMIDIGenerator } from "../../../src/exporters/midi.js";
+import { t } from "../i18n.js";
+import { tmdPlayer, TMDMidiSynthType } from "../midi-player.js";
+import { makeDraggable } from "./draggable.js";
+import type { TMDWebEditor } from "../editor.js";
+
+export interface PlayerBarElements {
+  tmdPlayerBar: HTMLElement;
+  playerTitle: HTMLElement;
+  playerTime: HTMLElement;
+  playerProgress: HTMLInputElement;
+  synthSelect: HTMLSelectElement;
+  playerBtnPause: HTMLButtonElement;
+  playerBtnClose: HTMLButtonElement;
+  btnPlay: HTMLButtonElement;
+}
+
+export function formatPlaybackTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
+export class TMDPlayerController {
+  private isSeeking = false;
+
+  constructor(
+    private elements: PlayerBarElements,
+    private getEditor: () => TMDWebEditor
+  ) {}
+
+  public init(): void {
+    const {
+      tmdPlayerBar,
+      playerBtnPause,
+      playerBtnClose,
+      playerProgress,
+      playerTime,
+      synthSelect,
+      btnPlay,
+    } = this.elements;
+
+    if (tmdPlayerBar) {
+      makeDraggable(tmdPlayerBar);
+    }
+
+    btnPlay.addEventListener("click", () => {
+      this.startPlayback();
+    });
+
+    playerBtnPause.addEventListener("click", () => {
+      tmdPlayer.togglePause();
+    });
+
+    playerBtnClose.addEventListener("click", () => {
+      tmdPlayer.stop();
+      tmdPlayerBar.style.display = "none";
+    });
+
+    playerProgress.addEventListener("mousedown", () => {
+      this.isSeeking = true;
+    });
+    playerProgress.addEventListener("touchstart", () => {
+      this.isSeeking = true;
+    }, { passive: true });
+
+    playerProgress.addEventListener("input", () => {
+      const targetSec = parseFloat(playerProgress.value);
+      const totalSec = tmdPlayer.getDuration();
+      if (playerTime) {
+        playerTime.textContent = `${formatPlaybackTime(targetSec)} / ${formatPlaybackTime(totalSec)}`;
+      }
+    });
+
+    const commitSeek = () => {
+      if (this.isSeeking) {
+        const targetSec = parseFloat(playerProgress.value);
+        tmdPlayer.seek(targetSec);
+        this.isSeeking = false;
+      }
+    };
+
+    playerProgress.addEventListener("change", commitSeek);
+    playerProgress.addEventListener("mouseup", commitSeek);
+    playerProgress.addEventListener("touchend", commitSeek);
+
+    synthSelect.value = tmdPlayer.getSynthType();
+    synthSelect.addEventListener("change", async () => {
+      const selected = synthSelect.value as TMDMidiSynthType;
+      await tmdPlayer.setSynthType(selected);
+    });
+  }
+
+  public async startPlayback(customText?: string): Promise<void> {
+    const editor = this.getEditor();
+    const text = customText !== undefined ? customText : editor.getContent();
+    let sheet: Sheet | null = null;
+    try {
+      sheet = TmdParser.parse(text);
+    } catch (err: any) {
+      alert(`${t("alertCannotPlaySyntax")}\n${err.message}`);
+      return;
+    }
+
+    if (!sheet) {
+      alert(t("alertCannotPlayMissingHeader"));
+      return;
+    }
+
+    const title = sheet.name || "score.mid";
+    let midiBytes: Uint8Array;
+    try {
+      midiBytes = TMDMIDIGenerator.generateMIDI(sheet);
+    } catch (err: any) {
+      alert(`${t("alertMidiFailed")}: ${err.message}`);
+      return;
+    }
+
+    await this.runPlayer(midiBytes, title);
+  }
+
+  public async playSectionOrTrack(sectionName: string, instrumentName?: string): Promise<void> {
+    const editor = this.getEditor();
+    const text = editor.getContent();
+    let sheet: Sheet | null = null;
+    try {
+      sheet = TmdParser.parse(text);
+    } catch (err: any) {
+      alert(`${t("alertCannotPlaySyntax")}\n${err.message}`);
+      return;
+    }
+
+    if (!sheet) {
+      alert(t("alertCannotPlayMissingHeader"));
+      return;
+    }
+
+    const title = instrumentName
+      ? `${sheet.name || "score"} - ${sectionName} (${instrumentName})`
+      : `${sheet.name || "score"} - ${sectionName}`;
+
+    let midiBytes: Uint8Array;
+    try {
+      midiBytes = TMDMIDIGenerator.generateMIDI(sheet, undefined, {
+        targetParagraph: sectionName,
+        targetInstrument: instrumentName,
+      });
+    } catch (err: any) {
+      alert(`${t("alertMidiFailed")}: ${err.message}`);
+      return;
+    }
+
+    await this.runPlayer(midiBytes, title);
+  }
+
+  public async playFromOrderIndex(orderIndex: number): Promise<void> {
+    const editor = this.getEditor();
+    const text = editor.getContent();
+    let sheet: Sheet | null = null;
+    try {
+      sheet = TmdParser.parse(text);
+    } catch (err: any) {
+      alert(`${t("alertCannotPlaySyntax")}\n${err.message}`);
+      return;
+    }
+
+    if (!sheet) {
+      alert(t("alertCannotPlayMissingHeader"));
+      return;
+    }
+
+    const targetOrder = sheet.orders[orderIndex];
+    const orderLabel = targetOrder
+      ? (targetOrder.type === "name" ? targetOrder.name : `{${targetOrder.value}}`)
+      : `#${orderIndex + 1}`;
+    const title = `${sheet.name || "score"} [➔ ${orderLabel}]`;
+
+    let midiBytes: Uint8Array;
+    try {
+      midiBytes = TMDMIDIGenerator.generateMIDI(sheet, undefined, {
+        startOrderIndex: orderIndex,
+      });
+    } catch (err: any) {
+      alert(`${t("alertMidiFailed")}: ${err.message}`);
+      return;
+    }
+
+    await this.runPlayer(midiBytes, title);
+  }
+
+  private async runPlayer(midiBytes: Uint8Array, title: string): Promise<void> {
+    const {
+      tmdPlayerBar,
+      playerTitle,
+      playerTime,
+      playerProgress,
+      playerBtnPause,
+    } = this.elements;
+
+    if (playerTitle) playerTitle.textContent = title;
+    if (playerTime) playerTime.textContent = "00:00 / 00:00";
+    if (playerProgress) {
+      playerProgress.value = "0";
+      playerProgress.max = "100";
+    }
+    if (tmdPlayerBar) tmdPlayerBar.style.display = "flex";
+    if (playerBtnPause) playerBtnPause.textContent = "⏸";
+
+    await tmdPlayer.play(midiBytes, title, {
+      onStart: (_title, durationSec) => {
+        if (playerProgress) {
+          playerProgress.max = Math.max(1, durationSec).toString();
+          playerProgress.value = "0";
+        }
+        if (playerTime) {
+          playerTime.textContent = `00:00 / ${formatPlaybackTime(durationSec)}`;
+        }
+      },
+      onProgress: (currentSec, totalSec) => {
+        if (playerTime) {
+          playerTime.textContent = `${formatPlaybackTime(currentSec)} / ${formatPlaybackTime(totalSec)}`;
+        }
+        if (playerProgress && !this.isSeeking) {
+          if (playerProgress.max !== totalSec.toString()) {
+            playerProgress.max = Math.max(1, totalSec).toString();
+          }
+          playerProgress.value = currentSec.toString();
+        }
+      },
+      onPause: () => {
+        if (playerBtnPause) playerBtnPause.textContent = "▶";
+      },
+      onResume: () => {
+        if (playerBtnPause) playerBtnPause.textContent = "⏸";
+      },
+      onLoadingStatus: (status) => {
+        if (status && playerTime) {
+          playerTime.textContent = status;
+        }
+      },
+      onStop: () => {
+        if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
+        if (playerBtnPause) playerBtnPause.textContent = "⏸";
+        if (playerProgress) playerProgress.value = "0";
+      },
+      onEnd: () => {
+        if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
+        if (playerBtnPause) playerBtnPause.textContent = "⏸";
+        if (playerProgress) playerProgress.value = "0";
+      },
+    });
+  }
+}

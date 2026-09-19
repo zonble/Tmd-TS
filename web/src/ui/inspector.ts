@@ -178,3 +178,79 @@ export function renderInspectorView(
 
   return currentSheet;
 }
+
+export function setupInspectorPanelEvents(
+  elements: {
+    inspectorPanel: HTMLElement;
+    btnToggleInspector: HTMLButtonElement;
+    btnCloseInspector: HTMLButtonElement;
+    inspectorTracks: HTMLElement;
+    inspectorOrders: HTMLElement;
+  },
+  editor: any,
+  onSavePanelsState: () => void,
+  playSectionOrTrack: (section: string, instrument?: string) => void,
+  playFromOrderIndex: (orderIndex: number) => void
+): void {
+  const {
+    inspectorPanel,
+    btnToggleInspector,
+    btnCloseInspector,
+    inspectorTracks,
+    inspectorOrders,
+  } = elements;
+
+  btnToggleInspector.addEventListener("click", () => {
+    inspectorPanel.classList.toggle("hidden");
+    onSavePanelsState();
+  });
+
+  btnCloseInspector.addEventListener("click", () => {
+    inspectorPanel.classList.add("hidden");
+    onSavePanelsState();
+  });
+
+  inspectorTracks?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const playBtn = target.closest(".outline-play-btn") as HTMLElement | null;
+    if (playBtn) {
+      e.stopPropagation();
+      e.preventDefault();
+      const sec = playBtn.dataset.playSection;
+      const inst = playBtn.dataset.playInstrument;
+      if (sec) {
+        playSectionOrTrack(sec, inst);
+      }
+      return;
+    }
+
+    const clickable = target.closest("[data-start-line]") as HTMLElement | null;
+    if (clickable && clickable.dataset.startLine) {
+      const sLine = parseInt(clickable.dataset.startLine, 10);
+      const sCol = clickable.dataset.startCol ? parseInt(clickable.dataset.startCol, 10) : 1;
+      const eLine = clickable.dataset.endLine ? parseInt(clickable.dataset.endLine, 10) : sLine;
+      const eCol = clickable.dataset.endCol ? parseInt(clickable.dataset.endCol, 10) : sCol;
+
+      if (!isNaN(sLine) && sLine > 0) {
+        if (typeof editor.scrollToRange === "function") {
+          editor.scrollToRange(sLine, sCol, eLine, eCol);
+        } else {
+          editor.scrollToLine(sLine);
+        }
+      }
+    }
+  });
+
+  inspectorOrders?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const playBtn = target.closest(".order-play-btn") as HTMLElement | null;
+    if (playBtn && playBtn.dataset.playOrderIndex !== undefined) {
+      e.stopPropagation();
+      e.preventDefault();
+      const idx = parseInt(playBtn.dataset.playOrderIndex, 10);
+      if (!isNaN(idx) && idx >= 0) {
+        playFromOrderIndex(idx);
+      }
+    }
+  });
+}
