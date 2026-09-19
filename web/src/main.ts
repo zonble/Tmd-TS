@@ -36,6 +36,10 @@ const btnCloseLibrary = document.getElementById("btn-close-library") as HTMLButt
 const btnLibraryNew = document.getElementById("btn-library-new") as HTMLButtonElement;
 const btnBackupZip = document.getElementById("btn-backup-zip") as HTMLButtonElement;
 const inputImportTmd = document.getElementById("input-import-tmd") as HTMLInputElement;
+const btnImportGist = document.getElementById("btn-import-gist") as HTMLButtonElement;
+const importGistModal = document.getElementById("import-gist-modal") as HTMLDialogElement;
+const inputGistUrl = document.getElementById("input-gist-url") as HTMLInputElement;
+const btnConfirmImportGist = document.getElementById("btn-confirm-import-gist") as HTMLButtonElement;
 const libraryScoresList = document.getElementById("library-scores-list") as HTMLElement;
 const librarySamplesList = document.getElementById("library-samples-list") as HTMLElement;
 const libraryScoresCount = document.getElementById("library-scores-count") as HTMLElement;
@@ -397,13 +401,18 @@ function initEvents() {
       btnCloseLibrary,
       btnLibraryNew,
       inputImportTmd,
+      btnImportGist,
+      importGistModal,
+      inputGistUrl,
+      btnConfirmImportGist,
       libraryScoresList,
       librarySamplesList,
       libraryScoresCount,
     },
     () => editor,
     (text) => handleScoreUpdated(text),
-    () => triggerSavePanelsState()
+    () => triggerSavePanelsState(),
+    (msg, type) => showToast(msg, type)
   );
   libraryController.init();
 
@@ -686,6 +695,7 @@ function initEvents() {
   // Close modals on cancel button click
   document.querySelectorAll(".btn-close-modal").forEach((btn) => {
     btn.addEventListener("click", () => {
+      importGistModal?.close();
       refactorInstrumentModal?.close();
       refactorSectionModal?.close();
       refactorExtractModal?.close();

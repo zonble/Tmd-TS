@@ -2,6 +2,7 @@ import { SavedScore, TmdStorage, extractTmdTitle } from "../storage/db.js";
 import { SAMPLES } from "../samples.js";
 import { escapeHtml } from "../html.js";
 import { t } from "../i18n.js";
+import { fetchGistTmd } from "../gist.js";
 import type { TMDWebEditor } from "../editor.js";
 
 export interface LibraryDrawerElements {
@@ -10,6 +11,10 @@ export interface LibraryDrawerElements {
   btnCloseLibrary?: HTMLButtonElement | null;
   btnLibraryNew?: HTMLButtonElement | null;
   inputImportTmd?: HTMLInputElement | null;
+  btnImportGist?: HTMLButtonElement | null;
+  importGistModal?: HTMLDialogElement | null;
+  inputGistUrl?: HTMLInputElement | null;
+  btnConfirmImportGist?: HTMLButtonElement | null;
   libraryScoresList?: HTMLElement | null;
   librarySamplesList?: HTMLElement | null;
   libraryScoresCount?: HTMLElement | null;
@@ -24,7 +29,8 @@ export class TMDLibraryDrawerController {
     private elements: LibraryDrawerElements,
     private getEditor: () => TMDWebEditor,
     private onScoreLoaded: (text: string) => void,
-    private onSavePanelsState: () => void
+    private onSavePanelsState: () => void,
+    private onShowToast?: (message: string, type?: "success" | "error") => void
   ) {}
 
   public init(): void {
@@ -73,6 +79,57 @@ export class TMDLibraryDrawerController {
         inputImportTmd.value = "";
       } catch (err: any) {
         alert(`匯入失敗: ${err.message || String(err)}`);
+      }
+    });
+
+    const { btnImportGist, importGistModal, inputGistUrl, btnConfirmImportGist } = this.elements;
+
+    btnImportGist?.addEventListener("click", () => {
+      if (inputGistUrl) inputGistUrl.value = "";
+      importGistModal?.showModal();
+      setTimeout(() => inputGistUrl?.focus(), 50);
+    });
+
+    const handleImportGistConfirm = async () => {
+      const urlOrId = inputGistUrl?.value?.trim();
+      if (!urlOrId) {
+        inputGistUrl?.focus();
+        return;
+      }
+      try {
+        if (btnConfirmImportGist) {
+          btnConfirmImportGist.disabled = true;
+          btnConfirmImportGist.textContent = "⏳ ...";
+        }
+        const result = await fetchGistTmd(urlOrId);
+        const saved = await TmdStorage.saveScore({
+          title: result.title,
+          content: result.content,
+        });
+        this.loadScoreIntoEditor(saved);
+        importGistModal?.close();
+        if (this.onShowToast) {
+          this.onShowToast(t("importGistSuccess").replace("{title}", saved.title), "success");
+        }
+      } catch (err: any) {
+        const errorMsg = err.message || String(err);
+        alert(t("importGistError").replace("{error}", errorMsg));
+      } finally {
+        if (btnConfirmImportGist) {
+          btnConfirmImportGist.disabled = false;
+          btnConfirmImportGist.textContent = t("btnConfirm") || "確認";
+        }
+      }
+    };
+
+    btnConfirmImportGist?.addEventListener("click", () => {
+      handleImportGistConfirm();
+    });
+
+    inputGistUrl?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleImportGistConfirm();
       }
     });
 

@@ -220,6 +220,7 @@
                 <span class="btn-icon">📂</span><span data-i18n="btnImportTmd">匯入</span>
                 <input type="file" id="input-import-tmd" accept=".tmd,.txt" style="display: none;" />
               </label>
+              <button id="btn-import-gist" class="btn btn-sm" title="從 GitHub Gist 匯入樂譜" data-i18n-title="btnImportGistTitle"><span class="btn-icon">🐙</span><span data-i18n="btnImportGist">Gist</span></button>
               <button id="btn-backup-zip" class="btn btn-sm" title="打包下載所有自訂樂譜 (ZIP)" data-i18n-title="btnBackupZipTitle"><span class="btn-icon">📦</span><span data-i18n="btnBackupZip">備份打包</span></button>
             </div>
             <button id="btn-close-library" class="btn btn-icon-only" style="padding: 2px 6px; font-size: 11px;">✕</button>
@@ -632,6 +633,24 @@ verse:Lead@|0|{
         <form method="dialog" class="modal-footer">
           <button id="btn-dismiss-help" class="btn btn-primary" data-i18n="btnDismissHelp">了解</button>
         </form>
+      </dialog>
+
+      <!-- Import Gist Modal -->
+      <dialog id="import-gist-modal" class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title" data-i18n="importGistModalTitle">從 GitHub Gist 匯入樂譜</h2>
+          <button class="btn btn-icon-only btn-close-modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="input-gist-url" data-i18n="importGistPrompt">請輸入 GitHub Gist 網址或 Gist ID：</label>
+            <input type="text" id="input-gist-url" class="text-control" data-i18n-placeholder="importGistPlaceholder" placeholder="https://gist.github.com/username/id 或 Gist ID" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-confirm-import-gist" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+        </div>
       </dialog>
 
       <!-- Refactor Modals -->
