@@ -75,29 +75,31 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
   it("binds Tools actions, keyboard shortcut, and problems check in web/src/main.ts", () => {
     const mainPath = path.join(__dirname, "../web/src/main.ts");
     const mainContent = fs.readFileSync(mainPath, "utf-8");
-
-    // TMDRefactor and TMDMeasureChecker imported
+    const domPath = path.join(__dirname, "../web/src/ui/dom.ts");
+    const domContent = fs.existsSync(domPath) ? fs.readFileSync(domPath, "utf-8") : "";
+    const toolsPath = path.join(__dirname, "../web/src/ui/toolsMenu.ts");
+    const toolsContent = fs.existsSync(toolsPath) ? fs.readFileSync(toolsPath, "utf-8") : "";
     const problemsPath = path.join(__dirname, "../web/src/ui/problemsPanel.ts");
     const problemsContent = fs.existsSync(problemsPath) ? fs.readFileSync(problemsPath, "utf-8") : "";
-    const fullContent = [mainContent, problemsContent].join("\n");
+    const fullContent = [mainContent, domContent, toolsContent, problemsContent].join("\n");
 
     expect(fullContent).toContain("TMDRefactor");
     expect(fullContent).toContain("TMDMeasureChecker");
 
     // Events bound
-    expect(mainContent).toContain("tool-format-document");
-    expect(mainContent).toContain("tool-double-grid");
-    expect(mainContent).toContain("tool-halve-grid");
-    expect(mainContent).toContain("tool-duplicate-track");
-    expect(mainContent).toContain("tool-generate-harmony");
-    expect(mainContent).toContain("tool-inline-orders");
-    expect(mainContent).toContain("tool-rename-instrument");
-    expect(mainContent).toContain("tool-rename-section");
-    expect(mainContent).toContain("tool-extract-instrument");
+    expect(fullContent).toContain("tool-format-document");
+    expect(fullContent).toContain("tool-double-grid");
+    expect(fullContent).toContain("tool-halve-grid");
+    expect(fullContent).toContain("tool-duplicate-track");
+    expect(fullContent).toContain("tool-generate-harmony");
+    expect(fullContent).toContain("tool-inline-orders");
+    expect(fullContent).toContain("tool-rename-instrument");
+    expect(fullContent).toContain("tool-rename-section");
+    expect(fullContent).toContain("tool-extract-instrument");
 
     // Problems panel logic
-    expect(mainContent).toContain("problems-panel");
-    expect(mainContent).toContain("problems-list");
+    expect(fullContent).toContain("problems-panel");
+    expect(fullContent).toContain("problems-list");
   });
 
   it("editor.ts supports onFormat hotkey extension, toggleComment (Mod-/ and Shift-Alt-A), and getCursorContext()", () => {
@@ -137,13 +139,15 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
   it("binds context menu events, snippet insertion, and section-scoped refactor in web/src/main.ts", () => {
     const mainPath = path.join(__dirname, "../web/src/main.ts");
     const mainContent = fs.readFileSync(mainPath, "utf-8");
+    const domPath = path.join(__dirname, "../web/src/ui/dom.ts");
+    const domContent = fs.existsSync(domPath) ? fs.readFileSync(domPath, "utf-8") : "";
     const toolsPath = path.join(__dirname, "../web/src/ui/toolsMenu.ts");
     const toolsContent = fs.existsSync(toolsPath) ? fs.readFileSync(toolsPath, "utf-8") : "";
     const refactorModalPath = path.join(__dirname, "../web/src/ui/modals/refactorModals.ts");
     const refactorModalContent = fs.existsSync(refactorModalPath) ? fs.readFileSync(refactorModalPath, "utf-8") : "";
     const insertModalPath = path.join(__dirname, "../web/src/ui/modals/insertSectionModal.ts");
     const insertModalContent = fs.existsSync(insertModalPath) ? fs.readFileSync(insertModalPath, "utf-8") : "";
-    const fullContent = [mainContent, toolsContent, refactorModalContent, insertModalContent].join("\n");
+    const fullContent = [mainContent, domContent, toolsContent, refactorModalContent, insertModalContent].join("\n");
 
     expect(fullContent).toContain("editor-context-menu");
     expect(fullContent).toContain("getCursorContext");
@@ -209,9 +213,11 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     // main.ts audio module, metronome, and quantizer wiring
     const mainPath = path.join(__dirname, "../web/src/main.ts");
     const mainContent = fs.readFileSync(mainPath, "utf-8");
+    const domPath = path.join(__dirname, "../web/src/ui/dom.ts");
+    const domContent = fs.existsSync(domPath) ? fs.readFileSync(domPath, "utf-8") : "";
     const humPath = path.join(__dirname, "../web/src/ui/modals/humModal.ts");
     const humContent = fs.existsSync(humPath) ? fs.readFileSync(humPath, "utf-8") : "";
-    const fullAudioUi = [mainContent, humContent].join("\n");
+    const fullAudioUi = [mainContent, domContent, humContent].join("\n");
 
     expect(fullAudioUi).toContain("quantizeNoteEventsToTmdSection");
     expect(fullAudioUi).toContain("detectTonicAndScale");

@@ -20,9 +20,11 @@ describe('Web UI Exporters & REAPER support (TDD)', () => {
   it('binds export-reaper button in web/src/main.ts and handles RPP download', () => {
     const mainPath = path.join(__dirname, '../web/src/main.ts');
     const mainContent = fs.readFileSync(mainPath, 'utf-8');
+    const domPath = path.join(__dirname, '../web/src/ui/dom.ts');
+    const domContent = fs.existsSync(domPath) ? fs.readFileSync(domPath, 'utf-8') : '';
     const exportPath = path.join(__dirname, '../web/src/ui/exportMenu.ts');
     const exportContent = fs.existsSync(exportPath) ? fs.readFileSync(exportPath, 'utf-8') : '';
-    const fullContent = [mainContent, exportContent].join('\n');
+    const fullContent = [mainContent, domContent, exportContent].join('\n');
 
     expect(fullContent).toContain('export-reaper');
     expect(fullContent).toContain('TMDReaperGenerator');
@@ -48,9 +50,11 @@ describe('Web UI Exporters & REAPER support (TDD)', () => {
   it('binds export-vsq and export-vsqx buttons in web/src/main.ts', () => {
     const mainPath = path.join(__dirname, '../web/src/main.ts');
     const mainContent = fs.readFileSync(mainPath, 'utf-8');
+    const domPath = path.join(__dirname, '../web/src/ui/dom.ts');
+    const domContent = fs.existsSync(domPath) ? fs.readFileSync(domPath, 'utf-8') : '';
     const exportPath = path.join(__dirname, '../web/src/ui/exportMenu.ts');
     const exportContent = fs.existsSync(exportPath) ? fs.readFileSync(exportPath, 'utf-8') : '';
-    const fullContent = [mainContent, exportContent].join('\n');
+    const fullContent = [mainContent, domContent, exportContent].join('\n');
 
     expect(fullContent).toContain('export-vsq');
     expect(fullContent).toContain('export-vsqx');

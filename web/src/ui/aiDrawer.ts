@@ -106,6 +106,8 @@ export class TMDAIDrawerController {
     const aiPreviewProblemsList =
       this.elements.aiPreviewProblemsList ||
       (document.getElementById("ai-preview-problems-list") as HTMLElement | null);
+    const retryRepairBtn =
+      btnAiRetryRepair || (document.getElementById("btn-ai-retry-repair") as HTMLButtonElement | null);
 
     this.updateAiSettingsButtonState();
 
