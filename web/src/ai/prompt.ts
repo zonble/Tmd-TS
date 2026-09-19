@@ -90,3 +90,62 @@ ${options.faultyTmd}
 3. Return the complete corrected score inside a single \`\`\`tmd ... \`\`\` code block.`;
 }
 
+export interface ProblemsFixOptions {
+  scoreContent: string;
+  issues?: Array<{
+    paragraphName?: string;
+    instrument?: string;
+    lineNumber?: number;
+    measureIndex?: number;
+    expectedUnits?: number;
+    actualUnits?: number;
+    deltaUnits?: number;
+    description?: string;
+    snippet?: string;
+  }>;
+  syntaxError?: {
+    message: string;
+    line?: number;
+    column?: number;
+    snippet?: string;
+  };
+}
+
+export function buildProblemsFixPrompt(options: ProblemsFixOptions): string {
+  const issuesList: string[] = [];
+
+  if (options.syntaxError) {
+    const loc = options.syntaxError.line ? `Line ${options.syntaxError.line}` : "";
+    issuesList.push(`- [Syntax Error] ${loc}: ${options.syntaxError.message}`);
+    if (options.syntaxError.snippet) {
+      issuesList.push(`  Snippet: > ${options.syntaxError.snippet}`);
+    }
+  }
+
+  if (options.issues && options.issues.length > 0) {
+    options.issues.forEach((issue) => {
+      const desc = issue.description || `${issue.paragraphName}:${issue.instrument} (line ${issue.lineNumber}): Expected ${issue.expectedUnits} units, found ${issue.actualUnits} units`;
+      issuesList.push(`- [Measure Issue] ${desc}`);
+      if (issue.snippet) {
+        issuesList.push(`  Measure Snippet: ${issue.snippet}`);
+      }
+    });
+  }
+
+  return `The current TMD musical score has reported issues in the Studio Problems Panel. Please analyze the score and studio problem diagnostics below, fix all discrepancies, and return the complete corrected score.
+
+=== PROBLEMS PANEL DIAGNOSTICS ===
+${issuesList.join("\n")}
+
+=== CURRENT TMD SCORE ===
+\`\`\`tmd
+${options.scoreContent}
+\`\`\`
+
+=== FIX REQUIREMENTS ===
+1. If there is a syntax error, fix the formatting so the score parses without errors.
+2. If there are measure unit discrepancies (e.g. expected 4 units in <4/4> grid, but found 3 units), balance the measure by adjusting note values, adding ties '-' or rests '0' as appropriate for the musical style.
+3. Keep the overall musical arrangement, melodies, chords, and section structures intact.
+4. Return ONLY the complete, corrected score inside a single \`\`\`tmd ... \`\`\` code block.`;
+}
+

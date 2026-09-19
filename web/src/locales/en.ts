@@ -257,5 +257,8 @@ export const en = {
   humGrid4: "Quarter Notes (<4*>)",
   humGrid16: "16th Notes (<16*>)",
   humStatusCountIn: "🔔 Count-in: Beat {count}...",
+  problemsFixAllWithAi: "✨ Fix All with AI",
+  problemsFixWithAi: "✨ Fix with AI",
+  aiPreviewProblemsWarning: "⚠️ Generated score still has {count} issues to resolve (click to inspect)",
 };
 

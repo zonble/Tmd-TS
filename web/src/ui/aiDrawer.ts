@@ -7,11 +7,14 @@ import {
   extractTmdCode,
   buildRepairPrompt,
   validateTmdCode,
+  validateTmdCodeWithIssues,
+  buildProblemsFixPrompt,
   MODEL_PRESETS,
   DEFAULT_MODELS,
   AIProviderType,
   AISettingsState,
 } from "../ai/index.js";
+import { escapeHtml } from "../html.js";
 import { getCurrentLocale, t } from "../i18n.js";
 import type { TMDWebEditor } from "../editor.js";
 
@@ -28,6 +31,8 @@ export interface AIDrawerElements {
   aiStatusText: HTMLElement;
   aiResultContainer: HTMLElement;
   aiResultOutput: HTMLElement;
+  aiPreviewProblemsBadge?: HTMLElement | null;
+  aiPreviewProblemsList?: HTMLElement | null;
   btnAiPreviewPlay?: HTMLButtonElement | null;
   btnAiCopyCode?: HTMLButtonElement | null;
   btnAiApplyReplace?: HTMLButtonElement | null;
@@ -94,6 +99,13 @@ export class TMDAIDrawerController {
       aiBtnCopySkill,
       inspectorPanel,
     } = this.elements;
+
+    const aiPreviewProblemsBadge =
+      this.elements.aiPreviewProblemsBadge ||
+      (document.getElementById("ai-preview-problems-badge") as HTMLElement | null);
+    const aiPreviewProblemsList =
+      this.elements.aiPreviewProblemsList ||
+      (document.getElementById("ai-preview-problems-list") as HTMLElement | null);
 
     this.updateAiSettingsButtonState();
 
@@ -185,15 +197,26 @@ export class TMDAIDrawerController {
       }
     });
 
+    aiPreviewProblemsBadge?.addEventListener("click", () => {
+      if (aiPreviewProblemsList) {
+        const isHidden = aiPreviewProblemsList.style.display === "none";
+        aiPreviewProblemsList.style.display = isHidden ? "block" : "none";
+      }
+    });
+
     btnAiPreviewPlay?.addEventListener("click", () => {
       const { aiResultOutput } = this.elements;
       const codeToPlay = this.aiCurrentGeneratedCode || extractTmdCode(aiResultOutput.textContent || "");
       if (!codeToPlay) {
         return alert(t("aiNoCodeFound"));
       }
-      const check = validateTmdCode(codeToPlay);
-      if (!check.valid) {
+      const check = validateTmdCodeWithIssues(codeToPlay);
+      if (!check.syntaxValid) {
         return alert(t("aiInvalidTmdWarning"));
+      }
+      if (!check.allValid) {
+        const proceed = confirm(t("aiPreviewProblemsWarning").replace("{count}", String(check.measureIssues.length)) + "\n\n" + (t("alertCannotPlaySyntax") ? "Continue anyway?" : "仍要試聽嗎？"));
+        if (!proceed) return;
       }
       this.startPlayback(codeToPlay);
     });
@@ -381,6 +404,51 @@ export class TMDAIDrawerController {
       .replace("{error}", validation.message);
   }
 
+  private updatePreviewDiagnostics(tmdCode: string): void {
+    const { aiPreviewProblemsBadge, aiPreviewProblemsList } = this.elements;
+    if (!aiPreviewProblemsBadge) return;
+
+    const result = validateTmdCodeWithIssues(tmdCode);
+    aiPreviewProblemsBadge.style.display = "inline-flex";
+
+    if (result.allValid) {
+      aiPreviewProblemsBadge.className = "problems-badge valid";
+      aiPreviewProblemsBadge.textContent = "0 問題";
+      if (aiPreviewProblemsList) {
+        aiPreviewProblemsList.innerHTML = `<div class="problem-empty-hint" style="padding: 6px 10px; font-size: 11px;">${escapeHtml(t("problemsAllValid"))}</div>`;
+        aiPreviewProblemsList.style.display = "none";
+      }
+    } else if (!result.syntaxValid) {
+      aiPreviewProblemsBadge.className = "problems-badge error";
+      aiPreviewProblemsBadge.textContent = "1 語法錯誤";
+      if (aiPreviewProblemsList) {
+        aiPreviewProblemsList.innerHTML = `
+          <div class="problem-item error" style="padding: 4px 8px; font-size: 11px;">
+            <span class="problem-item-line">Ln ${result.syntaxError?.line || 1}</span>
+            <span class="problem-item-msg">${escapeHtml(result.syntaxError?.message || "Syntax Error")}</span>
+          </div>
+        `;
+      }
+    } else {
+      aiPreviewProblemsBadge.className = "problems-badge warning";
+      aiPreviewProblemsBadge.textContent = `${result.measureIssues.length} 問題`;
+      if (aiPreviewProblemsList) {
+        aiPreviewProblemsList.innerHTML = result.measureIssues
+          .map((issue) => {
+            const line = issue.lineNumber || 1;
+            const msg = issue.description || `${issue.paragraphName}:${issue.instrument} measure issue`;
+            return `
+              <div class="problem-item warning" style="padding: 4px 8px; font-size: 11px;">
+                <span class="problem-item-line">Ln ${line}</span>
+                <span class="problem-item-msg">${escapeHtml(msg)}</span>
+              </div>
+            `;
+          })
+          .join("");
+      }
+    }
+  }
+
   private async handleValidationAndRepair(
     tmdCode: string,
     originalPrompt: string,
@@ -391,6 +459,7 @@ export class TMDAIDrawerController {
     const { aiValidationBanner, btnAiPreviewPlay, aiStatusText, aiResultOutput } = this.elements;
     this.aiCurrentGeneratedCode = tmdCode;
     const validation = validateTmdCode(tmdCode);
+    this.updatePreviewDiagnostics(tmdCode);
 
     if (validation.valid) {
       if (aiValidationBanner) aiValidationBanner.style.display = "none";
@@ -584,5 +653,32 @@ export class TMDAIDrawerController {
       if (btnAiStop) btnAiStop.style.display = "none";
       this.aiAbortController = null;
     }
+  }
+
+  public launchProblemFix(diagnostics: {
+    issues?: any[];
+    syntaxError?: any;
+  }): void {
+    const { aiDrawer, aiPromptInput, inspectorPanel } = this.elements;
+    const editor = this.getEditor();
+    const scoreContent = editor.getContent();
+
+    const prompt = buildProblemsFixPrompt({
+      scoreContent,
+      issues: diagnostics.issues,
+      syntaxError: diagnostics.syntaxError,
+    });
+
+    aiPromptInput.value = prompt;
+    aiPromptInput.dataset.activeMode = "debug";
+
+    aiDrawer.classList.remove("hidden");
+    if (window.innerWidth < 800) {
+      inspectorPanel.classList.add("hidden");
+    }
+    this.updateAiSettingsButtonState();
+    this.onSavePanelsState();
+
+    this.generateCode();
   }
 }

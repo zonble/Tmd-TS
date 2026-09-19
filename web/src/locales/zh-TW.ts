@@ -257,5 +257,8 @@ export const zhTW = {
   humGrid4: "4 分音符 (<4*>)",
   humGrid16: "16 分音符 (<16*>)",
   humStatusCountIn: "🔔 預備倒數：第 {count} 拍…",
+  problemsFixAllWithAi: "✨ AI 一鍵修復全部",
+  problemsFixWithAi: "✨ AI 修復",
+  aiPreviewProblemsWarning: "⚠️ 此生成樂譜仍有 {count} 個問題待修正（點擊展開查看詳情）",
 };
 

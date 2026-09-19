@@ -176,5 +176,93 @@ A:Piano|0|{
     expect((en as any).aiValidationError).toBeDefined();
     expect((zhTW as any).aiBtnRetryRepair).toBeDefined();
     expect((en as any).aiBtnRetryRepair).toBeDefined();
+    expect((zhTW as any).problemsFixAllWithAi).toBeDefined();
+    expect((en as any).problemsFixAllWithAi).toBeDefined();
+    expect((zhTW as any).problemsFixWithAi).toBeDefined();
+    expect((en as any).problemsFixWithAi).toBeDefined();
+    expect((zhTW as any).aiPreviewProblemsWarning).toBeDefined();
+    expect((en as any).aiPreviewProblemsWarning).toBeDefined();
+  });
+
+  it('builds diagnostic fix prompt for studio problems (both syntax errors and measure inconsistency issues)', async () => {
+    const { buildProblemsFixPrompt } = await import('../web/src/ai/prompt.js');
+
+    const promptWithMeasureIssues = buildProblemsFixPrompt({
+      scoreContent: `::SCORE::\n** Test **\n!= 120\n?= C\n<4/4>\n\nverse:Piano@|0|{\n  <4*>\n  | 1 2 3 |\n}\n-> verse ->#`,
+      issues: [
+        {
+          paragraphName: 'verse',
+          instrument: 'Piano',
+          lineNumber: 8,
+          measureIndex: 1,
+          expectedUnits: 4,
+          actualUnits: 3,
+          deltaUnits: -1,
+          noteLength: 4,
+          beat: { count: 4, unit: 4 },
+          snippet: '| 1 2 3 |',
+          description: 'verse:Piano (line 8, measure 1): Expected 4 units, found 3 units (-1 units)',
+        },
+      ],
+    });
+
+    expect(promptWithMeasureIssues).toContain('studio problem diagnostic');
+    expect(promptWithMeasureIssues).toContain('verse:Piano (line 8, measure 1)');
+    expect(promptWithMeasureIssues).toContain('Expected 4 units, found 3 units');
+    expect(promptWithMeasureIssues).toContain('| 1 2 3 |');
+    expect(promptWithMeasureIssues).toContain('```tmd');
+
+    const promptWithSyntaxError = buildProblemsFixPrompt({
+      scoreContent: `::SCORE::\n** Bad Syntax **\n!= 120\n?= C\n<4/4>\nverse:Piano@|0|{ <4*> 1 2 3 4\n-> verse ->#`,
+      syntaxError: {
+        message: 'Unexpected token at line 7',
+        line: 7,
+      },
+    });
+
+    expect(promptWithSyntaxError).toContain('Syntax Error');
+    expect(promptWithSyntaxError).toContain('Line 7');
+    expect(promptWithSyntaxError).toContain('Unexpected token at line 7');
+  });
+
+  it('validates TMD code with measure check issues in validateTmdCodeWithIssues', async () => {
+    const { validateTmdCodeWithIssues } = await import('../web/src/ai/validator.js');
+
+    // Score with correct syntax but measure mismatch
+    const tmdMismatch = `::SCORE::
+** Mismatch **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+  <4*>
+  | 1 2 3 |
+}
+-> verse ->#`;
+
+    const result = validateTmdCodeWithIssues(tmdMismatch);
+    expect(result.syntaxValid).toBe(true);
+    expect(result.measureIssues.length).toBeGreaterThan(0);
+    expect(result.measureIssues[0].expectedUnits).toBe(4);
+    expect(result.measureIssues[0].actualUnits).toBe(3);
+
+    // Score fully valid
+    const tmdValid = `::SCORE::
+** Valid **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+  <4*>
+  | 1 2 3 4 |
+}
+-> verse ->#`;
+
+    const validResult = validateTmdCodeWithIssues(tmdValid);
+    expect(validResult.syntaxValid).toBe(true);
+    expect(validResult.measureIssues.length).toBe(0);
+    expect(validResult.allValid).toBe(true);
   });
 });

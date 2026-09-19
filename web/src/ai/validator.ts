@@ -85,3 +85,42 @@ export function validateTmdCode(tmd: string): ValidationResult {
     };
   }
 }
+
+import { TMDMeasureChecker, TMDMeasureIssue } from "../../../src/core/measure_check.js";
+
+export interface ComprehensiveValidationResult {
+  syntaxValid: boolean;
+  syntaxError?: {
+    message: string;
+    line: number;
+    column: number;
+    snippet: string;
+  };
+  measureIssues: TMDMeasureIssue[];
+  allValid: boolean;
+}
+
+export function validateTmdCodeWithIssues(tmd: string): ComprehensiveValidationResult {
+  const syntax = validateTmdCode(tmd);
+  if (!syntax.valid) {
+    return {
+      syntaxValid: false,
+      syntaxError: {
+        message: syntax.message,
+        line: syntax.line,
+        column: syntax.column,
+        snippet: syntax.snippet,
+      },
+      measureIssues: [],
+      allValid: false,
+    };
+  }
+
+  const measureIssues = TMDMeasureChecker.check(tmd);
+  return {
+    syntaxValid: true,
+    measureIssues,
+    allValid: measureIssues.length === 0,
+  };
+}
+

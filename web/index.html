@@ -258,7 +258,10 @@
                 <span class="problems-panel-title" data-i18n="problemsPanelTitle">問題與檢驗</span>
                 <span id="problems-count-badge" class="problems-badge valid">0</span>
               </div>
-              <button id="btn-toggle-problems" class="btn btn-icon-only" title="切換問題面板" data-i18n-title="btnToggleProblems">▼</button>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <button id="btn-fix-problems-ai" class="btn btn-sm btn-fix-all-ai" style="display: none; font-size: 11px; padding: 2px 8px;" data-i18n="problemsFixAllWithAi">✨ AI 一鍵修復全部</button>
+                <button id="btn-toggle-problems" class="btn btn-icon-only" title="切換問題面板" data-i18n-title="btnToggleProblems">▼</button>
+              </div>
             </div>
             <div id="problems-list" class="problems-list">
               <!-- Dynamically populated -->
@@ -391,7 +394,10 @@
                   <button id="btn-ai-retry-repair" class="btn btn-sm" style="flex-shrink: 0; background: var(--accent-red, #f85149); color: #fff; border: none; font-size: 11px; padding: 4px 8px; cursor: pointer;" data-i18n="aiBtnRetryRepair">🔧 請 AI 再次修復</button>
                 </div>
                 <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
-                  <span>生成結果 (TMD Preview)</span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span>生成結果 (TMD Preview)</span>
+                    <span id="ai-preview-problems-badge" class="problems-badge valid" style="display: none; cursor: pointer; font-size: 11px;">0 問題</span>
+                  </div>
                   <div class="ai-result-btn-row">
                     <button id="btn-ai-preview-play" class="btn btn-sm" title="試聽生成的樂譜" data-i18n="aiBtnPlayPreview">▶️ 試聽</button>
                     <button id="btn-ai-copy-code" class="btn btn-sm" title="複製代碼" data-i18n="aiBtnCopyCode">📋 複製</button>
@@ -399,6 +405,8 @@
                     <button id="btn-ai-apply-insert" class="btn btn-sm" title="插入至游標位置" data-i18n="aiBtnApplyInsert">插入游標處</button>
                   </div>
                 </div>
+                <!-- AI Preview Problems Dropdown / List -->
+                <div id="ai-preview-problems-list" class="problems-list" style="display: none; margin-bottom: 8px; max-height: 120px; background: rgba(0, 0, 0, 0.2); border-radius: 4px; border: 1px solid var(--border-color);"></div>
                 <pre id="ai-result-output" class="ai-code-preview"></pre>
               </div>
             </div>

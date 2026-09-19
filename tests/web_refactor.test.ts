@@ -232,5 +232,28 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(fullContent).toContain("savePanelsState");
     expect(fullContent).toContain("loadPanelsState");
   });
+
+  it("supports 'Fix with AI' in Problems Panel and displays real-time Problems diagnostics in AI Drawer preview", () => {
+    // index.html should contain Fix All with AI button and AI Preview Problems badge/details
+    const htmlPath = path.join(__dirname, "../web/index.html");
+    const html = fs.readFileSync(htmlPath, "utf-8");
+    expect(html).toContain('id="btn-fix-problems-ai"');
+    expect(html).toContain('id="ai-preview-problems-badge"');
+    expect(html).toContain('id="ai-preview-problems-list"');
+
+    // problemsPanel.ts should handle fix-with-ai clicks and emit callbacks
+    const problemsPanelPath = path.join(__dirname, "../web/src/ui/problemsPanel.ts");
+    const problemsPanelContent = fs.readFileSync(problemsPanelPath, "utf-8");
+    expect(problemsPanelContent).toContain("btn-fix-problems-ai");
+    expect(problemsPanelContent).toContain("data-action=\"fix-ai\"");
+
+    // aiDrawer.ts should render preview problems and support launchProblemFix
+    const aiDrawerPath = path.join(__dirname, "../web/src/ui/aiDrawer.ts");
+    const aiDrawerContent = fs.readFileSync(aiDrawerPath, "utf-8");
+    expect(aiDrawerContent).toContain("validateTmdCodeWithIssues");
+    expect(aiDrawerContent).toContain("launchProblemFix");
+    expect(aiDrawerContent).toContain("ai-preview-problems-badge");
+  });
 });
+
 

@@ -7,27 +7,57 @@ import type { TMDWebEditor } from "../editor.js";
 export interface ProblemsPanelElements {
   problemsPanel: HTMLElement;
   btnToggleProblems?: HTMLButtonElement | null;
+  btnFixProblemsAi?: HTMLButtonElement | null;
   problemsCountBadge: HTMLElement;
   problemsList: HTMLElement;
 }
+
+export interface ProblemFixTarget {
+  syntaxError?: {
+    message: string;
+    line?: number;
+    column?: number;
+    snippet?: string;
+  };
+  issues?: TMDMeasureIssue[];
+}
+
+let currentIssues: TMDMeasureIssue[] = [];
+let currentSyntaxError: { message: string; line: number; snippet?: string } | null = null;
 
 export function updateProblemsPanel(
   text: string,
   elements: ProblemsPanelElements
 ): void {
-  const { problemsPanel, problemsCountBadge, problemsList } = elements;
+  const { problemsPanel, btnFixProblemsAi, problemsCountBadge, problemsList } = elements;
   if (!problemsPanel || !problemsList || !problemsCountBadge) return;
+
+  const fixAllBtn = btnFixProblemsAi || (problemsPanel.querySelector("#btn-fix-problems-ai") as HTMLButtonElement | null);
 
   // First check if syntax parse fails
   try {
     TmdParser.parse(text);
+    currentSyntaxError = null;
   } catch (err: any) {
+    currentSyntaxError = {
+      message: err.message || "Syntax Error",
+      line: 1,
+    };
+    currentIssues = [];
+
     problemsCountBadge.className = "problems-badge error";
     problemsCountBadge.textContent = "1";
+    if (fixAllBtn) fixAllBtn.style.display = "inline-flex";
+
     problemsList.innerHTML = `
       <div class="problem-item error" data-line="1">
-        <span class="problem-item-line">Ln 1</span>
-        <span class="problem-item-msg">${escapeHtml(err.message || "Syntax Error")}</span>
+        <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+          <span class="problem-item-line">Ln 1</span>
+          <span class="problem-item-msg">${escapeHtml(err.message || "Syntax Error")}</span>
+        </div>
+        <button class="btn btn-sm btn-quick-fix-ai" data-action="fix-ai" title="${escapeHtml(t("problemsFixWithAi"))}">
+          ${escapeHtml(t("problemsFixWithAi"))}
+        </button>
       </div>
     `;
     return;
@@ -35,21 +65,30 @@ export function updateProblemsPanel(
 
   // If syntax is valid, run TMDMeasureChecker
   const issues: TMDMeasureIssue[] = TMDMeasureChecker.check(text);
+  currentIssues = issues;
+
   if (issues.length === 0) {
+    if (fixAllBtn) fixAllBtn.style.display = "none";
     problemsCountBadge.className = "problems-badge valid";
     problemsCountBadge.textContent = "0";
     problemsList.innerHTML = `<div class="problem-empty-hint">${escapeHtml(t("problemsAllValid"))}</div>`;
   } else {
+    if (fixAllBtn) fixAllBtn.style.display = "inline-flex";
     problemsCountBadge.className = "problems-badge warning";
     problemsCountBadge.textContent = issues.length.toString();
     problemsList.innerHTML = issues
-      .map((issue) => {
+      .map((issue, idx) => {
         const line = issue.lineNumber || 1;
         const msg = issue.description || `${issue.paragraphName}:${issue.instrument} measure issue`;
         return `
           <div class="problem-item warning" data-line="${line}">
-            <span class="problem-item-line">Ln ${line}</span>
-            <span class="problem-item-msg">${escapeHtml(msg)}</span>
+            <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+              <span class="problem-item-line">Ln ${line}</span>
+              <span class="problem-item-msg">${escapeHtml(msg)}</span>
+            </div>
+            <button class="btn btn-sm btn-quick-fix-ai" data-action="fix-ai" data-issue-idx="${idx}" title="${escapeHtml(t("problemsFixWithAi"))}">
+              ${escapeHtml(t("problemsFixWithAi"))}
+            </button>
           </div>
         `;
       })
@@ -60,10 +99,13 @@ export function updateProblemsPanel(
 export function setupProblemsPanelEvents(
   elements: ProblemsPanelElements,
   editor: TMDWebEditor,
-  onStateChange: () => void
+  onStateChange: () => void,
+  onFixWithAi?: (target: ProblemFixTarget) => void
 ): void {
-  const { problemsPanel, btnToggleProblems, problemsList } = elements;
+  const { problemsPanel, btnToggleProblems, btnFixProblemsAi, problemsList } = elements;
   if (!problemsPanel) return;
+
+  const fixAllBtn = btnFixProblemsAi || (problemsPanel.querySelector("#btn-fix-problems-ai") as HTMLButtonElement | null);
 
   const toggleCollapsed = () => {
     problemsPanel.classList.toggle("collapsed");
@@ -79,12 +121,48 @@ export function setupProblemsPanelEvents(
   });
 
   const problemsHeader = problemsPanel.querySelector(".problems-panel-header");
-  problemsHeader?.addEventListener("click", () => {
+  problemsHeader?.addEventListener("click", (e) => {
+    // Avoid toggling when clicking action buttons inside header
+    if ((e.target as HTMLElement).closest("button")) return;
     toggleCollapsed();
   });
 
+  fixAllBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (onFixWithAi) {
+      onFixWithAi({
+        syntaxError: currentSyntaxError || undefined,
+        issues: currentIssues.length > 0 ? currentIssues : undefined,
+      });
+    }
+  });
+
   problemsList?.addEventListener("click", (e) => {
-    const item = (e.target as HTMLElement).closest(".problem-item") as HTMLElement | null;
+    const target = e.target as HTMLElement;
+    const fixBtn = target.closest('[data-action="fix-ai"]') as HTMLElement | null;
+    if (fixBtn) {
+      e.stopPropagation();
+      const issueIdxStr = fixBtn.dataset.issueIdx;
+      if (issueIdxStr !== undefined) {
+        const idx = parseInt(issueIdxStr, 10);
+        const issue = currentIssues[idx];
+        if (onFixWithAi) {
+          onFixWithAi({
+            issues: issue ? [issue] : currentIssues,
+          });
+        }
+      } else {
+        // Syntax error fix
+        if (onFixWithAi) {
+          onFixWithAi({
+            syntaxError: currentSyntaxError || undefined,
+          });
+        }
+      }
+      return;
+    }
+
+    const item = target.closest(".problem-item") as HTMLElement | null;
     if (item && item.dataset.line) {
       const line = parseInt(item.dataset.line, 10);
       if (!isNaN(line) && line > 0) {

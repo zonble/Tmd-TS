@@ -97,6 +97,8 @@ const aiStatusText = document.getElementById("ai-status-text") as HTMLElement;
 const aiResultContainer = document.getElementById("ai-result-container") as HTMLElement;
 const aiResultOutput = document.getElementById("ai-result-output") as HTMLElement;
 const btnAiPreviewPlay = document.getElementById("btn-ai-preview-play") as HTMLButtonElement;
+const aiPreviewProblemsBadge = document.getElementById("ai-preview-problems-badge") as HTMLElement;
+const aiPreviewProblemsList = document.getElementById("ai-preview-problems-list") as HTMLElement;
 const btnAiCopyCode = document.getElementById("btn-ai-copy-code") as HTMLButtonElement;
 const btnAiApplyReplace = document.getElementById("btn-ai-apply-replace") as HTMLButtonElement;
 const btnAiApplyInsert = document.getElementById("btn-ai-apply-insert") as HTMLButtonElement;
@@ -135,6 +137,7 @@ const toolInsertSection = document.getElementById("tool-insert-section") as HTML
 // Problems Panel elements
 const problemsPanel = document.getElementById("problems-panel") as HTMLElement;
 const btnToggleProblems = document.getElementById("btn-toggle-problems") as HTMLButtonElement;
+const btnFixProblemsAi = document.getElementById("btn-fix-problems-ai") as HTMLButtonElement;
 const problemsCountBadge = document.getElementById("problems-count-badge") as HTMLElement;
 const problemsList = document.getElementById("problems-list") as HTMLElement;
 
@@ -269,6 +272,7 @@ function updateProblems(text: string) {
   updateProblemsPanel(text, {
     problemsPanel,
     btnToggleProblems,
+    btnFixProblemsAi,
     problemsCountBadge,
     problemsList,
   });
@@ -448,17 +452,6 @@ function initEvents() {
     (idx) => playerController.playFromOrderIndex(idx)
   );
 
-  setupProblemsPanelEvents(
-    {
-      problemsPanel,
-      btnToggleProblems,
-      problemsCountBadge,
-      problemsList,
-    },
-    editor,
-    () => triggerSavePanelsState()
-  );
-
   setupExportMenu(
     {
       exportDropdown,
@@ -598,6 +591,8 @@ function initEvents() {
       btnAiStop,
       btnAiRetryRepair,
       btnAiPreviewPlay,
+      aiPreviewProblemsBadge,
+      aiPreviewProblemsList,
       btnAiCopyCode,
       btnAiApplyReplace,
       btnAiApplyInsert,
@@ -628,6 +623,21 @@ function initEvents() {
     (code) => playerController.startPlayback(code)
   );
   aiDrawerController.init();
+
+  setupProblemsPanelEvents(
+    {
+      problemsPanel,
+      btnToggleProblems,
+      btnFixProblemsAi,
+      problemsCountBadge,
+      problemsList,
+    },
+    editor,
+    () => triggerSavePanelsState(),
+    (target) => {
+      aiDrawerController.launchProblemFix(target);
+    }
+  );
 
   // Language switcher
   btnLangToggle.addEventListener("click", () => {
