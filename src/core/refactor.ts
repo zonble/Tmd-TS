@@ -1,6 +1,6 @@
 import { Sheet, Paragraph, ScaleDegree, UnitGroup } from "./types.js";
 import { TmdParser } from "./parser.js";
-import { formatSheet } from "./format.js";
+import { formatSheet, formatParagraph } from "./format.js";
 
 export class TMDRefactorError extends Error {
   constructor(message: string) {
@@ -247,17 +247,49 @@ export class TMDRefactor {
       throw new TMDRefactorError(`Instrument '${instrument}' not found in score`);
     }
 
-    const extractedSheet: Sheet = {
-      name: sheet.name,
-      speed: sheet.speed,
-      keySignature: sheet.keySignature,
-      beat: sheet.beat,
-      paragraphs: matchingParagraphs,
-      orders: sheet.orders,
-      metadata: sheet.metadata,
-    };
+    const rawLines = source.split(/\r?\n/);
+    const resultLines: string[] = [];
+    let insideParagraph = false;
+    let keepParagraph = false;
 
-    return this.format(formatSheet(extractedSheet));
+    for (const rawLine of rawLines) {
+      const trimmed = rawLine.trim();
+
+      const paraMatch = trimmed.match(
+        /^([a-zA-Z0-9_\u4e00-\u9fa5-]+)\s*:\s*([a-zA-Z0-9_\u4e00-\u9fa5-]+)(@[^{]*)?\s*\{/
+      );
+      if (paraMatch) {
+        insideParagraph = true;
+        const pInst = paraMatch[2];
+        keepParagraph = pInst === instrument;
+        if (keepParagraph) {
+          resultLines.push(rawLine);
+        }
+        continue;
+      }
+
+      if (trimmed === "}") {
+        if (insideParagraph && keepParagraph) {
+          resultLines.push(rawLine);
+        }
+        insideParagraph = false;
+        keepParagraph = false;
+        continue;
+      }
+
+      if (insideParagraph) {
+        if (keepParagraph) {
+          resultLines.push(rawLine);
+        }
+        continue;
+      }
+
+      resultLines.push(rawLine);
+    }
+
+    const formatted = this.format(resultLines.join("\n"));
+    TmdParser.parseThrowing(formatted);
+    return formatted;
   }
 
   public static duplicateTrack(
@@ -311,13 +343,22 @@ export class TMDRefactor {
       };
     });
 
-    const newParagraphs = [...sheet.paragraphs, ...duplicatedParagraphs];
-    const newSheet: Sheet = {
-      ...sheet,
-      paragraphs: newParagraphs,
-    };
+    const newParagraphsText = duplicatedParagraphs
+      .map((p) => formatParagraph(p, sheet.beat))
+      .join("\n");
 
-    return this.format(formatSheet(newSheet));
+    let combined: string;
+    const orderMatch = source.search(/(^|\n)\s*->/);
+    if (orderMatch !== -1) {
+      const insertPos = orderMatch === 0 ? 0 : orderMatch + 1;
+      combined = source.slice(0, insertPos) + "\n" + newParagraphsText + "\n" + source.slice(insertPos);
+    } else {
+      combined = source + "\n\n" + newParagraphsText;
+    }
+
+    const formatted = this.format(combined);
+    TmdParser.parseThrowing(formatted);
+    return formatted;
   }
 
   public static generateHarmony(
@@ -377,13 +418,22 @@ export class TMDRefactor {
       };
     });
 
-    const newParagraphs = [...sheet.paragraphs, ...harmonizedParagraphs];
-    const newSheet: Sheet = {
-      ...sheet,
-      paragraphs: newParagraphs,
-    };
+    const newParagraphsText = harmonizedParagraphs
+      .map((p) => formatParagraph(p, sheet.beat))
+      .join("\n");
 
-    return this.format(formatSheet(newSheet));
+    let combined: string;
+    const orderMatch = source.search(/(^|\n)\s*->/);
+    if (orderMatch !== -1) {
+      const insertPos = orderMatch === 0 ? 0 : orderMatch + 1;
+      combined = source.slice(0, insertPos) + "\n" + newParagraphsText + "\n" + source.slice(insertPos);
+    } else {
+      combined = source + "\n\n" + newParagraphsText;
+    }
+
+    const formatted = this.format(combined);
+    TmdParser.parseThrowing(formatted);
+    return formatted;
   }
 
   public static inlineOrders(source: string): string {

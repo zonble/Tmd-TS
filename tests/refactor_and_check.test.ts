@@ -329,6 +329,62 @@ chorus:Lead@|0|{
     expect(issues).toHaveLength(0);
   });
 
+  it("duplicates a track preserving existing comments in the score and paragraphs", () => {
+    const input = `::SCORE::
+/* Header comment */
+** My Song **
+!= 120
+?= C
+<4/4>
+
+verse:Lead@|0|{
+    <4*>
+    | 1 2 3 4 | /* bar comment */
+}
+
+-> verse -># /* order comment */
+`;
+
+    const duped = TMDRefactor.duplicateTrack(input, "Lead", "Synth", { octaveShift: 1 });
+    expect(duped).toContain("/* Header comment */");
+    expect(duped).toContain("/* bar comment */");
+    expect(duped).toContain("/* order comment */");
+    expect(duped).toContain("verse:Lead@|0|{");
+    expect(duped).toContain("verse:Synth@|0|{");
+    expect(duped).toContain("1^ 2^ 3^ 4^");
+
+    const issues = TMDMeasureChecker.check(duped);
+    expect(issues).toHaveLength(0);
+  });
+
+  it("generates harmony preserving existing comments in the score and paragraphs", () => {
+    const input = `::SCORE::
+/* Header comment */
+** Harmony Song **
+!= 120
+?= C
+<4/4>
+
+verse:Vocal@|0|{
+    <4*>
+    | 1 2 3 1 | /* bar comment */
+}
+
+-> verse -># /* order comment */
+`;
+
+    const harmonized = TMDRefactor.generateHarmony(input, "Vocal", "Backing", { intervalSteps: 2 });
+    expect(harmonized).toContain("/* Header comment */");
+    expect(harmonized).toContain("/* bar comment */");
+    expect(harmonized).toContain("/* order comment */");
+    expect(harmonized).toContain("verse:Vocal@|0|{");
+    expect(harmonized).toContain("verse:Backing@|0|{");
+    expect(harmonized).toContain("3 4 5 3");
+
+    const issues = TMDMeasureChecker.check(harmonized);
+    expect(issues).toHaveLength(0);
+  });
+
   it("generates diatonic harmony (e.g. parallel 3rd up or down)", () => {
     const input = `::SCORE::
 ** Harmony Test **
@@ -384,6 +440,70 @@ chorus:Vocal@|0|{
 
     const issues = TMDMeasureChecker.check(harmonized);
     expect(issues).toHaveLength(0);
+  });
+
+  it("preserves comments across all refactor operations (rename, extract, double, halve, inline)", () => {
+    const input = `::SCORE::
+/* Header Comment */
+** Full Song **
+!= 120
+?= C
+<4/4>
+
+intro:Piano@|0|{
+    <4*>
+    | 1 2 3 4 | /* piano comment */
+}
+
+intro:Bass@|0|{
+    <4*>
+    | 1_ - - - | /* bass comment */
+}
+
+verse:Piano@|0|{
+    <4*>
+    | 5 6 7 1^ | /* verse piano */
+}
+
+-> intro -> verse -># /* order comment */
+`;
+
+    // 1. renameInstrument
+    const renamedInst = TMDRefactor.renameInstrument(input, "Piano", "GrandPiano");
+    expect(renamedInst).toContain("/* Header Comment */");
+    expect(renamedInst).toContain("/* piano comment */");
+    expect(renamedInst).toContain("/* bass comment */");
+    expect(renamedInst).toContain("/* order comment */");
+
+    // 2. renameSection
+    const renamedSec = TMDRefactor.renameSection(input, "intro", "IntroA");
+    expect(renamedSec).toContain("/* Header Comment */");
+    expect(renamedSec).toContain("/* piano comment */");
+    expect(renamedSec).toContain("/* bass comment */");
+    expect(renamedSec).toContain("/* order comment */");
+
+    // 3. doubleGrid
+    const doubled = TMDRefactor.doubleGrid(input);
+    expect(doubled).toContain("/* Header Comment */");
+    expect(doubled).toContain("/* piano comment */");
+    expect(doubled).toContain("/* bass comment */");
+    expect(doubled).toContain("/* order comment */");
+
+    // 4. halveGrid
+    const halved = TMDRefactor.halveGrid(doubled);
+    expect(halved).toContain("/* Header Comment */");
+    expect(halved).toContain("/* piano comment */");
+    expect(halved).toContain("/* bass comment */");
+    expect(halved).toContain("/* order comment */");
+
+    // 5. extractInstrument
+    const extracted = TMDRefactor.extractInstrument(input, "Piano");
+    expect(extracted).toContain("/* Header Comment */");
+    expect(extracted).toContain("/* piano comment */");
+    expect(extracted).toContain("/* verse piano */");
+    expect(extracted).not.toContain(":Bass@");
+    expect(extracted).not.toContain("/* bass comment */");
+    expect(extracted).toContain("/* order comment */");
   });
 
   it("inlines/unrolls orders into a linear score with explicit measures", () => {
