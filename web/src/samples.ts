@@ -1,5 +1,6 @@
 import starter from "./samples/starter.tmd?raw";
 import sandiansanye from "./samples/sandiansanye.tmd?raw";
+import tchaikovsky54 from "./samples/tchaikovsky-5-4.tmd?raw";
 import legacy from "./samples/legacy.tmd?raw";
 import aiMoon from "./samples/ai-moon.tmd?raw";
 
@@ -22,6 +23,12 @@ export const SAMPLES: TMDSample[] = [
     name: "《三天三夜》(阿怪 / 張惠妹)",
     category: "Classic Pop / Dance",
     content: sandiansanye,
+  },
+  {
+    id: "tchaikovsky_5_4",
+    name: "《悲愴交響曲第二樂章》(5/4 拍古典名曲 / 柴可夫斯基)",
+    category: "Classical / Odd Meter (5/4)",
+    content: tchaikovsky54,
   },
   {
     id: "legacy",
