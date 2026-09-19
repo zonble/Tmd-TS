@@ -825,6 +825,31 @@ html, body {
   user-select: none;
 }
 
+.order-tag[data-start-line] .order-tag-text {
+  cursor: pointer;
+  transition: opacity 0.15s ease, text-decoration 0.15s ease;
+}
+
+.order-tag[data-start-line] .order-tag-text:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+.btn-jump-orders {
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-jump-orders:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--accent-blue);
+}
+
 .order-play-btn {
   display: inline-flex;
   align-items: center;

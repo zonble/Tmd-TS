@@ -232,6 +232,7 @@ export class Lexer {
 
     // Song metadata (~ "..." or =~:__KEY__= "...")
     if (c === "~" || (c === "=" && this.peek(1) === "~")) {
+      const metaStartPos = this.pos;
       const named = c === "=";
       if (named) { this.advance(); this.advance(); } else { this.advance(); }
       while (this.peek() === " " || this.peek() === "\t") this.advance();
@@ -262,7 +263,8 @@ export class Lexer {
           else if (value.startsWith("曲：")) key = "composer";
           else if (value.startsWith("編：")) key = "arranger";
         }
-        return { type: "metadata", value: { key, value }, text: `${key}:${value}`, line, column: col };
+        const rawText = this.input.slice(metaStartPos, this.pos);
+        return { type: "metadata", value: { key, value }, text: rawText, line, column: col };
       }
     }
 

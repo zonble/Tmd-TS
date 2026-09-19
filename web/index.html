@@ -330,7 +330,12 @@
 
             <!-- Playback Flow / Orders -->
             <div class="card">
-              <div class="card-title" data-i18n="inspectorOrdersTitle">演奏順序</div>
+              <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div class="card-title" data-i18n="inspectorOrdersTitle" style="margin-bottom: 0;">演奏順序</div>
+                <button type="button" id="btn-jump-orders" class="btn btn-sm btn-jump-orders" data-i18n-title="jumpToOrdersTitle" title="跳轉至編輯區修改演奏順序" style="font-size: 11px; padding: 1px 6px;">
+                  <span>✏️</span> <span data-i18n="jumpToOrders">前往編輯</span>
+                </button>
+              </div>
               <div id="inspector-orders" class="tags-list">
                 <span class="stat-label" data-i18n="noOrders">未定義 -> 播放流程</span>
               </div>

@@ -127,6 +127,8 @@ export const zhTW = {
   statLabelKey: "調號 (Key)",
   statLabelMeter: "拍號 (Meter)",
   inspectorOrdersTitle: "演奏順序",
+  jumpToOrders: "前往編輯",
+  jumpToOrdersTitle: "跳轉至編輯區修改演奏順序",
   inspectorTracksTitle: "軌道與樂器編制",
   playSectionTitle: "試聽段落：{section}",
   playTrackTitle: "試聽軌道：{section} ({instrument})",

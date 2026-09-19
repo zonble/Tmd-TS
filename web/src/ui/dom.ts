@@ -61,6 +61,7 @@ export interface AppDOMElements {
   statKey: HTMLElement;
   statMeter: HTMLElement;
   inspectorOrders: HTMLElement;
+  btnJumpOrders: HTMLButtonElement;
   inspectorTracks: HTMLElement;
 
   // Status Bar
@@ -264,6 +265,7 @@ export function initAppDOMElements(): AppDOMElements {
     statKey: getElement("stat-key"),
     statMeter: getElement("stat-meter"),
     inspectorOrders: getElement("inspector-orders"),
+    btnJumpOrders: getElement("btn-jump-orders"),
     inspectorTracks: getElement("inspector-tracks"),
 
     sbStatus: getElement("sb-status"),

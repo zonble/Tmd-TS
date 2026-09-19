@@ -210,6 +210,7 @@ function initEvents() {
       btnCloseInspector: dom.btnCloseInspector,
       inspectorTracks: dom.inspectorTracks,
       inspectorOrders: dom.inspectorOrders,
+      btnJumpOrders: dom.btnJumpOrders,
     },
     editor,
     () => triggerSavePanelsState(),

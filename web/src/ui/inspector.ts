@@ -69,6 +69,10 @@ export function renderInspectorView(
 
   statMeter.textContent = currentSheet.beat ? `${currentSheet.beat.count}/${currentSheet.beat.noteValue}` : "4/4";
 
+  // Tracks & Orders / Outline Hierarchy
+  const outlineNodes = TMDOutlineGenerator.generate(text);
+  const ordersNode = outlineNodes.find((n) => n.name === "Orders");
+
   // Orders
   if (currentSheet.orders && currentSheet.orders.length > 0) {
     inspectorOrders.innerHTML = currentSheet.orders
@@ -77,23 +81,34 @@ export function renderInspectorView(
         const playTitle = (t("playOrderTitle") || "Play from here ({order})").replace("{order}", orderLabel);
         const playBtnHtml = `<button type="button" class="order-play-btn" data-play-order-index="${idx}" title="${escapeHtml(playTitle)}">▶</button>`;
 
+        const childNode = ordersNode?.children?.[idx];
+        const rangeAttrs = childNode
+          ? `data-start-line="${childNode.range.startLine}" data-start-col="${childNode.range.startColumn}" data-end-line="${childNode.range.endLine}" data-end-col="${childNode.range.endColumn}"`
+          : (ordersNode ? `data-start-line="${ordersNode.range.startLine}" data-start-col="${ordersNode.range.startColumn}" data-end-line="${ordersNode.range.endLine}" data-end-col="${ordersNode.range.endColumn}"` : "");
+
+        const jumpTitle = t("jumpToOrdersTitle") || "Jump to editor to modify playback order";
+
         if (ord.type === "name") {
-          return `<span class="order-tag"><span class="order-tag-text">${escapeHtml(ord.name)}</span>${playBtnHtml}</span>`;
+          return `<span class="order-tag" ${rangeAttrs}><span class="order-tag-text" title="${escapeHtml(jumpTitle)}">${escapeHtml(ord.name)}</span>${playBtnHtml}</span>`;
         } else if (ord.type === "relative") {
-          return `<span class="order-tag order-tag-directive" style="color: var(--accent-purple); border-color: rgba(188, 140, 255, 0.3);"><span class="order-tag-text">{${escapeHtml(ord.value)}}</span>${playBtnHtml}</span>`;
+          return `<span class="order-tag order-tag-directive" ${rangeAttrs} style="color: var(--accent-purple); border-color: rgba(188, 140, 255, 0.3);"><span class="order-tag-text" title="${escapeHtml(jumpTitle)}">{${escapeHtml(ord.value)}}</span>${playBtnHtml}</span>`;
         } else if (ord.type === "absolute") {
-          return `<span class="order-tag order-tag-directive" style="color: var(--accent-yellow); border-color: rgba(210, 153, 34, 0.3);"><span class="order-tag-text">{${escapeHtml(ord.value)}}</span>${playBtnHtml}</span>`;
+          return `<span class="order-tag order-tag-directive" ${rangeAttrs} style="color: var(--accent-yellow); border-color: rgba(210, 153, 34, 0.3);"><span class="order-tag-text" title="${escapeHtml(jumpTitle)}">{${escapeHtml(ord.value)}}</span>${playBtnHtml}</span>`;
         }
         return "";
       })
       .filter(Boolean)
       .join("");
   } else {
-    inspectorOrders.innerHTML = `<span class="stat-label">${t("noOrders")}</span>`;
+    inspectorOrders.innerHTML = `
+      <span class="stat-label">${t("noOrders")}</span>
+      <button type="button" class="btn btn-sm btn-jump-orders" data-i18n-title="jumpToOrdersTitle" title="${escapeHtml(t("jumpToOrdersTitle") || "Jump to editor to modify playback order")}" style="font-size: 11px; padding: 1px 6px; margin-left: 6px;">
+        <span>✏️</span> <span>${escapeHtml(t("jumpToOrders") || "Edit Order")}</span>
+      </button>
+    `;
   }
 
   // Tracks / Outline Hierarchy (Sections -> Tracks -> Measures)
-  const outlineNodes = TMDOutlineGenerator.generate(text);
   const sectionsNode = outlineNodes.find((n) => n.name === "Sections");
 
   if (sectionsNode && sectionsNode.children && sectionsNode.children.length > 0) {
@@ -186,6 +201,7 @@ export function setupInspectorPanelEvents(
     btnCloseInspector: HTMLButtonElement;
     inspectorTracks: HTMLElement;
     inspectorOrders: HTMLElement;
+    btnJumpOrders?: HTMLButtonElement;
   },
   editor: any,
   onSavePanelsState: () => void,
@@ -198,6 +214,7 @@ export function setupInspectorPanelEvents(
     btnCloseInspector,
     inspectorTracks,
     inspectorOrders,
+    btnJumpOrders,
   } = elements;
 
   btnToggleInspector.addEventListener("click", () => {
@@ -208,6 +225,55 @@ export function setupInspectorPanelEvents(
   btnCloseInspector.addEventListener("click", () => {
     inspectorPanel.classList.add("hidden");
     onSavePanelsState();
+  });
+
+  // Jump to playback order in editor
+  const jumpToOrders = () => {
+    // 1. First check if any order tags have startLine
+    const firstTag = inspectorOrders?.querySelector("[data-start-line]") as HTMLElement | null;
+    if (firstTag && firstTag.dataset.startLine) {
+      const sLine = parseInt(firstTag.dataset.startLine, 10);
+      const sCol = firstTag.dataset.startCol ? parseInt(firstTag.dataset.startCol, 10) : 1;
+      const eLine = firstTag.dataset.endLine ? parseInt(firstTag.dataset.endLine, 10) : sLine;
+      const eCol = firstTag.dataset.endCol ? parseInt(firstTag.dataset.endCol, 10) : sCol;
+      if (!isNaN(sLine) && sLine > 0) {
+        if (typeof editor.scrollToRange === "function") {
+          editor.scrollToRange(sLine, sCol, eLine, eCol);
+        } else {
+          editor.scrollToLine(sLine);
+        }
+        return;
+      }
+    }
+
+    // 2. Fallback: inspect document content or outline
+    if (typeof editor.getContent === "function") {
+      const content: string = editor.getContent();
+      const outlineNodes = TMDOutlineGenerator.generate(content);
+      const ordersNode = outlineNodes.find((n) => n.name === "Orders");
+      if (ordersNode) {
+        if (typeof editor.scrollToRange === "function") {
+          editor.scrollToRange(
+            ordersNode.range.startLine,
+            ordersNode.range.startColumn,
+            ordersNode.range.endLine,
+            ordersNode.range.endColumn
+          );
+        } else {
+          editor.scrollToLine(ordersNode.range.startLine);
+        }
+        return;
+      }
+      // If no orders block, scroll to the end of file so user can append
+      const lines = content.split("\n").length;
+      editor.scrollToLine(lines);
+    }
+  };
+
+  // Fallback jump button if rendered inside inspector panel or card
+  btnJumpOrders?.addEventListener("click", (e) => {
+    e.preventDefault();
+    jumpToOrders();
   });
 
   inspectorTracks?.addEventListener("click", (e) => {
@@ -243,6 +309,14 @@ export function setupInspectorPanelEvents(
 
   inspectorOrders?.addEventListener("click", (e) => {
     const target = e.target as HTMLElement;
+    const jumpBtn = target.closest(".btn-jump-orders") as HTMLElement | null;
+    if (jumpBtn) {
+      e.stopPropagation();
+      e.preventDefault();
+      jumpToOrders();
+      return;
+    }
+
     const playBtn = target.closest(".order-play-btn") as HTMLElement | null;
     if (playBtn && playBtn.dataset.playOrderIndex !== undefined) {
       e.stopPropagation();
@@ -250,6 +324,24 @@ export function setupInspectorPanelEvents(
       const idx = parseInt(playBtn.dataset.playOrderIndex, 10);
       if (!isNaN(idx) && idx >= 0) {
         playFromOrderIndex(idx);
+      }
+      return;
+    }
+
+    // Clicking order tag or tag text scrolls to the order range in editor
+    const clickable = target.closest("[data-start-line]") as HTMLElement | null;
+    if (clickable && clickable.dataset.startLine) {
+      const sLine = parseInt(clickable.dataset.startLine, 10);
+      const sCol = clickable.dataset.startCol ? parseInt(clickable.dataset.startCol, 10) : 1;
+      const eLine = clickable.dataset.endLine ? parseInt(clickable.dataset.endLine, 10) : sLine;
+      const eCol = clickable.dataset.endCol ? parseInt(clickable.dataset.endCol, 10) : sCol;
+
+      if (!isNaN(sLine) && sLine > 0) {
+        if (typeof editor.scrollToRange === "function") {
+          editor.scrollToRange(sLine, sCol, eLine, eCol);
+        } else {
+          editor.scrollToLine(sLine);
+        }
       }
     }
   });

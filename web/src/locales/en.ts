@@ -127,6 +127,8 @@ export const en = {
   statLabelKey: "Key",
   statLabelMeter: "Meter",
   inspectorOrdersTitle: "Playback Order",
+  jumpToOrders: "Edit Order",
+  jumpToOrdersTitle: "Jump to editor to modify playback order",
   inspectorTracksTitle: "Tracks & Instruments",
   playSectionTitle: "Play section: {section}",
   playTrackTitle: "Play track: {section} ({instrument})",

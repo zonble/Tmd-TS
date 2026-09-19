@@ -271,6 +271,18 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(mainContent).toContain("libraryController.setActiveScore");
     expect(mainContent).toContain("libraryController.refreshLibraryScores");
   });
+
+  it("provides jump to edit playback order link in inspector", () => {
+    // Check i18n
+    expect((zhTW as any).jumpToOrders).toBeDefined();
+    expect((en as any).jumpToOrders).toBeDefined();
+
+    // Check inspector.ts contains order link / jump range attributes
+    const inspectorPath = path.join(__dirname, "../web/src/ui/inspector.ts");
+    const inspectorContent = fs.readFileSync(inspectorPath, "utf-8");
+    expect(inspectorContent).toContain("btn-jump-orders");
+    expect(inspectorContent).toContain("jumpToOrders");
+  });
 });
 
 

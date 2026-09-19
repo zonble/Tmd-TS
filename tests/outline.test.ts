@@ -82,6 +82,60 @@ verse:CHORD@|0|{
     expect(ordersNode.children![1].name).toBe("verse");
   });
 
+  it("accurately tracks line numbers for scores containing metadata comments and multi-line orders", () => {
+    const input = `::SCORE::
+** Shinagawa **
+~ "composer: zonble"
+~ "arranger: Antigravity"
+!= 126
+?= C
+<4/4>
+
+/*
+  Structure comment
+*/
+
+-> Concourse_Dawn
+-> Double_Train_Depart
+-> Rush_Hour_Surge
+-> Vaulted_Skywalk
+-> Grand_Terminal_Arrival
+-> #
+`;
+
+    const nodes = TMDOutlineGenerator.generate(input);
+    const ordersNode = nodes.find((n) => n.name === "Orders");
+    expect(ordersNode).toBeDefined();
+
+    // In this score:
+    // line 13: -> Concourse_Dawn
+    // line 14: -> Double_Train_Depart
+    // line 15: -> Rush_Hour_Surge
+    // line 16: -> Vaulted_Skywalk
+    // line 17: -> Grand_Terminal_Arrival
+    // line 18: -> #
+    expect(ordersNode!.children).toBeDefined();
+    expect(ordersNode!.children!.length).toBe(6);
+
+    expect(ordersNode!.children![0].name).toBe("Concourse_Dawn");
+    expect(ordersNode!.children![0].range.startLine).toBe(13);
+
+    expect(ordersNode!.children![1].name).toBe("Double_Train_Depart");
+    expect(ordersNode!.children![1].range.startLine).toBe(14);
+
+    expect(ordersNode!.children![2].name).toBe("Rush_Hour_Surge");
+    expect(ordersNode!.children![2].range.startLine).toBe(15);
+
+    expect(ordersNode!.children![3].name).toBe("Vaulted_Skywalk");
+    expect(ordersNode!.children![3].range.startLine).toBe(16);
+
+    expect(ordersNode!.children![4].name).toBe("Grand_Terminal_Arrival");
+    expect(ordersNode!.children![4].range.startLine).toBe(17);
+
+    expect(ordersNode!.children![5].name).toBe("#");
+    expect(ordersNode!.children![5].range.startLine).toBe(18);
+  });
+
   it("supports CLI outline subcommand with --json", async () => {
     const fs = await import("node:fs");
     const os = await import("node:os");
