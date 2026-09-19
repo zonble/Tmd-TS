@@ -202,4 +202,15 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(mainContent).toContain("startMetronomeClicks");
     expect(mainContent).toContain("playClickSound");
   });
+
+  it("persists and restores collapsed/hidden state of panels (lib, ai, inspector, problems) in localStorage", () => {
+    const mainPath = path.join(__dirname, "../web/src/main.ts");
+    const mainContent = fs.readFileSync(mainPath, "utf-8");
+
+    // Keys or storage handling for panel states
+    expect(mainContent).toContain("tmd-panels-state");
+    expect(mainContent).toContain("savePanelsState");
+    expect(mainContent).toContain("loadPanelsState");
+  });
 });
+

@@ -166,6 +166,87 @@ const btnToggleProblems = document.getElementById("btn-toggle-problems") as HTML
 const problemsCountBadge = document.getElementById("problems-count-badge") as HTMLElement;
 const problemsList = document.getElementById("problems-list") as HTMLElement;
 
+// Panel State Persistence (Library, AI Drawer, Inspector, Problems)
+interface PanelsState {
+  libraryOpen: boolean;
+  aiOpen: boolean;
+  inspectorOpen: boolean;
+  problemsCollapsed: boolean;
+}
+
+const PANELS_STATE_KEY = "tmd-panels-state";
+
+function loadPanelsState(): PanelsState {
+  const defaultState: PanelsState = {
+    libraryOpen: false,
+    aiOpen: false,
+    inspectorOpen: true,
+    problemsCollapsed: false,
+  };
+  try {
+    if (typeof localStorage !== "undefined") {
+      const raw = localStorage.getItem(PANELS_STATE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          libraryOpen: typeof parsed.libraryOpen === "boolean" ? parsed.libraryOpen : defaultState.libraryOpen,
+          aiOpen: typeof parsed.aiOpen === "boolean" ? parsed.aiOpen : defaultState.aiOpen,
+          inspectorOpen: typeof parsed.inspectorOpen === "boolean" ? parsed.inspectorOpen : defaultState.inspectorOpen,
+          problemsCollapsed: typeof parsed.problemsCollapsed === "boolean" ? parsed.problemsCollapsed : defaultState.problemsCollapsed,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to load panels state from localStorage:", err);
+  }
+  return defaultState;
+}
+
+function savePanelsState(): void {
+  try {
+    if (typeof localStorage !== "undefined") {
+      const state: PanelsState = {
+        libraryOpen: !libraryDrawer.classList.contains("hidden"),
+        aiOpen: !aiDrawer.classList.contains("hidden"),
+        inspectorOpen: !inspectorPanel.classList.contains("hidden"),
+        problemsCollapsed: problemsPanel.classList.contains("collapsed"),
+      };
+      localStorage.setItem(PANELS_STATE_KEY, JSON.stringify(state));
+    }
+  } catch (err) {
+    console.warn("Failed to save panels state to localStorage:", err);
+  }
+}
+
+function applyPanelsState(): void {
+  const state = loadPanelsState();
+  if (state.libraryOpen) {
+    libraryDrawer.classList.remove("hidden");
+  } else {
+    libraryDrawer.classList.add("hidden");
+  }
+
+  if (state.aiOpen) {
+    aiDrawer.classList.remove("hidden");
+  } else {
+    aiDrawer.classList.add("hidden");
+  }
+
+  if (state.inspectorOpen) {
+    inspectorPanel.classList.remove("hidden");
+  } else {
+    inspectorPanel.classList.add("hidden");
+  }
+
+  if (state.problemsCollapsed) {
+    problemsPanel.classList.add("collapsed");
+    if (btnToggleProblems) btnToggleProblems.textContent = "▲";
+  } else {
+    problemsPanel.classList.remove("collapsed");
+    if (btnToggleProblems) btnToggleProblems.textContent = "▼";
+  }
+}
+
 // Refactor Modals
 const refactorInstrumentModal = document.getElementById("refactor-instrument-modal") as HTMLDialogElement;
 const refactorOldInst = document.getElementById("refactor-old-inst") as HTMLSelectElement;
@@ -1141,10 +1222,12 @@ function initEvents() {
     if (!libraryDrawer.classList.contains("hidden")) {
       refreshLibraryScores();
     }
+    savePanelsState();
   });
 
   btnCloseLibrary?.addEventListener("click", () => {
     libraryDrawer.classList.add("hidden");
+    savePanelsState();
   });
 
   btnLibraryNew?.addEventListener("click", () => {
@@ -1227,10 +1310,12 @@ function initEvents() {
   // Inspector toggle
   btnToggleInspector.addEventListener("click", () => {
     inspectorPanel.classList.toggle("hidden");
+    savePanelsState();
   });
 
   btnCloseInspector.addEventListener("click", () => {
     inspectorPanel.classList.add("hidden");
+    savePanelsState();
   });
 
   // Outline / Track item click -> Jump to editor range or line, or play individual section/track
@@ -2105,6 +2190,7 @@ function initEvents() {
     e.stopPropagation();
     problemsPanel.classList.toggle("collapsed");
     btnToggleProblems.textContent = problemsPanel.classList.contains("collapsed") ? "▲" : "▼";
+    savePanelsState();
   });
 
   const problemsHeader = problemsPanel?.querySelector(".problems-panel-header");
@@ -2113,6 +2199,7 @@ function initEvents() {
     if (btnToggleProblems) {
       btnToggleProblems.textContent = problemsPanel.classList.contains("collapsed") ? "▲" : "▼";
     }
+    savePanelsState();
   });
 
   problemsList?.addEventListener("click", (e) => {
@@ -2236,10 +2323,12 @@ function initEvents() {
       aiPromptInput.focus();
       updateAiSettingsButtonState();
     }
+    savePanelsState();
   });
 
   btnCloseAiDrawer?.addEventListener("click", () => {
     aiDrawer.classList.add("hidden");
+    savePanelsState();
   });
 
   btnOpenAiSettings?.addEventListener("click", () => {
@@ -2632,6 +2721,7 @@ async function init() {
   );
 
   initEvents();
+  applyPanelsState();
   updateInspector(initialContent);
   updateProblems(initialContent);
 
