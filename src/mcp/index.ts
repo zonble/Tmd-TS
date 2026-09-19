@@ -5,7 +5,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-import { TmdParser, scaleDegreeLetter, accidentalToSemitone } from "../core/index.js";
+import { TmdParser, scaleDegreeLetter, accidentalToSemitone, TMDMeasureChecker } from "../core/index.js";
 import {
   TMDMIDIGenerator,
   TMDMusicXMLGenerator,
@@ -99,6 +99,45 @@ export class TmdMcpServer {
         })
       );
     }
+  }
+
+  public static async handleCheckTmd({
+    text,
+    filePath,
+  }: {
+    text?: string;
+    filePath?: string;
+  }) {
+    let content = text;
+    if (!content && filePath) {
+      content = fs.readFileSync(filePath, "utf-8");
+    }
+    if (!content) {
+      throw new Error("Either 'text' or 'filePath' must be provided");
+    }
+
+    const issues = TMDMeasureChecker.check(content);
+    return textContent(
+      JSON.stringify(
+        {
+          valid: issues.length === 0,
+          issueCount: issues.length,
+          issues: issues.map((i) => ({
+            paragraph: i.paragraphName,
+            instrument: i.instrument,
+            line: i.lineNumber,
+            measureIndex: i.measureIndex,
+            expectedUnits: i.expectedUnits,
+            actualUnits: i.actualUnits,
+            deltaUnits: i.deltaUnits,
+            snippet: i.snippet,
+            description: i.description,
+          })),
+        },
+        null,
+        2
+      )
+    );
   }
 
   public static async handleConvertTmd({
@@ -225,6 +264,19 @@ export class TmdMcpServer {
         }),
       },
       async ({ text, filePath }) => TmdMcpServer.handleParseTmd({ text, filePath })
+    );
+
+    server.registerTool(
+      "check_tmd",
+      {
+        description:
+          "Check and validate TMD score measures, beat consistency, section lengths, and playback order integrity. Identifies rhythmic discrepancies and measure errors.",
+        inputSchema: z.object({
+          text: z.string().optional().describe("TMD score code text"),
+          filePath: z.string().optional().describe("Path to .tmd file on filesystem"),
+        }),
+      },
+      async ({ text, filePath }) => TmdMcpServer.handleCheckTmd({ text, filePath })
     );
 
     server.registerTool(

@@ -1,4 +1,4 @@
-import { Note, PitchMapping, PlaybackDirectiveEvent, Sheet, TMDPlaybackRenderer, TMDMeasureRenderer } from "../core";
+import { Note, PitchMapping, PlaybackDirectiveEvent, Sheet, TMDPlaybackRenderer, TMDMeasureRenderer, SheetInstrumentHelper } from "../core";
 
 export class TMDMusicXMLGenerator {
   public static generateMusicXML(sheet: Sheet): string {
@@ -23,8 +23,7 @@ export class TMDMusicXMLGenerator {
     xml += `    <encoding>\n      <software>Tmd-TS MusicXML Exporter</software>\n    </encoding>\n`;
     xml += `  </identification>\n\n`;
 
-    const distinct = Array.from(new Set(sheet.paragraphs.map((p) => p.instrument))).sort();
-    const instruments = distinct.length > 0 ? distinct : ["Piano"];
+    const instruments = SheetInstrumentHelper.distinctInstruments(sheet);
 
     xml += `  <part-list>\n`;
     instruments.forEach((inst, idx) => {

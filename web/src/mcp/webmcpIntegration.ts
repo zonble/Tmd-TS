@@ -1,5 +1,6 @@
 import { TmdParser } from "../../../src/core/parser.js";
 import { Sheet, scaleDegreeLetter, accidentalToSemitone } from "../../../src/core/types.js";
+import { TMDMeasureChecker } from "../../../src/core/measure_check.js";
 import {
   TMDMIDIGenerator,
   TMDMusicXMLGenerator,
@@ -102,6 +103,54 @@ export const buildTmdWebMcpTools = (ctx: TmdWebMcpContext): WebMcpTool[] => [
               orders: sheet.orders,
               paragraphCount: sheet.paragraphs.length,
               paragraphs,
+            },
+            null,
+            2
+          )
+        );
+      } catch (err: any) {
+        return textContent(
+          JSON.stringify({
+            valid: false,
+            error: err.message || String(err),
+          })
+        );
+      }
+    },
+  },
+  {
+    name: "checkTmd",
+    description:
+      "Check and validate TMD score measures, beat consistency, and section lengths. Identifies measure-level rhythm discrepancies.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: {
+          type: "string",
+          description: "TMD score source code text",
+        },
+      },
+      required: ["text"],
+    },
+    handler: async ({ text }) => {
+      try {
+        const issues = TMDMeasureChecker.check(text);
+        return textContent(
+          JSON.stringify(
+            {
+              valid: issues.length === 0,
+              issueCount: issues.length,
+              issues: issues.map((i) => ({
+                paragraph: i.paragraphName,
+                instrument: i.instrument,
+                line: i.lineNumber,
+                measureIndex: i.measureIndex,
+                expectedUnits: i.expectedUnits,
+                actualUnits: i.actualUnits,
+                deltaUnits: i.deltaUnits,
+                snippet: i.snippet,
+                description: i.description,
+              })),
             },
             null,
             2

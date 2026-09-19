@@ -17,6 +17,7 @@ import {
   TmdSkill,
   TMD_VERSION,
   Accidental,
+  SheetInstrumentHelper,
 } from '../src/index.js';
 import { Lexer } from '../src/core/parser.js';
 
@@ -436,4 +437,39 @@ outro:Piano@|0|{
       expect(midiFromDirective.length).toBeGreaterThan(0);
     });
   });
+
+  describe("SheetInstrumentHelper (TDD)", () => {
+    it("extracts distinct sorted instrument names and resolves vocal tracks consistently", () => {
+      const input = `::SCORE::
+** Multitrack Song **
+!= 120
+?= C
+<4/4>
+
+intro:Piano@|0|{
+<4*>
+1 2 3 4
+}
+intro:LeadVocal@|0|{
+<4*>
+5 5 5 5
+}
+intro:Bass@|0|{
+<4*>
+1 1 1 1
+}
+
+-> intro ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const instruments = SheetInstrumentHelper.distinctInstruments(sheet);
+      expect(instruments).toEqual(["Bass", "LeadVocal", "Piano"]);
+
+      // Vocal resolution
+      expect(SheetInstrumentHelper.resolveVocalInstrument(sheet)).toBe("LeadVocal");
+      // Requested instrument priority
+      expect(SheetInstrumentHelper.resolveVocalInstrument(sheet, "Piano")).toBe("Piano");
+    });
+  });
 });
+

@@ -2,6 +2,7 @@ import {
   Sheet,
   Order,
   TMDMeasureRenderer,
+  SheetInstrumentHelper,
 } from '../core/index.js';
 
 export interface ChordProOptions {
@@ -47,16 +48,13 @@ export class TMDChordProGenerator {
     }
 
     // Determine target track: pick guitar/chords instrument or first instrument
-    const distinctInstruments = Array.from(
-      new Set(sheet.paragraphs.map((p) => p.instrument))
-    ).sort();
+    const distinctInstruments = SheetInstrumentHelper.distinctInstruments(sheet);
 
     const targetInstrument =
       distinctInstruments.find((inst) =>
         /guitar|chord|lead|piano/i.test(inst)
       ) ||
-      distinctInstruments[0] ||
-      'Piano';
+      distinctInstruments[0];
 
     // Group sections by order
     const orders: Order[] =

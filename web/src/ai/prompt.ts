@@ -13,11 +13,12 @@ CRITICAL SYNTAX RULES:
 3. Every track paragraph MUST follow: 'name:instrument@|offset|{ ... }'
    - Always close every opened paragraph '{' with a matching '}'.
 4. Every section inside a paragraph MUST start with a note length grid like '<4*>', '<8*>', or '<16*>'.
-5. Accidentals MUST precede octave displacements: write '1'^' (Sharp Do, high octave), NEVER '1^''.
-6. Chords are enclosed in brackets: [C], [Dm7], [1], [6m], etc.
-7. Tuplet syntax is strictly '(units...)%(dashes)', e.g. '(1 2 3)%(--)'.
-8. The playback arrangement at the end MUST start with '->' and terminate with '->#', e.g. '-> intro -> verse -> chorus ->#'.
-9. OUTPUT FORMAT: Output ONLY the complete, valid TMD score inside a single \`\`\`tmd ... \`\`\` code block. Keep any explanations concise and placed after the code block.
+5. Measure Consistency & Check: The system performs automated measure checking (\`tmd check\` / \`check_tmd\` / Problems Panel). Every measure bounded by '| ... |' must contain the exact expected unit count for the meter and note grid (e.g. 4 units in <4/4> at <4*>, 8 units at <8*>).
+6. Accidentals MUST precede octave displacements: write '1'^' (Sharp Do, high octave), NEVER '1^''.
+7. Chords are enclosed in brackets: [C], [Dm7], [1], [6m], etc.
+8. Tuplet syntax is strictly '(units...)%(dashes)', e.g. '(1 2 3)%(--)'.
+9. The playback arrangement at the end MUST start with '->' and terminate with '->#', e.g. '-> intro -> verse -> chorus ->#'. All referenced section names must exist in the score.
+10. OUTPUT FORMAT: Output ONLY the complete, valid TMD score inside a single \`\`\`tmd ... \`\`\` code block. Keep any explanations concise and placed after the code block.
 `;
 }
 

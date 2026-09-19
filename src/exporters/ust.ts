@@ -1,4 +1,4 @@
-import { Sheet, TMDPlaybackRenderer } from "../core/index.js";
+import { Sheet, TMDPlaybackRenderer, SheetInstrumentHelper } from "../core/index.js";
 import { TMDMIDIGenerator } from "./midi.js";
 
 /** Options for configuring UTAU .ust exports. */
@@ -123,15 +123,6 @@ export class TMDUSTGenerator {
   }
 
   public static resolveTargetInstrument(sheet: Sheet, requested?: string): string {
-    const distinct = Array.from(new Set(sheet.paragraphs.map((p) => p.instrument))).sort();
-    if (requested && distinct.includes(requested)) {
-      return requested;
-    }
-    const regex = /vocal|voice|utau|teto|sing|lead|melody/i;
-    const matched = distinct.find((inst) => regex.test(inst));
-    if (matched) {
-      return matched;
-    }
-    return distinct[0] || "Vocal";
+    return SheetInstrumentHelper.resolveVocalInstrument(sheet, requested);
   }
 }

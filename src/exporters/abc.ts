@@ -6,6 +6,7 @@ import {
   TMDMeasureRenderer,
   MeasureEvent,
   KeySignature,
+  SheetInstrumentHelper,
 } from "../core";
 
 interface ABCKeyInfo {
@@ -26,8 +27,7 @@ export class TMDABCGenerator {
     abc += `Q:1/4=${Math.round(sheet.speed > 0 ? sheet.speed : 120)}\n`;
     abc += `K:${TMDABCGenerator.abcKey(sheet.keySignature.toString())}\n\n`;
 
-    const distinct = Array.from(new Set(sheet.paragraphs.map((p) => p.instrument))).sort();
-    const instruments = distinct.length > 0 ? distinct : ["Piano"];
+    const instruments = SheetInstrumentHelper.distinctInstruments(sheet);
 
     instruments.forEach((inst, idx) => {
       const vId = `V${idx + 1}`;

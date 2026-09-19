@@ -23,14 +23,50 @@ intro:Piano@|0|{
     };
 
     const tools = buildTmdWebMcpTools(mockContext);
-    expect(tools.length).toBe(5);
+    expect(tools.length).toBe(6);
 
     const toolNames = tools.map((t) => t.name);
     expect(toolNames).toContain('getTmdSkill');
     expect(toolNames).toContain('parseTmd');
+    expect(toolNames).toContain('checkTmd');
     expect(toolNames).toContain('convertTmd');
     expect(toolNames).toContain('loadScoreToEditor');
     expect(toolNames).toContain('getCurrentScore');
+  });
+
+  it('checkTmd validates measures and rhythm conformance', async () => {
+    const mockContext = {
+      getCurrentScore: () => '',
+      loadScoreToEditor: vi.fn(),
+      startPlayback: vi.fn(),
+    };
+
+    const tools = buildTmdWebMcpTools(mockContext);
+    const checkTool = tools.find((t) => t.name === 'checkTmd');
+    expect(checkTool).toBeDefined();
+
+    const goodRes = await checkTool!.handler({ text: sampleTmd });
+    const goodParsed = JSON.parse(goodRes.content[0].text);
+    expect(goodParsed.valid).toBe(true);
+    expect(goodParsed.issueCount).toBe(0);
+
+    const badTmd = `::SCORE::
+** Bad Test **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+<4*>
+| 1 2 3 |
+}
+-> verse ->#
+`;
+    const badRes = await checkTool!.handler({ text: badTmd });
+    const badParsed = JSON.parse(badRes.content[0].text);
+    expect(badParsed.valid).toBe(false);
+    expect(badParsed.issueCount).toBe(1);
+    expect(badParsed.issues[0].expectedUnits).toBe(4);
   });
 
   it('getTmdSkill returns comprehensive TMD language skill documentation', async () => {
@@ -149,6 +185,6 @@ intro:Piano@|0|{
 
     const res = initTmdWebMcp(fakeScope, mockContext);
     expect(res.nativeRegistered).toBe(true);
-    expect(registerToolMock).toHaveBeenCalledTimes(5);
+    expect(registerToolMock).toHaveBeenCalledTimes(6);
   });
 });

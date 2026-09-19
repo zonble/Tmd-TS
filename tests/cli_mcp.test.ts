@@ -43,6 +43,33 @@ intro:Piano@|0|{
     expect(parsed.tonic).toBe("C");
   });
 
+  it("TmdMcpServer tool handlers check TMD for measure and rhythm issues", async () => {
+    const goodResult = await TmdMcpServer.handleCheckTmd({ text: sampleTmd });
+    const goodParsed = JSON.parse(goodResult.content[0].text);
+    expect(goodParsed.valid).toBe(true);
+    expect(goodParsed.issues).toEqual([]);
+
+    const badTmd = `::SCORE::
+** Bad Test **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+<4*>
+| 1 2 3 |
+}
+-> verse ->#
+`;
+    const badResult = await TmdMcpServer.handleCheckTmd({ text: badTmd });
+    const badParsed = JSON.parse(badResult.content[0].text);
+    expect(badParsed.valid).toBe(false);
+    expect(badParsed.issueCount).toBe(1);
+    expect(badParsed.issues[0].expectedUnits).toBe(4);
+    expect(badParsed.issues[0].actualUnits).toBe(3);
+  });
+
+
   it("TmdMcpServer tool handlers convert TMD to MIDI and other formats", async () => {
     const midiRes = await TmdMcpServer.handleConvertTmd({ text: sampleTmd, format: "midi" });
     expect(midiRes.content[0].type).toBe("text");

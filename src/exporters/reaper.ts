@@ -4,6 +4,7 @@ import {
   TMDPlaybackRenderer,
   Order,
   Beat,
+  SheetInstrumentHelper,
 } from '../core/index.js';
 import {
   MIDIInstrument,
@@ -26,15 +27,12 @@ export class TMDReaperGenerator {
     sheet: Sheet,
     ppq: number = TMDReaperGenerator.defaultPPQ
   ): string {
-    const distinctInstruments = Array.from(
-      new Set(sheet.paragraphs.map(p => p.instrument))
-    ).sort();
+    const distinctInstruments = SheetInstrumentHelper.distinctInstruments(sheet);
 
     const timelineInstrument =
       sheet.paragraphs.find(p => p.sections.some(s => s.directives.length > 0))
         ?.instrument ??
-      distinctInstruments[0] ??
-      'Piano';
+      distinctInstruments[0];
 
     const conductorTimeline = TMDPlaybackRenderer.render(sheet, timelineInstrument);
 

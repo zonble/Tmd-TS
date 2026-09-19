@@ -9,6 +9,7 @@ import {
   TMDMeasureRenderer,
   MeasureEvent,
   NotationDuration,
+  SheetInstrumentHelper,
 } from "../core";
 
 export class TMDLilyPondGenerator {
@@ -28,8 +29,7 @@ export class TMDLilyPondGenerator {
     ly += `  \\key ${TMDLilyPondGenerator.lilyPondKey(sheet.keySignature.toString())}\n`;
     ly += `}\n\n`;
 
-    const distinct = Array.from(new Set(sheet.paragraphs.map((p) => p.instrument))).sort();
-    const instruments = distinct.length > 0 ? distinct : ["Piano"];
+    const instruments = SheetInstrumentHelper.distinctInstruments(sheet);
 
     const identifierMap = new Map<string, string>();
     const usedNames = new Set<string>();

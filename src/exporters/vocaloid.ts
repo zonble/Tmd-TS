@@ -2,6 +2,7 @@ import {
   Sheet,
   TMDPlaybackRenderer,
   PlaybackTimeline,
+  SheetInstrumentHelper,
 } from '../core/index.js';
 import {
   MIDIEvent,
@@ -207,16 +208,7 @@ export class TMDVSQGenerator {
   }
 
   private static resolveTargetInstrument(sheet: Sheet, requested?: string): string {
-    const distinct = Array.from(new Set(sheet.paragraphs.map((p) => p.instrument))).sort();
-    if (requested && distinct.includes(requested)) {
-      return requested;
-    }
-    const regex = /vocal|voice|miku|sing|lead|melody/i;
-    const matched = distinct.find((inst) => regex.test(inst));
-    if (matched) {
-      return matched;
-    }
-    return distinct[0] || 'Vocal';
+    return SheetInstrumentHelper.resolveVocalInstrument(sheet, requested);
   }
 
   private static generateVsqTrack(
