@@ -137,19 +137,50 @@ export function renderInspectorView(
         statVocalRange.textContent = `${v.lowestNote.noteName} ～ ${v.highestNote.noteName}`;
         statVocalRange.title = `MIDI: ${v.lowestNote.midiPitch} – ${v.highestNote.midiPitch}`;
       }
+
+      // Map difficulty to localized string
+      const diffKey = v.difficulty === "easy"
+        ? "difficultyEasy"
+        : v.difficulty === "moderate"
+        ? "difficultyModerate"
+        : v.difficulty === "challenging"
+        ? "difficultyChallenging"
+        : "difficultyDifficult";
+      const diffLabel = t(diffKey as any) || v.difficulty;
+
       if (statVocalSpan) {
         const octaves = (v.spanSemitones / 12).toFixed(1);
         const spanTmpl = t("vocalSpanFormat") || "{semitones} semitones ({octaves} octaves)";
-        statVocalSpan.textContent = spanTmpl
+        const spanFormatted = spanTmpl
           .replace("{semitones}", String(v.spanSemitones))
           .replace("{octaves}", octaves);
+        statVocalSpan.textContent = `${spanFormatted} · ${diffLabel}`;
       }
+
       if (inspectorVocalDetails) {
         const detailTmpl = t("vocalDetailFormat") || "Track: {instrument} · Lowest in [{lowestSection}] · Highest in [{highestSection}]";
-        inspectorVocalDetails.textContent = detailTmpl
+        const detailText = detailTmpl
           .replace("{instrument}", v.instrument)
           .replace("{lowestSection}", v.lowestNote.sectionName)
           .replace("{highestSection}", v.highestNote.sectionName);
+
+        const voiceTypeMap: Record<string, string> = {
+          soprano: t("voiceTypeSoprano") || "Soprano",
+          "mezzo-soprano": t("voiceTypeMezzoSoprano") || "Mezzo-Soprano",
+          contralto: t("voiceTypeContralto") || "Contralto",
+          tenor: t("voiceTypeTenor") || "Tenor",
+          baritone: t("voiceTypeBaritone") || "Baritone",
+          bass: t("voiceTypeBass") || "Bass",
+        };
+
+        const voiceNames = v.suitableVoiceTypes.map((vt) => voiceTypeMap[vt] || vt);
+        const voiceStr = voiceNames.length > 0 ? voiceNames.join(", ") : "-";
+        const evalTmpl = t("vocalEvaluationFormat") || "Difficulty: {difficulty} · Recommended for: {voiceTypes}";
+        const evalText = evalTmpl
+          .replace("{difficulty}", diffLabel)
+          .replace("{voiceTypes}", voiceStr);
+
+        inspectorVocalDetails.innerHTML = `${escapeHtml(detailText)}<br><span style="color: var(--accent-blue); font-weight: 500;">${escapeHtml(evalText)}</span>`;
       }
     } else {
       if (statVocalRange) {

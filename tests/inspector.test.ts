@@ -84,6 +84,9 @@ chorus:Bass@|0|{
     expect(vocal.highestNote.noteName).toBe("A5");
     expect(vocal.spanSemitones).toBe(21); // 81 - 60 = 21 semitones
     expect(vocal.highestNote.sectionName).toBe("chorus");
+    expect(vocal.difficulty).toBe("difficult");
+    expect(vocal.suitableVoiceTypes).toContain("soprano");
+    expect(vocal.suitableVoiceTypes).toContain("tenor");
 
     // 4. Track Ranges
     expect(profile.instrumentRanges.length).toBeGreaterThanOrEqual(2);

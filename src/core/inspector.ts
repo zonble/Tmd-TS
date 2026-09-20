@@ -33,6 +33,10 @@ export namespace TMDNotePitchInfo {
   }
 }
 
+export type PitchRangeDifficulty = "easy" | "moderate" | "challenging" | "difficult";
+
+export type VocalClassification = "soprano" | "mezzo-soprano" | "contralto" | "tenor" | "baritone" | "bass";
+
 /**
  * Vocal or instrument pitch range and tessitura summary.
  */
@@ -43,6 +47,8 @@ export interface TMDPitchRangeProfile {
   spanSemitones: number;
   totalNotes: number;
   averageMidiPitch: number;
+  difficulty: PitchRangeDifficulty;
+  suitableVoiceTypes: VocalClassification[];
 }
 
 /**
@@ -280,6 +286,9 @@ export class TMDSongInspector {
     }
 
     const avgPitch = sumPitch / hits.length;
+    const spanSemitones = highest.midi - lowest.midi;
+    const difficulty = TMDSongInspector.evaluateDifficulty(spanSemitones);
+    const suitableVoiceTypes = TMDSongInspector.evaluateSuitableVoiceTypes(lowest.midi, highest.midi);
 
     return {
       instrument,
@@ -295,10 +304,74 @@ export class TMDSongInspector {
         sectionName: highest.sectionName,
         timelinePosition: highest.pos,
       },
-      spanSemitones: highest.midi - lowest.midi,
+      spanSemitones,
       totalNotes: hits.length,
       averageMidiPitch: avgPitch,
+      difficulty,
+      suitableVoiceTypes,
     };
+  }
+
+  /**
+   * Evaluates pitch span difficulty based on semitones range.
+   * <= 12: easy (within an octave)
+   * 13 ~ 16: moderate (approx 1 octave to 1 octave + major 3rd)
+   * 17 ~ 20: challenging (approx 1.5 octaves)
+   * >= 21: difficult (> 1.5 octaves)
+   */
+  public static evaluateDifficulty(spanSemitones: number): PitchRangeDifficulty {
+    if (spanSemitones <= 12) return "easy";
+    if (spanSemitones <= 16) return "moderate";
+    if (spanSemitones <= 20) return "challenging";
+    return "difficult";
+  }
+
+  /**
+   * Classical standard vocal ranges (with standard amateur/popular margins):
+   * Soprano (女高音): C4 (60) - A5/C6 (81/84)
+   * Mezzo-Soprano (女中音): A3 (57) - F5/A5 (77/81)
+   * Contralto (女低音): F3 (53) - D5/F5 (74/77)
+   * Tenor (男高音): C3 (48) - A4/C5 (69/72) (or falsetto up to G5/A5)
+   * Baritone (男中音): A2 (45) - F4/G4 (65/67)
+   * Bass (男低音): E2 (40) - E4 (64)
+   *
+   * A voice type is considered suitable if the song's pitch range has substantial overlap
+   * or comfortably fits within the standard practical tessitura of that voice type.
+   */
+  public static evaluateSuitableVoiceTypes(lowestMidi: number, highestMidi: number): VocalClassification[] {
+    // Reference standard singing ranges [practicalMin, practicalMax]
+    // Considering vocal displacement (octave transpose for male vs female notation when singing pop/choral)
+    const voiceRanges: { type: VocalClassification; min: number; max: number }[] = [
+      { type: "soprano", min: 57, max: 86 },       // A3 - D6
+      { type: "mezzo-soprano", min: 53, max: 81 }, // F3 - A5
+      { type: "contralto", min: 50, max: 77 },     // D3 - F5
+      { type: "tenor", min: 45, max: 74 },         // A2 - D5
+      { type: "baritone", min: 41, max: 69 },      // F2 - A4
+      { type: "bass", min: 38, max: 65 },          // D2 - F4
+    ];
+
+    const suitable: VocalClassification[] = [];
+
+    // Direct range check
+    for (const vr of voiceRanges) {
+      if (lowestMidi >= vr.min && highestMidi <= vr.max) {
+        suitable.push(vr.type);
+      }
+    }
+
+    // Also check standard male octave transpose (many vocal melodies written in treble clef C4-C5 are sung an octave lower C3-C4 by male voices)
+    const transposedLow = lowestMidi - 12;
+    const transposedHigh = highestMidi - 12;
+    const maleVoiceTypes: VocalClassification[] = ["tenor", "baritone", "bass"];
+    for (const vr of voiceRanges) {
+      if (maleVoiceTypes.includes(vr.type) && !suitable.includes(vr.type)) {
+        if (transposedLow >= vr.min && transposedHigh <= vr.max) {
+          suitable.push(vr.type);
+        }
+      }
+    }
+
+    return suitable;
   }
 
   private static buildHarmonyProfile(sheet: Sheet): TMDHarmonyProfile {
@@ -386,10 +459,13 @@ export class TMDSongInspector {
     if (profile.vocalRange) {
       const vocal = profile.vocalRange;
       lines.push(
-        `🎤 Vocal Range:    ${vocal.lowestNote.noteName} (MIDI ${vocal.lowestNote.midiPitch}) – ${vocal.highestNote.noteName} (MIDI ${vocal.highestNote.midiPitch}) [Span: ${vocal.spanSemitones} semitones]`
+        `🎤 Vocal Range:    ${vocal.lowestNote.noteName} (MIDI ${vocal.lowestNote.midiPitch}) – ${vocal.highestNote.noteName} (MIDI ${vocal.highestNote.midiPitch}) [Span: ${vocal.spanSemitones} semitones, Difficulty: ${vocal.difficulty}]`
       );
       lines.push(`   - Lowest Note:  ${vocal.lowestNote.noteName} in [${vocal.lowestNote.sectionName}]`);
       lines.push(`   - Highest Note: ${vocal.highestNote.noteName} in [${vocal.highestNote.sectionName}]`);
+      if (vocal.suitableVoiceTypes.length > 0) {
+        lines.push(`   - Suitable For: ${vocal.suitableVoiceTypes.join(", ")}`);
+      }
     }
 
     lines.push(

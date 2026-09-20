@@ -322,6 +322,19 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     const inspectorContent = fs.readFileSync(inspectorPath, "utf-8");
     expect(inspectorContent).toContain("TMDSongInspector.inspect");
     expect(inspectorContent).toContain("inspectorPitchInstSelect");
+    expect(inspectorContent).toContain("difficulty");
+    expect(inspectorContent).toContain("suitableVoiceTypes");
+
+    // Check locales for difficulty and voice types
+    expect((zhTW as any).difficultyEasy).toBeDefined();
+    expect((zhTW as any).difficultyDifficult).toBeDefined();
+    expect((zhTW as any).voiceTypeSoprano).toBeDefined();
+    expect((zhTW as any).voiceTypeTenor).toBeDefined();
+
+    expect((en as any).difficultyEasy).toBeDefined();
+    expect((en as any).difficultyDifficult).toBeDefined();
+    expect((en as any).voiceTypeSoprano).toBeDefined();
+    expect((en as any).voiceTypeTenor).toBeDefined();
   });
 });
 
