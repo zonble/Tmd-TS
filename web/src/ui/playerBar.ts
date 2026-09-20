@@ -204,15 +204,26 @@ export class TMDPlayerController {
     if (playerProgress) {
       playerProgress.value = "0";
       playerProgress.max = "100";
+      playerProgress.classList.remove("loading");
+      playerProgress.disabled = false;
     }
     if (tmdPlayerBar) tmdPlayerBar.style.display = "flex";
-    if (playerBtnPause) playerBtnPause.textContent = "⏸";
+    if (playerBtnPause) {
+      playerBtnPause.textContent = "⏸";
+      playerBtnPause.disabled = false;
+    }
 
     await tmdPlayer.play(midiBytes, title, {
       onStart: (_title, durationSec) => {
         if (playerProgress) {
+          playerProgress.classList.remove("loading");
+          playerProgress.disabled = false;
           playerProgress.max = Math.max(1, durationSec).toString();
           playerProgress.value = "0";
+        }
+        if (playerBtnPause) {
+          playerBtnPause.disabled = false;
+          playerBtnPause.textContent = "⏸";
         }
         if (playerTime) {
           playerTime.textContent = `00:00 / ${formatPlaybackTime(durationSec)}`;
@@ -223,6 +234,8 @@ export class TMDPlayerController {
           playerTime.textContent = `${formatPlaybackTime(currentSec)} / ${formatPlaybackTime(totalSec)}`;
         }
         if (playerProgress && !this.isSeeking) {
+          playerProgress.classList.remove("loading");
+          playerProgress.disabled = false;
           if (playerProgress.max !== totalSec.toString()) {
             playerProgress.max = Math.max(1, totalSec).toString();
           }
@@ -235,20 +248,60 @@ export class TMDPlayerController {
       onResume: () => {
         if (playerBtnPause) playerBtnPause.textContent = "⏸";
       },
-      onLoadingStatus: (status) => {
-        if (status && playerTime) {
-          playerTime.textContent = status;
+      onLoadingStatus: (status, progress) => {
+        if (status && progress) {
+          // Entering or progressing in loading state
+          if (playerProgress) {
+            playerProgress.classList.add("loading");
+            playerProgress.disabled = true;
+          }
+          if (playerBtnPause) {
+            playerBtnPause.disabled = true;
+          }
+          if (playerTime) {
+            const template = t("loadingSoundfontProgress");
+            const text = template && template !== "loadingSoundfontProgress"
+              ? template
+                  .replace("{current}", progress.current.toString())
+                  .replace("{total}", progress.total.toString())
+                  .replace("{name}", progress.instrumentName)
+              : status;
+            playerTime.textContent = text;
+          }
+        } else if (!status) {
+          // Loading completed or reset
+          if (playerProgress) {
+            playerProgress.classList.remove("loading");
+            playerProgress.disabled = false;
+          }
+          if (playerBtnPause) {
+            playerBtnPause.disabled = false;
+          }
         }
       },
       onStop: () => {
         if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
-        if (playerBtnPause) playerBtnPause.textContent = "⏸";
-        if (playerProgress) playerProgress.value = "0";
+        if (playerBtnPause) {
+          playerBtnPause.textContent = "⏸";
+          playerBtnPause.disabled = false;
+        }
+        if (playerProgress) {
+          playerProgress.classList.remove("loading");
+          playerProgress.disabled = false;
+          playerProgress.value = "0";
+        }
       },
       onEnd: () => {
         if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
-        if (playerBtnPause) playerBtnPause.textContent = "⏸";
-        if (playerProgress) playerProgress.value = "0";
+        if (playerBtnPause) {
+          playerBtnPause.textContent = "⏸";
+          playerBtnPause.disabled = false;
+        }
+        if (playerProgress) {
+          playerProgress.classList.remove("loading");
+          playerProgress.disabled = false;
+          playerProgress.value = "0";
+        }
       },
     });
   }

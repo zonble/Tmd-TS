@@ -3,6 +3,7 @@ import {
   gmProgramToSoundfontName,
   getDrumSoundfontName,
   scanMidiProgramsAndDrums,
+  formatSoundfontLoadingStatus,
 } from "../web/src/audio/soundfont-mapping.js";
 import { TMDMIDIEncoder, MIDIEvent } from "../src/exporters/midi_encoder.js";
 
@@ -162,6 +163,19 @@ p8:Clarinet@|0|{ <4*> 1 2 3 4 }
       expect(instrumentNames).toContain("electric_bass_finger");
       expect(instrumentNames).toContain("clarinet");
       expect(instrumentNames).toContain("synth_drum");
+    });
+  });
+
+  describe("formatSoundfontLoadingStatus", () => {
+    it("formats loading progress with default template", () => {
+      const msg = formatSoundfontLoadingStatus(1, 3, "electric_bass_finger");
+      expect(msg).toBe("⏳ Loading SoundFont (1/3 electric_bass_finger)...");
+    });
+
+    it("formats loading progress with custom localized template", () => {
+      const template = "⏳ 載入音色 ({current}/{total} {name})...";
+      const msg = formatSoundfontLoadingStatus(2, 4, "synth_drum", template);
+      expect(msg).toBe("⏳ 載入音色 (2/4 synth_drum)...");
     });
   });
 });

@@ -332,3 +332,27 @@ export function scanMidiProgramsAndDrums(bytes: Uint8Array): MidiScanResult {
     instrumentNames: Array.from(instrumentNamesSet),
   };
 }
+
+export interface SoundfontLoadingProgress {
+  current: number;
+  total: number;
+  instrumentName: string;
+}
+
+/**
+ * Formats soundfont loading progress string for UI display.
+ */
+export function formatSoundfontLoadingStatus(
+  current: number,
+  total: number,
+  instrumentName: string,
+  template?: string
+): string {
+  if (template) {
+    return template
+      .replace("{current}", current.toString())
+      .replace("{total}", total.toString())
+      .replace("{name}", instrumentName);
+  }
+  return `⏳ Loading SoundFont (${current}/${total} ${instrumentName})...`;
+}

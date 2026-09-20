@@ -3,6 +3,7 @@ export interface PanelsState {
   aiOpen: boolean;
   inspectorOpen: boolean;
   problemsCollapsed: boolean;
+  keyboardCollapsed: boolean;
 }
 
 export interface PanelDOMElements {
@@ -11,6 +12,8 @@ export interface PanelDOMElements {
   inspectorPanel: HTMLElement;
   problemsPanel: HTMLElement;
   btnToggleProblems?: HTMLButtonElement | null;
+  virtualKeyboard?: HTMLElement | null;
+  btnToggleKeyboard?: HTMLButtonElement | null;
 }
 
 const PANELS_STATE_KEY = "tmd-panels-state";
@@ -21,6 +24,7 @@ export function loadPanelsState(): PanelsState {
     aiOpen: false,
     inspectorOpen: true,
     problemsCollapsed: false,
+    keyboardCollapsed: true, // Default collapsed as requested
   };
   try {
     if (typeof localStorage !== "undefined") {
@@ -32,6 +36,7 @@ export function loadPanelsState(): PanelsState {
           aiOpen: typeof parsed.aiOpen === "boolean" ? parsed.aiOpen : defaultState.aiOpen,
           inspectorOpen: typeof parsed.inspectorOpen === "boolean" ? parsed.inspectorOpen : defaultState.inspectorOpen,
           problemsCollapsed: typeof parsed.problemsCollapsed === "boolean" ? parsed.problemsCollapsed : defaultState.problemsCollapsed,
+          keyboardCollapsed: typeof parsed.keyboardCollapsed === "boolean" ? parsed.keyboardCollapsed : defaultState.keyboardCollapsed,
         };
       }
     }
@@ -49,6 +54,7 @@ export function savePanelsState(elements: PanelDOMElements): void {
         aiOpen: !elements.aiDrawer.classList.contains("hidden"),
         inspectorOpen: !elements.inspectorPanel.classList.contains("hidden"),
         problemsCollapsed: elements.problemsPanel.classList.contains("collapsed"),
+        keyboardCollapsed: elements.virtualKeyboard ? elements.virtualKeyboard.classList.contains("collapsed") : true,
       };
       localStorage.setItem(PANELS_STATE_KEY, JSON.stringify(state));
     }
@@ -83,5 +89,15 @@ export function applyPanelsState(elements: PanelDOMElements): void {
   } else {
     elements.problemsPanel.classList.remove("collapsed");
     if (elements.btnToggleProblems) elements.btnToggleProblems.textContent = "▼";
+  }
+
+  if (elements.virtualKeyboard) {
+    if (state.keyboardCollapsed) {
+      elements.virtualKeyboard.classList.add("collapsed");
+      if (elements.btnToggleKeyboard) elements.btnToggleKeyboard.textContent = "▲";
+    } else {
+      elements.virtualKeyboard.classList.remove("collapsed");
+      if (elements.btnToggleKeyboard) elements.btnToggleKeyboard.textContent = "▼";
+    }
   }
 }
