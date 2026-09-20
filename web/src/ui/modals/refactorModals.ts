@@ -56,6 +56,17 @@ export interface RefactorModalsElements {
   toolGenerateHarmony?: HTMLButtonElement | null;
   ctxGenerateHarmony?: HTMLElement | null;
 
+  // Transpose
+  refactorTransposeModal: HTMLDialogElement;
+  refactorTransposeSemitones: HTMLSelectElement;
+  refactorTransposeScopeGroup: HTMLElement;
+  refactorTransposeSelectionOnly: HTMLInputElement;
+  refactorTransposeUpdateKeyGroup: HTMLElement;
+  refactorTransposeUpdateKey: HTMLInputElement;
+  btnConfirmTranspose: HTMLButtonElement;
+  toolTranspose?: HTMLButtonElement | null;
+  ctxTranspose?: HTMLElement | null;
+
   // Inline Orders
   toolInlineOrders?: HTMLButtonElement | null;
 
@@ -118,6 +129,16 @@ export function setupRefactorModals(
     btnConfirmHarmony,
     toolGenerateHarmony,
     ctxGenerateHarmony,
+
+    refactorTransposeModal,
+    refactorTransposeSemitones,
+    refactorTransposeScopeGroup,
+    refactorTransposeSelectionOnly,
+    refactorTransposeUpdateKeyGroup,
+    refactorTransposeUpdateKey,
+    btnConfirmTranspose,
+    toolTranspose,
+    ctxTranspose,
 
     toolInlineOrders,
     toolsDropdown,
@@ -367,6 +388,56 @@ export function setupRefactorModals(
     }
   });
 
+  const openTransposeModal = () => {
+    toolsDropdown?.classList.remove("open");
+    closeContextMenu();
+    const ctx = editor.getCursorContext();
+    if (ctx.hasSelection) {
+      refactorTransposeScopeGroup.style.display = "block";
+      refactorTransposeSelectionOnly.checked = true;
+      refactorTransposeUpdateKeyGroup.style.display = "none";
+    } else {
+      refactorTransposeScopeGroup.style.display = "none";
+      refactorTransposeSelectionOnly.checked = false;
+      refactorTransposeUpdateKeyGroup.style.display = "block";
+      refactorTransposeUpdateKey.checked = true;
+    }
+    refactorTransposeModal.showModal();
+  };
+
+  toolTranspose?.addEventListener("click", () => {
+    openTransposeModal();
+  });
+
+  ctxTranspose?.addEventListener("click", () => {
+    openTransposeModal();
+  });
+
+  btnConfirmTranspose?.addEventListener("click", () => {
+    const semitones = parseInt(refactorTransposeSemitones.value, 10) || 0;
+    const ctx = editor.getCursorContext();
+    const applyToSelection = ctx.hasSelection && refactorTransposeSelectionOnly.checked;
+    const updateKeySignature = !applyToSelection && refactorTransposeUpdateKey.checked;
+
+    try {
+      if (applyToSelection) {
+        const selectionText = editor.getSelection();
+        const transposed = TMDRefactor.transpose(selectionText, { semitones });
+        editor.replaceSelection(transposed);
+      } else {
+        const full = editor.getContent();
+        const transposed = TMDRefactor.transpose(full, { semitones, updateKeySignature });
+        editor.setContent(transposed);
+      }
+      const updated = editor.getContent();
+      onScoreUpdated(updated);
+      refactorTransposeModal.close();
+      showToast(t("toastTransposed"));
+    } catch (err: any) {
+      showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
+    }
+  });
+
   // Inline Orders
   toolInlineOrders?.addEventListener("click", () => {
     toolsDropdown?.classList.remove("open");
@@ -385,5 +456,6 @@ export function setupRefactorModals(
   return {
     openDuplicateModal,
     openHarmonyModal,
+    openTransposeModal,
   };
 }

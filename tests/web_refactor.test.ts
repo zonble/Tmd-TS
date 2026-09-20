@@ -31,6 +31,10 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect((en as any).toolGenerateHarmony).toBeDefined();
     expect((zhTW as any).toolInlineOrders).toBeDefined();
     expect((en as any).toolInlineOrders).toBeDefined();
+    expect((zhTW as any).toolTranspose).toBeDefined();
+    expect((en as any).toolTranspose).toBeDefined();
+    expect((zhTW as any).refactorTransposeTitle).toBeDefined();
+    expect((en as any).refactorTransposeTitle).toBeDefined();
 
     // Problems Panel
     expect((zhTW as any).problemsPanelTitle).toBeDefined();
@@ -51,6 +55,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(html).toContain('id="tool-format-document"');
     expect(html).toContain('id="tool-double-grid"');
     expect(html).toContain('id="tool-halve-grid"');
+    expect(html).toContain('id="tool-transpose"');
     expect(html).toContain('id="tool-duplicate-track"');
     expect(html).toContain('id="tool-generate-harmony"');
     expect(html).toContain('id="tool-inline-orders"');
@@ -70,6 +75,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(html).toContain('id="refactor-extract-modal"');
     expect(html).toContain('id="refactor-duplicate-modal"');
     expect(html).toContain('id="refactor-harmony-modal"');
+    expect(html).toContain('id="refactor-transpose-modal"');
   });
 
   it("binds Tools actions, keyboard shortcut, and problems check in web/src/main.ts", () => {
@@ -96,6 +102,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(fullContent).toContain("tool-rename-instrument");
     expect(fullContent).toContain("tool-rename-section");
     expect(fullContent).toContain("tool-extract-instrument");
+    expect(fullContent).toContain("tool-transpose");
 
     // Problems panel logic
     expect(fullContent).toContain("problems-panel");
@@ -119,6 +126,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(html).toContain('id="editor-context-menu"');
     expect(html).toContain('id="ctx-format"');
     expect(html).toContain('id="ctx-comment"');
+    expect(html).toContain('id="ctx-transpose"');
     expect(html).toContain('id="ctx-double-grid"');
     expect(html).toContain('id="ctx-halve-grid"');
     expect(html).toContain('id="ctx-duplicate-track"');

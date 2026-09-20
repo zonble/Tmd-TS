@@ -8,6 +8,8 @@ export interface ContextMenuElements {
   ctxFormat: HTMLButtonElement;
   ctxFormatLabel: HTMLElement;
   ctxComment: HTMLButtonElement;
+  ctxTranspose: HTMLButtonElement;
+  ctxTransposeLabel: HTMLElement;
   ctxInsertSection: HTMLButtonElement;
   ctxDoubleGrid: HTMLButtonElement;
   ctxHalveGrid: HTMLButtonElement;
@@ -25,6 +27,7 @@ export interface ToolsDropdownElements {
   toolFormatDocument: HTMLButtonElement;
   toolDoubleGrid: HTMLButtonElement;
   toolHalveGrid: HTMLButtonElement;
+  toolTranspose: HTMLButtonElement;
   exportDropdown: HTMLElement;
 }
 
@@ -170,8 +173,14 @@ export class TMDToolsAndContextMenuController {
 
       if (ctx.hasSelection) {
         ctxFormatLabel.textContent = "格式化選取範圍 (Format Selection)";
+        if (this.contextElements.ctxTransposeLabel) {
+          this.contextElements.ctxTransposeLabel.textContent = "轉調選取範圍 (Transpose Selection)...";
+        }
       } else {
         ctxFormatLabel.textContent = t("toolFormatDocument");
+        if (this.contextElements.ctxTransposeLabel) {
+          this.contextElements.ctxTransposeLabel.textContent = t("toolTranspose");
+        }
       }
 
       editorContextMenu.style.display = "flex";

@@ -1,4 +1,4 @@
-import { Sheet, Paragraph, ScaleDegree, UnitGroup } from "./types.js";
+import { Sheet, Paragraph, ScaleDegree, UnitGroup, KeySignature } from "./types.js";
 import { TmdParser } from "./parser.js";
 import { formatSheet, formatParagraph } from "./format.js";
 
@@ -660,6 +660,312 @@ export class TMDRefactor {
 
     return this.format(resultLines.join("\n"));
   }
+
+  public static transpose(
+    source: string,
+    options: {
+      semitones?: number;
+      diatonicSteps?: number;
+      keySignature?: string;
+      updateKeySignature?: boolean;
+      section?: string;
+      instrument?: string;
+    }
+  ): string {
+    const semitones = options.semitones ?? 0;
+    const diatonicSteps = options.diatonicSteps ?? 0;
+    if (semitones === 0 && diatonicSteps === 0 && !options.updateKeySignature) {
+      return source;
+    }
+
+    // Determine current key signature if present
+    let currentKeySig = options.keySignature || "C";
+    const keyMatch = source.match(/(?:^|\n)\s*\?=\s*([A-Ga-g0-9',#b]+)/);
+    if (keyMatch) {
+      currentKeySig = keyMatch[1];
+    }
+
+    const rawLines = source.split(/\r?\n/);
+    const resultLines: string[] = [];
+
+    let insideParagraph = false;
+    let inMatchingPara = true;
+
+    // Check if source is a snippet (no ::SCORE:: and no paragraph header)
+    const isFullScore = source.includes("::SCORE::") || /(^|\n)\s*[a-zA-Z0-9_\u4e00-\u9fa5-]+:[a-zA-Z0-9_\u4e00-\u9fa5-]+@/.test(source);
+
+    for (const rawLine of rawLines) {
+      const trimmed = rawLine.trim();
+
+      // If full score and updateKeySignature is requested, update global ?= line
+      if (options.updateKeySignature && (trimmed.startsWith("?=") || trimmed.startsWith("? ="))) {
+        const indent = rawLine.match(/^\s*/)?.[0] || "";
+        const oldKeyStr = (trimmed.startsWith("? =") ? trimmed.slice(3) : trimmed.slice(2)).trim();
+        const newKeyStr = transposeKeySignature(oldKeyStr, semitones);
+        resultLines.push(`${indent}?= ${newKeyStr}`);
+        currentKeySig = newKeyStr;
+        continue;
+      }
+
+      // Paragraph Header
+      const paraMatch = trimmed.match(
+        /^([a-zA-Z0-9_\u4e00-\u9fa5-]+)\s*:\s*([a-zA-Z0-9_\u4e00-\u9fa5-]+)(@[^{]*)?\s*\{/
+      );
+      if (paraMatch) {
+        insideParagraph = true;
+        const pSec = paraMatch[1];
+        const pInst = paraMatch[2];
+        inMatchingPara =
+          (!options.section || options.section === pSec) &&
+          (!options.instrument || options.instrument === pInst);
+        resultLines.push(rawLine);
+        continue;
+      }
+
+      if (trimmed === "}") {
+        insideParagraph = false;
+        inMatchingPara = true;
+        resultLines.push(rawLine);
+        continue;
+      }
+
+      // Transpose measure / unit lines if within target scope
+      if (!isFullScore || (insideParagraph && inMatchingPara)) {
+        if (trimmed.startsWith("|") || trimmed.includes("|") || /[0-7\[\]\-]/.test(trimmed)) {
+          const indent = rawLine.match(/^\s*/)?.[0] || "";
+          const transformed = transposeUnitsInLine(trimmed, {
+            semitones,
+            diatonicSteps,
+            keySignature: currentKeySig,
+          });
+          resultLines.push(indent + transformed);
+          continue;
+        }
+      }
+
+      resultLines.push(rawLine);
+    }
+
+    const output = resultLines.join("\n");
+    if (isFullScore) {
+      return this.format(output);
+    }
+    return output;
+  }
+}
+
+function transposeKeySignature(keyStr: string, semitones: number): string {
+  const currentKey = KeySignature.parse(keyStr || "C");
+  const oldOffset = currentKey.semitoneOffset;
+  const newOffset = ((oldOffset + semitones) % 12 + 12) % 12;
+  const offsetToKey: Record<number, string> = {
+    0: "C",
+    1: "C'",
+    2: "D",
+    3: "E,",
+    4: "E",
+    5: "F",
+    6: "F'",
+    7: "G",
+    8: "A,",
+    9: "A",
+    10: "B,",
+    11: "B",
+  };
+  return offsetToKey[newOffset] || "C";
+}
+
+const SCALE_DEGREE_SEMITONES: Record<number, number> = {
+  1: 0,
+  2: 2,
+  3: 4,
+  4: 5,
+  5: 7,
+  6: 9,
+  7: 11,
+};
+
+const NOTE_NAMES_12 = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+const SEMITONE_TO_DEGREE_MAP: Record<number, { degree: number; accidental: string }> = {
+  0: { degree: 1, accidental: "" },
+  1: { degree: 1, accidental: "'" },
+  2: { degree: 2, accidental: "" },
+  3: { degree: 2, accidental: "'" },
+  4: { degree: 3, accidental: "" },
+  5: { degree: 4, accidental: "" },
+  6: { degree: 4, accidental: "'" },
+  7: { degree: 5, accidental: "" },
+  8: { degree: 5, accidental: "'" },
+  9: { degree: 6, accidental: "" },
+  10: { degree: 7, accidental: "," },
+  11: { degree: 7, accidental: "" },
+};
+
+function transposeTmdNote(
+  noteStr: string,
+  options: { semitones: number; diatonicSteps: number; keySignature: string }
+): string {
+  // Parse noteStr e.g. "1", "1'", "1'^", "7,_", "3^^"
+  const match = noteStr.match(/^([1-7])(['#,]*)(\^*|_*)?$/);
+  if (!match) return noteStr;
+
+  const deg = parseInt(match[1], 10);
+  const acc = match[2] || "";
+  const oct = match[3] || "";
+
+  let octaveDelta = 0;
+  if (oct.startsWith("^")) {
+    octaveDelta = oct.length;
+  } else if (oct.startsWith("_")) {
+    octaveDelta = -oct.length;
+  }
+
+  // Case 1: Pure diatonic scale degree transpose (e.g. diatonicSteps: +1)
+  if (options.diatonicSteps !== 0 && options.semitones === 0) {
+    const zeroIndexed = deg - 1;
+    const newZero = zeroIndexed + options.diatonicSteps;
+    const newDeg = (((newZero % 7) + 7) % 7) + 1;
+    const addedOctaves = Math.floor(newZero / 7);
+    const finalOctave = octaveDelta + addedOctaves;
+
+    let newOctStr = "";
+    if (finalOctave > 0) newOctStr = "^".repeat(finalOctave);
+    else if (finalOctave < 0) newOctStr = "_".repeat(-finalOctave);
+
+    return `${newDeg}${acc}${newOctStr}`;
+  }
+
+  // Case 2: Semitone chromatic transposition
+  let accSemitone = 0;
+  if (acc.includes("'") || acc.includes("#")) accSemitone = 1;
+  else if (acc.includes(",")) accSemitone = -1;
+
+  // Semitone position relative to tonic of key
+  const baseDegreeSemitone = SCALE_DEGREE_SEMITONES[deg] + accSemitone;
+  const totalSemitonesRelTonic = baseDegreeSemitone + octaveDelta * 12 + options.semitones;
+
+  const semitoneInOct = ((totalSemitonesRelTonic % 12) + 12) % 12;
+  const finalOctave = Math.floor(totalSemitonesRelTonic / 12);
+
+  const mapped = SEMITONE_TO_DEGREE_MAP[semitoneInOct];
+  let newOctStr = "";
+  if (finalOctave > 0) newOctStr = "^".repeat(finalOctave);
+  else if (finalOctave < 0) newOctStr = "_".repeat(-finalOctave);
+
+  return `${mapped.degree}${mapped.accidental}${newOctStr}`;
+}
+
+function transposeChordToken(
+  chordStr: string,
+  options: { semitones: number; diatonicSteps: number }
+): string {
+  // chordStr like "[C]", "[Cmaj7]", "[1]", "[6m]"
+  const inner = chordStr.slice(1, -1).trim();
+  if (inner.length === 0) return chordStr;
+
+  const firstChar = inner[0];
+  const isNumbered = firstChar >= "1" && firstChar <= "7";
+
+  if (isNumbered) {
+    if (options.diatonicSteps !== 0 && options.semitones === 0) {
+      const match = inner.match(/^([1-7])(.*)$/);
+      if (!match) return chordStr;
+      const deg = parseInt(match[1], 10);
+      const suffix = match[2];
+      const newDeg = ((((deg - 1 + options.diatonicSteps) % 7) + 7) % 7) + 1;
+      return `[${newDeg}${suffix}]`;
+    }
+    // For semitone transposition on numbered chords, convert to letter chord or diatonic shift
+    return chordStr;
+  }
+
+  // Letter chord: e.g. C, C#, Db, Am, G7, F#m7
+  const match = inner.match(/^([A-Ga-g][',#b]?)(.*)$/);
+  if (!match) return chordStr;
+
+  const rootLetter = match[1];
+  const suffix = match[2];
+
+  let letter = rootLetter[0].toUpperCase();
+  let acc = rootLetter.slice(1);
+  let semitoneOffset = [0, 2, 4, 5, 7, 9, 11][["C", "D", "E", "F", "G", "A", "B"].indexOf(letter)];
+  if (acc === "'" || acc === "#") semitoneOffset += 1;
+  else if (acc === "," || acc === "b") semitoneOffset -= 1;
+
+  const newOffset = ((semitoneOffset + options.semitones) % 12 + 12) % 12;
+  const offsetToLetter: Record<number, string> = {
+    0: "C",
+    1: "C#'",
+    2: "D",
+    3: "Eb",
+    4: "E",
+    5: "F",
+    6: "F#'",
+    7: "G",
+    8: "Ab",
+    9: "A",
+    10: "Bb",
+    11: "B",
+  };
+  // Normalize C#' -> C#
+  let newRoot = offsetToLetter[newOffset].replace("'", "");
+  return `[${newRoot}${suffix}]`;
+}
+
+function transposeUnitsInLine(
+  line: string,
+  options: { semitones: number; diatonicSteps: number; keySignature: string }
+): string {
+  let working = line;
+  let commentSuffix = "";
+  const commentStart = working.indexOf("/*");
+  if (commentStart !== -1) {
+    commentSuffix = " " + working.slice(commentStart);
+    working = working.slice(0, commentStart).trim();
+  }
+
+  const tokens = tokenizeMeasureLine(working);
+  const outTokens: string[] = [];
+
+  for (const tok of tokens) {
+    if (tok === "|") {
+      outTokens.push("|");
+      continue;
+    }
+
+    if (tok.startsWith("[") && tok.endsWith("]")) {
+      outTokens.push(transposeChordToken(tok, options));
+      continue;
+    }
+
+    const tuplet = parseTupletToken(tok);
+    if (tuplet) {
+      // Tuplet inner units: (1 2 3)%(--)
+      const innerTokens = tokenizeMeasureLine(tuplet.inner);
+      const transposedInner = innerTokens.map((t) => {
+        if (/^[1-7]/.test(t)) {
+          return transposeTmdNote(t, options);
+        }
+        if (t.startsWith("[") && t.endsWith("]")) {
+          return transposeChordToken(t, options);
+        }
+        return t;
+      });
+      const dashSuffix = tuplet.dashes ? `%(${tuplet.dashes})` : "";
+      outTokens.push(`(${transposedInner.join(" ")})${dashSuffix}`);
+      continue;
+    }
+
+    if (/^[1-7]/.test(tok)) {
+      outTokens.push(transposeTmdNote(tok, options));
+      continue;
+    }
+
+    outTokens.push(tok);
+  }
+
+  return outTokens.join(" ") + commentSuffix;
 }
 
 function parseTupletToken(tok: string): { inner: string; dashes: string } | null {
