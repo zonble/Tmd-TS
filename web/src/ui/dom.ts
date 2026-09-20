@@ -134,6 +134,17 @@ export interface AppDOMElements {
   toolExtractInstrument: HTMLButtonElement;
   toolInsertSection: HTMLButtonElement;
 
+  // Virtual Keyboard
+  virtualKeyboard: HTMLElement;
+  btnToggleKeyboard: HTMLButtonElement;
+  virtualKeyboardKeys: HTMLElement;
+  btnKeyboardModeAudition: HTMLButtonElement;
+  btnKeyboardModeInsert: HTMLButtonElement;
+  btnKeyboardOctaveDown: HTMLButtonElement;
+  btnKeyboardOctaveUp: HTMLButtonElement;
+  virtualKeyboardOctaveDisplay: HTMLElement;
+  virtualKeyboardKeyBadge: HTMLElement;
+
   // Problems Panel
   problemsPanel: HTMLElement;
   btnToggleProblems: HTMLButtonElement;
@@ -341,6 +352,16 @@ export function initAppDOMElements(): AppDOMElements {
     toolRenameSection: getElement("tool-rename-section"),
     toolExtractInstrument: getElement("tool-extract-instrument"),
     toolInsertSection: getElement("tool-insert-section"),
+
+    virtualKeyboard: getElement("virtual-keyboard"),
+    btnToggleKeyboard: getElement("btn-toggle-keyboard"),
+    virtualKeyboardKeys: getElement("virtual-keyboard-keys"),
+    btnKeyboardModeAudition: getElement("btn-keyboard-mode-audition"),
+    btnKeyboardModeInsert: getElement("btn-keyboard-mode-insert"),
+    btnKeyboardOctaveDown: getElement("btn-keyboard-octave-down"),
+    btnKeyboardOctaveUp: getElement("btn-keyboard-octave-up"),
+    virtualKeyboardOctaveDisplay: getElement("virtual-keyboard-octave-display"),
+    virtualKeyboardKeyBadge: getElement("virtual-keyboard-key-badge"),
 
     problemsPanel: getElement("problems-panel"),
     btnToggleProblems: getElement("btn-toggle-problems"),

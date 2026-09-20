@@ -249,9 +249,38 @@
           </div>
         </aside>
 
-        <!-- Editor Workspace Column (Editor + Problems Panel) -->
+        <!-- Editor Workspace Column (Editor + Virtual Keyboard + Problems Panel) -->
         <div class="editor-workspace-column">
           <div id="editor-container" class="editor-container"></div>
+
+          <!-- Collapsible Virtual Keyboard -->
+          <div id="virtual-keyboard" class="virtual-keyboard collapsed">
+            <div class="virtual-keyboard-header">
+              <div class="virtual-keyboard-title-wrap">
+                <span class="virtual-keyboard-icon">🎹</span>
+                <span class="virtual-keyboard-title" data-i18n="virtualKeyboardTitle">虛擬鍵盤</span>
+                <span id="virtual-keyboard-key-badge" class="virtual-keyboard-key-badge">Key: C</span>
+              </div>
+              <div class="virtual-keyboard-controls">
+                <div class="keyboard-mode-toggle">
+                  <button id="btn-keyboard-mode-audition" class="btn btn-xs active" title="發聲試聽" data-i18n="virtualKeyboardAuditionMode">發聲試聽</button>
+                  <button id="btn-keyboard-mode-insert" class="btn btn-xs" title="輸入至游標" data-i18n="virtualKeyboardInsertMode">輸入至游標</button>
+                </div>
+                <div class="keyboard-octave-controls">
+                  <button id="btn-keyboard-octave-down" class="btn btn-xs btn-icon-only" title="八度 -" data-i18n-title="virtualKeyboardOctaveDown">◀</button>
+                  <span id="virtual-keyboard-octave-display" class="keyboard-octave-display"></span>
+                  <button id="btn-keyboard-octave-up" class="btn btn-xs btn-icon-only" title="八度 +" data-i18n-title="virtualKeyboardOctaveUp">▶</button>
+                </div>
+                <button id="btn-toggle-keyboard" class="btn btn-icon-only" title="切換虛擬鍵盤" data-i18n-title="virtualKeyboardToggleTitle">▲</button>
+              </div>
+            </div>
+            <div id="virtual-keyboard-body" class="virtual-keyboard-body">
+              <div id="virtual-keyboard-keys" class="virtual-keyboard-keys">
+                <!-- Dynamically populated keys -->
+              </div>
+            </div>
+          </div>
+
           <div id="problems-panel" class="problems-panel">
             <div class="problems-panel-header">
               <div class="problems-panel-title-wrap">

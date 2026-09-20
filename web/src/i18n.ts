@@ -36,9 +36,15 @@ export function getCurrentLocale(): Locale {
   return currentLocale;
 }
 
-export function t(key: keyof typeof en): string {
+export function t(key: keyof typeof en, params?: Record<string, string | number>): string {
   const dict = translations[currentLocale] || translations["zh-TW"];
-  return dict[key] || translations["en"][key] || key;
+  let str: string = dict[key] || translations["en"][key] || key;
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      str = str.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
+    }
+  }
+  return str;
 }
 
 export function onLanguageChange(fn: (lang: Locale) => void) {

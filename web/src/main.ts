@@ -28,6 +28,7 @@ import { TMDToolsAndContextMenuController } from "./ui/toolsMenu.js";
 import { setupRefactorModals } from "./ui/modals/refactorModals.js";
 import { setupInsertSectionModal } from "./ui/modals/insertSectionModal.js";
 import { setupHumModal } from "./ui/modals/humModal.js";
+import { VirtualKeyboardController } from "./ui/virtualKeyboard.js";
 
 let editor: TMDWebEditor;
 let currentSheet: Sheet | null = null;
@@ -40,6 +41,7 @@ let playerController: TMDPlayerController;
 let libraryController: TMDLibraryDrawerController;
 let aiDrawerController: TMDAIDrawerController;
 let toolsAndContextController: TMDToolsAndContextMenuController;
+let keyboardController: VirtualKeyboardController;
 
 function showToast(message: string, type: "success" | "error" = "success") {
   let container = document.querySelector(".toast-container") as HTMLElement | null;
@@ -64,6 +66,8 @@ function triggerSavePanelsState() {
     inspectorPanel: dom.inspectorPanel,
     problemsPanel: dom.problemsPanel,
     btnToggleProblems: dom.btnToggleProblems,
+    virtualKeyboard: dom.virtualKeyboard,
+    btnToggleKeyboard: dom.btnToggleKeyboard,
   });
 }
 
@@ -108,6 +112,14 @@ function updateInspector(text: string) {
     },
     (code) => TmdParser.parse(code)
   );
+
+  if (keyboardController) {
+    const keyStr = dom.statKey?.textContent || (currentSheet?.keySignature ? currentSheet.keySignature.toString() : "C");
+    keyboardController.setKeySignature(keyStr);
+    if (dom.virtualKeyboardKeyBadge) {
+      dom.virtualKeyboardKeyBadge.textContent = `Key: ${keyStr}`;
+    }
+  }
 }
 
 function handleScoreUpdated(newText: string) {
@@ -417,7 +429,24 @@ function initEvents() {
   );
   aiDrawerController.init();
 
-  // 11. Problems Panel Events & Quick Fix with AI
+  // 11. Virtual Keyboard Controller
+  keyboardController = new VirtualKeyboardController(
+    {
+      virtualKeyboard: dom.virtualKeyboard,
+      btnToggleKeyboard: dom.btnToggleKeyboard,
+      keyboardKeysContainer: dom.virtualKeyboardKeys,
+      keyboardModeAudition: dom.btnKeyboardModeAudition,
+      keyboardModeInsert: dom.btnKeyboardModeInsert,
+      keyboardOctaveDown: dom.btnKeyboardOctaveDown,
+      keyboardOctaveUp: dom.btnKeyboardOctaveUp,
+      keyboardOctaveDisplay: dom.virtualKeyboardOctaveDisplay,
+      keyboardKeySigDisplay: dom.virtualKeyboardKeyBadge,
+    },
+    editor,
+    () => triggerSavePanelsState()
+  );
+
+  // 12. Problems Panel Events & Quick Fix with AI
   setupProblemsPanelEvents(
     {
       problemsPanel: dom.problemsPanel,
@@ -433,7 +462,7 @@ function initEvents() {
     }
   );
 
-  // 12. Language switcher
+  // 13. Language switcher
   dom.btnLangToggle.addEventListener("click", () => {
     const nextLocale: Locale = getCurrentLocale() === "zh-TW" ? "en" : "zh-TW";
     applyI18n(nextLocale);
@@ -551,6 +580,8 @@ async function init() {
     inspectorPanel: dom.inspectorPanel,
     problemsPanel: dom.problemsPanel,
     btnToggleProblems: dom.btnToggleProblems,
+    virtualKeyboard: dom.virtualKeyboard,
+    btnToggleKeyboard: dom.btnToggleKeyboard,
   });
 
   libraryController.setActiveScore(initialScoreId, initialIsTemplate, initialTemplateId);

@@ -10,6 +10,8 @@ import {
   scanMidiProgramsAndDrums,
   gmProgramToSoundfontName,
   getDrumSoundfontName,
+  SoundfontLoadingProgress,
+  formatSoundfontLoadingStatus,
 } from "./audio/soundfont-mapping.js";
 
 const JZZ: any = JZZModule;
@@ -23,7 +25,7 @@ export interface TMDPlayerCallbacks {
   onResume?: () => void;
   onStop?: () => void;
   onEnd?: () => void;
-  onLoadingStatus?: (statusText: string | null) => void;
+  onLoadingStatus?: (statusText: string | null, progress?: SoundfontLoadingProgress | null) => void;
 }
 
 export class TMDMidiPlayer {
@@ -34,6 +36,7 @@ export class TMDMidiPlayer {
   private soundfontWidget: any = null;
   private webMidiPort: any = null;
   private audioContext: AudioContext | null = null;
+  private loadAbortController: AbortController | null = null;
 
   private currentSynthType: TMDMidiSynthType = "piano";
   private currentPlayer: any = null;
@@ -176,7 +179,10 @@ export class TMDMidiPlayer {
     this.activeNotes.clear();
   }
 
-  private async fetchSoundfontWithCache(url: string): Promise<string> {
+  private async fetchSoundfontWithCache(url: string, signal?: AbortSignal): Promise<string> {
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
     if (typeof caches !== "undefined") {
       try {
         const cache = await caches.open("tmd-soundfonts-v1");
@@ -184,18 +190,23 @@ export class TMDMidiPlayer {
         if (cached) {
           return await cached.text();
         }
-        const resp = await fetch(url);
+        const resp = await fetch(url, { signal });
         if (resp.ok) {
           cache.put(url, resp.clone()).catch(() => {});
           return await resp.text();
         }
-      } catch (_) {}
+      } catch (err: any) {
+        if (err?.name === "AbortError") throw err;
+      }
     }
-    const resp = await fetch(url);
+    const resp = await fetch(url, { signal });
     return await resp.text();
   }
 
-  private async loadSoundfontInstrument(name: string): Promise<any> {
+  private async loadSoundfontInstrument(name: string, signal?: AbortSignal): Promise<any> {
+    if (signal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
     if (this.loadedInstruments.has(name)) {
       return this.loadedInstruments.get(name);
     }
@@ -208,18 +219,29 @@ export class TMDMidiPlayer {
 
     const promise = (async () => {
       try {
-        // Pre-cache SoundFont asset via Cache API if supported
+        // Pre-cache SoundFont asset via Cache API with optional abort signal
         const url = `https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/${name}-mp3.js`;
-        this.fetchSoundfontWithCache(url).catch(() => {});
+        this.fetchSoundfontWithCache(url, signal).catch(() => {});
+
+        if (signal?.aborted) {
+          throw new DOMException("Aborted", "AbortError");
+        }
 
         const inst = await Soundfont.instrument(ctx, name as any, {
           soundfont: "FluidR3_GM",
           format: "mp3",
         });
+
+        if (signal?.aborted) {
+          throw new DOMException("Aborted", "AbortError");
+        }
+
         this.loadedInstruments.set(name, inst);
         return inst;
-      } catch (err) {
-        console.warn(`[TMDMidiPlayer] Failed to load soundfont instrument '${name}':`, err);
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          console.warn(`[TMDMidiPlayer] Failed to load soundfont instrument '${name}':`, err);
+        }
         return null;
       } finally {
         this.loadingPromises.delete(name);
@@ -232,28 +254,48 @@ export class TMDMidiPlayer {
 
   private async loadSoundfontInstruments(
     instrumentNames: string[],
-    callbacks?: TMDPlayerCallbacks
+    callbacks?: TMDPlayerCallbacks,
+    signal?: AbortSignal
   ): Promise<boolean> {
     const toLoad = instrumentNames.filter((name) => !this.loadedInstruments.has(name));
     if (toLoad.length === 0) {
       return true;
     }
 
-    callbacks?.onLoadingStatus?.(`Loading SoundFont (${toLoad.length} instruments)...`);
-
-    try {
-      await Promise.all(toLoad.map((name) => this.loadSoundfontInstrument(name)));
-      // Ensure at least default piano is loaded as primary fallback
-      if (!this.loadedInstruments.has("acoustic_grand_piano")) {
-        await this.loadSoundfontInstrument("acoustic_grand_piano");
+    const total = toLoad.length;
+    for (let i = 0; i < total; i++) {
+      if (signal?.aborted) {
+        callbacks?.onLoadingStatus?.(null, null);
+        return false;
       }
-      callbacks?.onLoadingStatus?.(null);
-      return true;
-    } catch (err) {
-      console.warn("[TMDMidiPlayer] Error loading soundfonts:", err);
-      callbacks?.onLoadingStatus?.(null);
-      return false;
+      const instName = toLoad[i];
+      const progress: SoundfontLoadingProgress = {
+        current: i + 1,
+        total,
+        instrumentName: instName,
+      };
+      callbacks?.onLoadingStatus?.(
+        formatSoundfontLoadingStatus(progress.current, progress.total, progress.instrumentName),
+        progress
+      );
+
+      try {
+        await this.loadSoundfontInstrument(instName, signal);
+      } catch (err: any) {
+        if (err?.name === "AbortError" || signal?.aborted) {
+          callbacks?.onLoadingStatus?.(null, null);
+          return false;
+        }
+      }
     }
+
+    // Ensure default piano fallback is cached
+    if (!this.loadedInstruments.has("acoustic_grand_piano") && !signal?.aborted) {
+      await this.loadSoundfontInstrument("acoustic_grand_piano", signal);
+    }
+
+    callbacks?.onLoadingStatus?.(null, null);
+    return true;
   }
 
   private createSoundfontWidget(): any {
@@ -361,36 +403,45 @@ export class TMDMidiPlayer {
     }
 
     try {
+      this.loadAbortController = new AbortController();
+      const signal = this.loadAbortController.signal;
+
       const smfData = new JZZ.MIDI.SMF(bytes);
       const player = smfData.player();
 
       // Route to destination synth based on current selection
       if (this.currentSynthType === "gm" || this.currentSynthType === "piano") {
-        // 1. Ensure Grand Piano is loaded (cached or fast 1-instrument load)
-        if (!this.loadedInstruments.has("acoustic_grand_piano")) {
-          callbacks?.onLoadingStatus?.("Loading SoundFont...");
-          await this.loadSoundfontInstrument("acoustic_grand_piano");
-          callbacks?.onLoadingStatus?.(null);
+        if (this.currentSynthType === "piano") {
+          // Pure Grand Piano mode: ensure acoustic_grand_piano is ready
+          if (!this.loadedInstruments.has("acoustic_grand_piano")) {
+            callbacks?.onLoadingStatus?.(
+              formatSoundfontLoadingStatus(1, 1, "acoustic_grand_piano"),
+              { current: 1, total: 1, instrumentName: "acoustic_grand_piano" }
+            );
+            await this.loadSoundfontInstrument("acoustic_grand_piano", signal);
+            callbacks?.onLoadingStatus?.(null, null);
+          }
+        } else {
+          // Multi-Track GM mode: preload all needed instruments and drums synchronously
+          const scan = scanMidiProgramsAndDrums(bytes);
+          const instrumentsToLoad = scan.instrumentNames.length > 0
+            ? scan.instrumentNames
+            : ["acoustic_grand_piano"];
+
+          const loadSuccess = await this.loadSoundfontInstruments(
+            instrumentsToLoad,
+            callbacks,
+            signal
+          );
+          if (!loadSuccess || signal.aborted) {
+            return;
+          }
         }
+
+        if (signal.aborted) return;
 
         const widget = this.createSoundfontWidget();
         player.connect(widget);
-
-        // 2. If in GM mode, trigger non-blocking background pre-fetch for other tracks
-        if (this.currentSynthType === "gm") {
-          const scan = scanMidiProgramsAndDrums(bytes);
-          const otherInstruments = scan.instrumentNames.filter((name) => name !== "acoustic_grand_piano");
-          if (otherInstruments.length > 0) {
-            // Load remaining instruments asynchronously in background; Note On hot-swaps them seamlessly!
-            this.loadSoundfontInstruments(otherInstruments, {
-              onLoadingStatus: (msg) => {
-                if (this.callbacks.onLoadingStatus) {
-                  this.callbacks.onLoadingStatus(msg);
-                }
-              },
-            }).catch((err) => console.warn("[TMDMidiPlayer] Background instruments load error:", err));
-          }
-        }
       } else if (this.currentSynthType === "webmidi") {
         let connectedToHardware = false;
         try {
@@ -482,6 +533,10 @@ export class TMDMidiPlayer {
   }
 
   public stop(notifyCallback: boolean = true) {
+    if (this.loadAbortController) {
+      this.loadAbortController.abort();
+      this.loadAbortController = null;
+    }
     this.stopProgressTimer();
     this.stopActiveNotes();
     if (this.currentPlayer) {
@@ -493,6 +548,105 @@ export class TMDMidiPlayer {
     this.isPausedState = false;
     if (notifyCallback && this.callbacks.onStop) {
       this.callbacks.onStop();
+    }
+  }
+
+  private auditionOscMap: Map<number, { osc: OscillatorNode; gain: GainNode }> = new Map();
+
+  public async playNote(midiPitch: number, velocity: number = 80): Promise<void> {
+    const ctx = this.getAudioContext();
+    if (ctx && typeof ctx.resume === "function" && ctx.state === "suspended") {
+      try { await ctx.resume(); } catch (_) {}
+    }
+
+    // 1. Try playing via loaded Grand Piano SoundFont if available
+    let playedWithSoundfont = false;
+    try {
+      let inst = this.loadedInstruments.get("acoustic_grand_piano");
+      if (!inst && !this.loadingPromises.has("acoustic_grand_piano")) {
+        // Trigger load in background for subsequent notes
+        this.loadSoundfontInstrument("acoustic_grand_piano").catch(() => {});
+      }
+      if (inst) {
+        const gain = Math.max(0.1, Math.min(1.0, velocity / 127));
+        const auditionKey = 0x9900 | midiPitch;
+        const prev = this.activeNotes.get(auditionKey);
+        if (prev && typeof prev.stop === "function") {
+          try { prev.stop(); } catch (_) {}
+        }
+        const node = inst.play(midiPitch, undefined, { gain });
+        if (node) {
+          this.activeNotes.set(auditionKey, node);
+          playedWithSoundfont = true;
+        }
+      }
+    } catch (err) {
+      console.warn("[TMDMidiPlayer] Soundfont audition note failed:", err);
+    }
+
+    // 2. If SoundFont is not ready yet, provide instant zero-latency Web Audio oscillator synthesis
+    if (!playedWithSoundfont && ctx) {
+      try {
+        const freq = 440 * Math.pow(2, (midiPitch - 69) / 12);
+        const now = ctx.currentTime;
+
+        // Stop any existing oscillator on this pitch
+        this.stopOscNote(midiPitch);
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, now);
+
+        const targetGain = Math.max(0.05, Math.min(0.3, (velocity / 127) * 0.3));
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(targetGain, now + 0.01);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        this.auditionOscMap.set(midiPitch, { osc, gain });
+      } catch (err) {
+        console.warn("[TMDMidiPlayer] Oscillator audition failed:", err);
+      }
+    }
+  }
+
+  private stopOscNote(midiPitch: number): void {
+    const existing = this.auditionOscMap.get(midiPitch);
+    if (existing) {
+      try {
+        const ctx = this.getAudioContext();
+        if (ctx) {
+          const now = ctx.currentTime;
+          existing.gain.gain.cancelScheduledValues(now);
+          existing.gain.gain.setValueAtTime(existing.gain.gain.value, now);
+          existing.gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+          existing.osc.stop(now + 0.09);
+        } else {
+          existing.osc.stop();
+        }
+      } catch (_) {}
+      this.auditionOscMap.delete(midiPitch);
+    }
+  }
+
+  public stopNote(midiPitch: number): void {
+    // Stop oscillator if playing
+    this.stopOscNote(midiPitch);
+
+    // Stop soundfont node if playing
+    const auditionKey = 0x9900 | midiPitch;
+    const node = this.activeNotes.get(auditionKey);
+    if (node) {
+      try {
+        if (typeof node.stop === "function") {
+          node.stop();
+        }
+      } catch (_) {}
+      this.activeNotes.delete(auditionKey);
     }
   }
 }

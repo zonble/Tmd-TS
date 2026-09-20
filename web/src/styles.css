@@ -239,6 +239,232 @@ html, body {
 }
 
 /* ==========================================================================
+   Virtual Keyboard
+   ========================================================================== */
+
+.virtual-keyboard {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  max-height: 180px;
+  min-height: 32px;
+  transition: max-height 0.2s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.virtual-keyboard.collapsed {
+  max-height: 32px;
+}
+
+.virtual-keyboard.collapsed .virtual-keyboard-body {
+  display: none;
+}
+
+.virtual-keyboard-header {
+  height: 32px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.virtual-keyboard-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.virtual-keyboard-icon {
+  font-size: 14px;
+}
+
+.virtual-keyboard-key-badge {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-weight: 600;
+  background: rgba(88, 166, 255, 0.15);
+  color: #58a6ff;
+  border: 1px solid rgba(88, 166, 255, 0.3);
+}
+
+.virtual-keyboard-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.keyboard-mode-toggle {
+  display: flex;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.keyboard-mode-toggle .btn {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 3px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.keyboard-mode-toggle .btn.active {
+  background: var(--accent-blue);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.keyboard-octave-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.keyboard-octave-display {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  min-width: 55px;
+  text-align: center;
+}
+
+.virtual-keyboard-body {
+  flex: 1;
+  padding: 8px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: #14171d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.virtual-keyboard-keys {
+  display: flex;
+  justify-content: center;
+  height: 100%;
+}
+
+.piano-keys-wrapper {
+  display: flex;
+  position: relative;
+  height: 120px;
+  padding: 2px 4px 6px 4px;
+}
+
+.piano-key {
+  position: relative;
+  border-radius: 0 0 4px 4px;
+  cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
+  touch-action: manipulation;
+  transition: background-color 0.08s, transform 0.05s;
+}
+
+.piano-key.white-key {
+  width: 36px;
+  height: 110px;
+  background: #f0f2f5;
+  border: 1px solid #9aa0a6;
+  border-top: none;
+  z-index: 1;
+  margin: 0 1px;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4), inset 0 -2px 0 #cfd4dc;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 6px;
+}
+
+.piano-key.white-key:hover {
+  background: #ffffff;
+}
+
+.piano-key.white-key.active,
+.piano-key.white-key:active {
+  background: #cce4ff !important;
+  transform: translateY(2px);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.5), inset 0 -1px 0 #99c2ff;
+}
+
+.piano-key.black-key {
+  width: 24px;
+  height: 70px;
+  background: #1f2328;
+  border: 1px solid #000;
+  border-top: none;
+  z-index: 2;
+  margin-left: -13px;
+  margin-right: -13px;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.8), inset 0 -3px 0 #3b424c;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 6px;
+}
+
+.piano-key.black-key:hover {
+  background: #2b3038;
+}
+
+.piano-key.black-key.active,
+.piano-key.black-key:active {
+  background: #0969da !important;
+  transform: translateY(2px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), inset 0 -1px 0 #054a99;
+}
+
+.key-labels {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+  gap: 2px;
+}
+
+.white-key .key-degree {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0969da;
+  font-family: var(--font-mono);
+}
+
+.white-key .key-notename {
+  font-size: 9px;
+  color: #57606a;
+  font-family: var(--font-sans);
+}
+
+.black-key .key-degree {
+  font-size: 11px;
+  font-weight: 700;
+  color: #79c0ff;
+  font-family: var(--font-mono);
+}
+
+.black-key .key-notename {
+  font-size: 8px;
+  color: #8b949e;
+  font-family: var(--font-sans);
+}
+
+/* ==========================================================================
    Problems Panel
    ========================================================================== */
 
@@ -1357,7 +1583,13 @@ details[open] > summary .outline-chevron {
   transition: all 0.15s ease;
 }
 
-.player-ctrl-btn:hover {
+.player-ctrl-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.player-ctrl-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
   transform: scale(1.08);
@@ -1371,6 +1603,40 @@ details[open] > summary .outline-chevron {
 .player-ctrl-btn.player-close-btn:hover {
   color: #f85149;
   border-color: rgba(248, 81, 73, 0.4);
+}
+
+/* Indeterminate glowing shimmer for player slider during SoundFont download */
+.player-slider.loading {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(88, 166, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.15) 100%
+  );
+  background-size: 200% 100%;
+  animation: sliderIndeterminate 1.5s linear infinite;
+  cursor: wait;
+}
+
+.player-slider.loading::-webkit-slider-thumb {
+  opacity: 0.3;
+  cursor: wait;
+  box-shadow: none;
+}
+
+.player-slider.loading::-moz-range-thumb {
+  opacity: 0.3;
+  cursor: wait;
+  box-shadow: none;
+}
+
+@keyframes sliderIndeterminate {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 
 /* ==========================================================================
