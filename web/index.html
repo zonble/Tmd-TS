@@ -95,6 +95,9 @@
               <button class="dropdown-item" id="tool-halve-grid">
                 <span>⏪</span> <span data-i18n="toolHalveGrid">減半網格時值 (Halve Grid: &lt;8*&gt; ➔ &lt;4*&gt;)</span>
               </button>
+              <button class="dropdown-item" id="tool-transpose">
+                <span>🔄</span> <span data-i18n="toolTranspose">全域 / 選取範圍轉調...</span>
+              </button>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="tool-duplicate-track">
                 <span>👯</span> <span data-i18n="toolDuplicateTrack">複製音軌 (Duplicate Track)...</span>
@@ -879,6 +882,53 @@ verse:Lead@|0|{
         </div>
       </dialog>
 
+      <!-- Transpose Modal -->
+      <dialog id="refactor-transpose-modal" class="modal">
+        <div class="modal-header">
+          <h2 class="modal-title" data-i18n="refactorTransposeTitle">樂譜與選取範圍轉調 (Transpose)</h2>
+          <button class="btn btn-icon-only btn-close-modal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="refactor-transpose-semitones" data-i18n="labelTransposeSemitones">升降半音 (Semitones / Key Shift)：</label>
+            <select id="refactor-transpose-semitones" class="text-control">
+              <option value="1">+1 半音 (升半音)</option>
+              <option value="2" selected>+2 半音 (升全音 / 大二度)</option>
+              <option value="3">+3 半音 (小三度)</option>
+              <option value="4">+4 半音 (大三度)</option>
+              <option value="5">+5 半音 (完全四度)</option>
+              <option value="7">+7 半音 (完全五度)</option>
+              <option value="12">+12 半音 (高八度)</option>
+              <option value="-1">-1 半音 (降半音)</option>
+              <option value="-2">-2 半音 (降全音 / 大二度)</option>
+              <option value="-3">-3 半音 (小三度)</option>
+              <option value="-4">-4 半音 (大三度)</option>
+              <option value="-5">-5 半音 (完全四度)</option>
+              <option value="-7">-7 半音 (完全五度)</option>
+              <option value="-12">-12 半音 (低八度)</option>
+            </select>
+          </div>
+
+          <div class="form-group" id="refactor-transpose-scope-group" style="display: none;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="refactor-transpose-selection-only" checked style="cursor: pointer; width: 16px; height: 16px; margin: 0;" />
+              <label for="refactor-transpose-selection-only" data-i18n="labelTransposeSelectionOnly" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal;">僅套用於目前選取範圍 (Selection Only)</label>
+            </div>
+          </div>
+
+          <div class="form-group" id="refactor-transpose-updatekey-group">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="refactor-transpose-update-key" checked style="cursor: pointer; width: 16px; height: 16px; margin: 0;" />
+              <label for="refactor-transpose-update-key" data-i18n="labelTransposeUpdateKey" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal;">同步更新樂譜調號標頭 (?= ...)</label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-confirm-transpose" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+        </div>
+      </dialog>
+
       <!-- Insert Section Modal -->
       <dialog id="insert-section-modal" class="modal">
         <div class="modal-header">
@@ -1035,6 +1085,9 @@ verse:Lead@|0|{
         </button>
         <button class="context-menu-item" id="ctx-halve-grid">
           <span>⏪</span> <span data-i18n="toolHalveGrid">減半網格時值 (Halve Grid: &lt;8*&gt; ➔ &lt;4*&gt;)</span>
+        </button>
+        <button class="context-menu-item" id="ctx-transpose">
+          <span>🔄</span> <span id="ctx-transpose-label" data-i18n="toolTranspose">全域 / 選取範圍轉調...</span>
         </button>
         <div class="context-menu-divider"></div>
         <button class="context-menu-item" id="ctx-duplicate-track">

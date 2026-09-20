@@ -126,6 +126,7 @@ export interface AppDOMElements {
   toolFormatDocument: HTMLButtonElement;
   toolDoubleGrid: HTMLButtonElement;
   toolHalveGrid: HTMLButtonElement;
+  toolTranspose: HTMLButtonElement;
   toolDuplicateTrack: HTMLButtonElement;
   toolGenerateHarmony: HTMLButtonElement;
   toolInlineOrders: HTMLButtonElement;
@@ -187,6 +188,14 @@ export interface AppDOMElements {
   refactorHarmScopeSectionLabel: HTMLElement;
   btnConfirmHarmony: HTMLButtonElement;
 
+  refactorTransposeModal: HTMLDialogElement;
+  refactorTransposeSemitones: HTMLSelectElement;
+  refactorTransposeScopeGroup: HTMLElement;
+  refactorTransposeSelectionOnly: HTMLInputElement;
+  refactorTransposeUpdateKeyGroup: HTMLElement;
+  refactorTransposeUpdateKey: HTMLInputElement;
+  btnConfirmTranspose: HTMLButtonElement;
+
   // Insert Section Modal
   insertSectionModal: HTMLDialogElement;
   insertSecName: HTMLInputElement;
@@ -201,6 +210,8 @@ export interface AppDOMElements {
   ctxFormat: HTMLButtonElement;
   ctxFormatLabel: HTMLElement;
   ctxComment: HTMLButtonElement;
+  ctxTranspose: HTMLButtonElement;
+  ctxTransposeLabel: HTMLElement;
   ctxInsertSection: HTMLButtonElement;
   ctxDoubleGrid: HTMLButtonElement;
   ctxHalveGrid: HTMLButtonElement;
@@ -345,6 +356,7 @@ export function initAppDOMElements(): AppDOMElements {
     toolFormatDocument: getElement("tool-format-document"),
     toolDoubleGrid: getElement("tool-double-grid"),
     toolHalveGrid: getElement("tool-halve-grid"),
+    toolTranspose: getElement("tool-transpose"),
     toolDuplicateTrack: getElement("tool-duplicate-track"),
     toolGenerateHarmony: getElement("tool-generate-harmony"),
     toolInlineOrders: getElement("tool-inline-orders"),
@@ -403,6 +415,14 @@ export function initAppDOMElements(): AppDOMElements {
     refactorHarmScopeSectionLabel: getElement("refactor-harm-scope-section-label"),
     btnConfirmHarmony: getElement("btn-confirm-harmony"),
 
+    refactorTransposeModal: getElement("refactor-transpose-modal"),
+    refactorTransposeSemitones: getElement("refactor-transpose-semitones"),
+    refactorTransposeScopeGroup: getElement("refactor-transpose-scope-group"),
+    refactorTransposeSelectionOnly: getElement("refactor-transpose-selection-only"),
+    refactorTransposeUpdateKeyGroup: getElement("refactor-transpose-updatekey-group"),
+    refactorTransposeUpdateKey: getElement("refactor-transpose-update-key"),
+    btnConfirmTranspose: getElement("btn-confirm-transpose"),
+
     insertSectionModal: getElement("insert-section-modal"),
     insertSecName: getElement("insert-sec-name"),
     insertSecInst: getElement("insert-sec-inst"),
@@ -415,6 +435,8 @@ export function initAppDOMElements(): AppDOMElements {
     ctxFormat: getElement("ctx-format"),
     ctxFormatLabel: getElement("ctx-format-label"),
     ctxComment: getElement("ctx-comment"),
+    ctxTranspose: getElement("ctx-transpose"),
+    ctxTransposeLabel: getElement("ctx-transpose-label"),
     ctxInsertSection: getElement("ctx-insert-section"),
     ctxDoubleGrid: getElement("ctx-double-grid"),
     ctxHalveGrid: getElement("ctx-halve-grid"),

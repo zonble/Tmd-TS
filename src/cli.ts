@@ -334,6 +334,7 @@ SUBCOMMANDS:
   duplicate-track         Duplicate an instrument track with optional octave shift.
   generate-harmony        Generate diatonic parallel harmony track (e.g. 3rd, 6th).
   inline-orders           Unroll order sequence into a single linear section.
+  transpose               Transpose pitch notes and chords up/down by semitones or diatonic steps.
 `);
     return 0;
   }
@@ -825,6 +826,109 @@ SUBCOMMANDS:
     } else if (outputPath) {
       fs.writeFileSync(outputPath, transformed, "utf-8");
       console.log(`Inlined output written to ${outputPath}.`);
+    } else {
+      process.stdout.write(transformed);
+    }
+    return 0;
+  }
+
+  if (sub === "transpose") {
+    let inputPath: string | undefined;
+    let semitones = 0;
+    let diatonicSteps = 0;
+    let updateKeySignature = false;
+    let section: string | undefined;
+    let instrument: string | undefined;
+    let inPlace = false;
+    let outputPath: string | undefined;
+
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i];
+      if (arg === "-h" || arg === "--help") {
+        console.log(`USAGE: tmd refactor transpose [<options>] <input-path>
+
+Transpose notes and chords up/down by semitones or diatonic steps.
+
+OPTIONS:
+  -s, --semitones N       Number of semitones to transpose (+1, -1, +2, -5, etc.).
+  -d, --diatonic N        Number of diatonic scale steps to shift (+1, -1, +2, etc.).
+  -k, --update-key        Update global key signature '?= ...' line in score.
+      --section NAME      Restrict transposition to a specific section.
+      --instrument NAME   Restrict transposition to a specific instrument.
+  -i, --in-place          Modify the file in-place.
+  -o, --output PATH       Write result to output path.
+`);
+        return 0;
+      }
+      if (arg === "-s" || arg === "--semitones") {
+        semitones = parseInt(rest[++i], 10) || 0;
+        continue;
+      }
+      if (arg === "-d" || arg === "--diatonic") {
+        diatonicSteps = parseInt(rest[++i], 10) || 0;
+        continue;
+      }
+      if (arg === "-k" || arg === "--update-key") {
+        updateKeySignature = true;
+        continue;
+      }
+      if (arg === "--section") {
+        section = rest[++i];
+        continue;
+      }
+      if (arg === "--instrument") {
+        instrument = rest[++i];
+        continue;
+      }
+      if (arg === "-i" || arg === "--in-place") {
+        inPlace = true;
+        continue;
+      }
+      if (arg === "-o" || arg === "--output") {
+        outputPath = rest[++i];
+        continue;
+      }
+      if (!arg.startsWith("-")) {
+        inputPath = arg;
+      } else {
+        console.error(`Unknown option: ${arg}`);
+        return 2;
+      }
+    }
+
+    if (!inputPath) {
+      console.error("Error: transpose requires <input-path>");
+      return 2;
+    }
+
+    let content: string;
+    try {
+      content = fs.readFileSync(inputPath, "utf-8");
+    } catch (error: any) {
+      console.error(`Error reading ${inputPath}: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    let transformed: string;
+    try {
+      transformed = TMDRefactor.transpose(content, {
+        semitones,
+        diatonicSteps,
+        updateKeySignature,
+        section,
+        instrument,
+      });
+    } catch (error: any) {
+      console.error(`Refactor error: ${error.message || String(error)}`);
+      return 1;
+    }
+
+    if (inPlace) {
+      fs.writeFileSync(inputPath, transformed, "utf-8");
+      console.log(`Transposed score in ${inputPath} in-place.`);
+    } else if (outputPath) {
+      fs.writeFileSync(outputPath, transformed, "utf-8");
+      console.log(`Transposed output written to ${outputPath}.`);
     } else {
       process.stdout.write(transformed);
     }

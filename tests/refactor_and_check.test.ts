@@ -569,6 +569,101 @@ verse:Piano@|0|{
     expect(sheet.paragraphs).toHaveLength(1);
     expect(sheet.paragraphs[0].sections[0].unitGroups.length).toBe(12); // 4 + 4 + 4
   });
+
+  describe("TMDRefactor.transpose (TDD)", () => {
+    it("transposes notes and chords up by semitones (e.g. +2 half steps)", () => {
+      const input = `| 1 2 3 4 | [C] - [Am] - |`;
+      // In Key C: 1 (C) -> 2 (D), 2 (D) -> 3 (E), 3 (E) -> 4' (F#), 4 (F) -> 5 (G)
+      // Chords: [C] -> [D], [Am] -> [Bm]
+      const transposed = TMDRefactor.transpose(input, { semitones: 2, keySignature: "C" });
+      expect(transposed).toContain("| 2 3 4' 5 |");
+      expect(transposed).toContain("[D] - [Bm] -");
+    });
+
+    it("transposes notes and chords down by semitones (e.g. -1 half step)", () => {
+      const input = `| 1 3 5 1^ | [C] - [G7] - |`;
+      // 1 (C) - 1 semitone -> 7_ (B3)
+      // 3 (E) - 1 semitone -> 2' (Eb / D#)
+      // 5 (G) - 1 semitone -> 4' (F#)
+      // 1^ (C5) - 1 semitone -> 7 (B4)
+      // [C] -> [B], [G7] -> [F#7]
+      const transposed = TMDRefactor.transpose(input, { semitones: -1, keySignature: "C" });
+      expect(transposed).toContain("| 7_ 2' 4' 7 |");
+      expect(transposed).toContain("[B] - [F#7] -");
+    });
+
+    it("transposes movable-do scale degrees diatonically (diatonicSteps: +1 or -1)", () => {
+      const input = `| 1 2 3 4 | 5 6 7 1^ | [1] - [4] [5] |`;
+      // Shift degree numbers directly: 1->2, 2->3, ..., 7->1^
+      // Numbered chords: [1]->[2], [4]->[5], [5]->[6]
+      const transposed = TMDRefactor.transpose(input, { diatonicSteps: 1 });
+      expect(transposed).toContain("| 2 3 4 5 | 6 7 1^ 2^ |");
+      expect(transposed).toContain("[2] - [5] [6]");
+    });
+
+    it("transposes complete TMD score and updates score key signature if specified", () => {
+      const input = `::SCORE::
+/* My intro comment */
+** Transpose Song **
+!= 120
+?= C
+<4/4>
+
+verse:Lead@|0|{
+    <4*>
+    | 1 2 3 1 | /* bar comment */
+    | [C] - [G] - |
+}
+
+-> verse ->#
+`;
+      const transposed = TMDRefactor.transpose(input, { semitones: 2, updateKeySignature: true });
+      expect(transposed).toContain("?= D");
+      expect(transposed).toContain("/* My intro comment */");
+      expect(transposed).toContain("/* bar comment */");
+      expect(transposed).toContain("verse:Lead@|0|{");
+      expect(transposed).toContain("-> verse ->#");
+
+      const issues = TMDMeasureChecker.check(transposed);
+      expect(issues).toHaveLength(0);
+    });
+
+    it("transposes restricted to a specific section and/or instrument", () => {
+      const input = `::SCORE::
+** Multi-Track Score **
+!= 120
+?= C
+<4/4>
+
+verse:Lead@|0|{
+    <4*>
+    | 1 2 3 4 |
+}
+
+verse:Bass@|0|{
+    <4*>
+    | 1_ - 5_ - |
+}
+
+chorus:Lead@|0|{
+    <4*>
+    | 5 6 7 1^ |
+}
+
+-> verse -> chorus ->#
+`;
+      // Transpose only verse Lead up an octave (+12 semitones)
+      const transposed = TMDRefactor.transpose(input, {
+        semitones: 12,
+        section: "verse",
+        instrument: "Lead",
+      });
+
+      expect(transposed).toContain("verse:Lead@|0|{\n    <4*>\n    | 1^ 2^ 3^ 4^ |");
+      expect(transposed).toContain("verse:Bass@|0|{\n    <4*>\n    | 1_ - 5_ - |");
+      expect(transposed).toContain("chorus:Lead@|0|{\n    <4*>\n    | 5 6 7 1^ |");
+    });
+  });
 });
 
 describe("TMDMeasureChecker (TDD)", () => {
@@ -1017,6 +1112,13 @@ describe("TMD CLI subcommands check, format, and refactor (TDD)", () => {
       const inlinedContent = readFileSync(outInlined, "utf-8");
       expect(inlinedContent).toContain("linear:Fiddle");
       expect(inlinedContent).toContain("-> linear ->#");
+
+      // transpose
+      const outTransposed = join(tempDir, "transposed.tmd");
+      expect(main(["refactor", "transpose", file, "-s", "2", "-k", "-o", outTransposed])).toBe(0);
+      const transposedContent = readFileSync(outTransposed, "utf-8");
+      expect(transposedContent).toContain("?= D");
+      expect(transposedContent).toContain("2 3 4' 5");
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
