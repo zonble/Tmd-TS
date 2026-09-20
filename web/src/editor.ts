@@ -1,7 +1,7 @@
 import { EditorView, basicSetup } from "codemirror";
 import { EditorState, Compartment } from "@codemirror/state";
 import { StreamLanguage, StringStream } from "@codemirror/language";
-import { toggleComment } from "@codemirror/commands";
+import { toggleComment, indentWithTab } from "@codemirror/commands";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { keymap, gutter, GutterMarker, BlockInfo } from "@codemirror/view";
 
@@ -207,6 +207,7 @@ export function createTmdEditor(
       key: "Shift-Alt-a",
       run: toggleComment,
     },
+    indentWithTab,
   ]);
 
   const sectionPlayGutter = gutter({
