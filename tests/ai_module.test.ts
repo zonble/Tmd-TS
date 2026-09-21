@@ -64,9 +64,10 @@ Hope you like this acoustic progression!`;
 
   it('detects API keys and prevents them from being used as model names', async () => {
     const { looksLikeApiKey, loadAISettings } = await import('../web/src/ai/storage.js');
-    expect(looksLikeApiKey('AIzaSyAOAcOwEOm6O1wS2MUuG4KAGH5tVdXYf68')).toBe(true);
-    expect(looksLikeApiKey('sk-proj-1234567890abcdef1234567890')).toBe(true);
-    expect(looksLikeApiKey('gsk_1234567890abcdef1234567890')).toBe(true);
+    const fakeGeminiKey = 'AIzaSy_FAKE_MOCK_KEY_FOR_TESTING_ONLY_12345';
+    expect(looksLikeApiKey(fakeGeminiKey)).toBe(true);
+    expect(looksLikeApiKey('sk-proj-FAKE_MOCK_KEY_FOR_TESTING_1234567890')).toBe(true);
+    expect(looksLikeApiKey('gsk_FAKE_MOCK_KEY_FOR_TESTING_1234567890')).toBe(true);
     expect(looksLikeApiKey('gemini-3.8-flash')).toBe(false);
     expect(looksLikeApiKey('gpt-6-astra')).toBe(false);
     expect(looksLikeApiKey('deepseek-v4-flash')).toBe(false);
@@ -76,7 +77,7 @@ Hope you like this acoustic progression!`;
       tmd_ai_settings_v1: JSON.stringify({
         activeProvider: 'gemini',
         providers: {
-          gemini: { apiKey: '', model: 'AIzaSyAOAcOwEOm6O1wS2MUuG4KAGH5tVdXYf68' },
+          gemini: { apiKey: '', model: fakeGeminiKey },
         },
       }),
     };
@@ -87,7 +88,7 @@ Hope you like this acoustic progression!`;
 
     const loaded = loadAISettings();
     expect(loaded.providers.gemini.model).toBe('gemini-3.8-flash');
-    expect(loaded.providers.gemini.apiKey).toBe('AIzaSyAOAcOwEOm6O1wS2MUuG4KAGH5tVdXYf68');
+    expect(loaded.providers.gemini.apiKey).toBe(fakeGeminiKey);
   });
 
   it('defines i18n keys for AI settings helper links and model-only applied message', async () => {
