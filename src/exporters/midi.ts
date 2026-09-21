@@ -7,6 +7,7 @@ import {
   Beat,
   PlaybackTimeline,
   TMDPlaybackRenderer,
+  TMDMacroEvaluator,
 } from '../core/index.js';
 import { TMDMIDIEncoder, type MIDIEvent, type MIDIMessage } from './midi_encoder.js';
 
@@ -843,15 +844,15 @@ export class TMDMIDIGenerator {
   public static readonly defaultTicksPerQuarterNote = 480;
 
   public static generateMIDI(
-    sheet: Sheet,
+    rawSheet: Sheet,
     ticksPerQuarter: number = TMDMIDIGenerator.defaultTicksPerQuarterNote,
     options?: TMDMIDIGeneratorOptions
   ): Uint8Array {
-    let effectiveSheet = sheet;
+    let effectiveSheet = TMDMacroEvaluator.expand(rawSheet);
     if (options?.targetParagraph) {
-      const filteredParagraphs = sheet.paragraphs.filter(p => p.name === options.targetParagraph);
+      const filteredParagraphs = rawSheet.paragraphs.filter(p => p.name === options.targetParagraph);
       effectiveSheet = {
-        ...sheet,
+        ...rawSheet,
         paragraphs: filteredParagraphs,
         orders: [{ type: 'name', name: options.targetParagraph }],
       };

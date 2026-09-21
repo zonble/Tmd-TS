@@ -276,10 +276,14 @@ export interface Paragraph {
   column?: number;
 }
 
+export type SExprAtom = string | number;
+export type SExpr = SExprAtom | SExpr[];
+
 export type Order =
   | { type: "name"; name: string }
   | { type: "relative"; value: string }
-  | { type: "absolute"; value: string };
+  | { type: "absolute"; value: string }
+  | { type: "macro"; expr: SExpr[] };
 
 export interface Sheet {
   name: string;

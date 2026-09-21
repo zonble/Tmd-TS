@@ -10,6 +10,7 @@ import {
   Sheet,
   Unit
 } from "./types";
+import { TMDMacroEvaluator } from "./macro.js";
 
 export type PlaybackContent =
   | { type: "note"; note: Note }
@@ -48,10 +49,11 @@ export interface TMDPlaybackRendererOptions {
 
 export class TMDPlaybackRenderer {
   public static render(
-    sheet: Sheet,
+    inputSheet: Sheet,
     instrument: string,
     options?: TMDPlaybackRendererOptions
   ): PlaybackTimeline {
+    const sheet = TMDMacroEvaluator.expand(inputSheet);
     const paragraphs = sheet.paragraphs.filter((p) => p.instrument === instrument);
     const orders: Order[] = sheet.orders.length > 0
       ? sheet.orders

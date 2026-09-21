@@ -6,6 +6,7 @@ import {
   SectionDirective,
   Paragraph,
   Order,
+  SExpr,
   Sheet,
   Accidental,
   Beat,
@@ -130,11 +131,19 @@ export function formatParagraph(p: Paragraph, beat?: Beat): string {
   return result;
 }
 
+export function formatSExpr(expr: SExpr): string {
+  if (Array.isArray(expr)) {
+    return `(${expr.map(formatSExpr).join(" ")})`;
+  }
+  return String(expr);
+}
+
 export function formatOrder(order: Order): string {
   switch (order.type) {
     case "name": return order.name;
     case "relative": return `{?${order.value}}`;
     case "absolute": return `{?=${order.value}}`;
+    case "macro": return `(${order.expr.map(formatSExpr).join(" ")})`;
   }
 }
 
