@@ -1,5 +1,6 @@
 import { AIProviderConfig, AIProviderType, GenerateOptions } from "./types.js";
 import { buildSystemPrompt, buildUserPrompt } from "./prompt.js";
+import { buildAiToolDeclarations, executeAiTool } from "./tools.js";
 
 export async function callAI(
   provider: AIProviderType,
@@ -13,6 +14,8 @@ export async function callAI(
 
   const systemPrompt = buildSystemPrompt();
   const userPrompt = buildUserPrompt(options);
+
+  options.onStatus?.("正在連線模型並發送創作提示詞...");
 
   switch (provider) {
     case "gemini":
@@ -33,42 +36,92 @@ async function callGemini(
   userPrompt: string,
   options: GenerateOptions
 ): Promise<string> {
+  const toolDeclarations = options.toolContext
+    ? buildAiToolDeclarations(options.toolContext)
+    : null;
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
     model
-  )}:streamGenerateContent?alt=sse&key=${apiKey}`;
+  )}:generateContent?key=${apiKey}`;
 
-  const body = {
-    system_instruction: {
-      parts: [{ text: systemPrompt }],
+  const contents: any[] = [
+    {
+      role: "user",
+      parts: [{ text: userPrompt }],
     },
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: userPrompt }],
+  ];
+
+  let turn = 0;
+  const maxTurns = 4;
+
+  while (turn < maxTurns) {
+    turn++;
+    const body: any = {
+      system_instruction: {
+        parts: [{ text: systemPrompt }],
       },
-    ],
-    generationConfig: {
-      temperature: 0.7,
-    },
-  };
+      contents,
+      generationConfig: {
+        temperature: 0.7,
+      },
+    };
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal: options.signal,
-  });
+    if (toolDeclarations && toolDeclarations.geminiTools.length > 0) {
+      body.tools = toolDeclarations.geminiTools;
+    }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API error (${response.status}): ${errorText}`);
+    options.onStatus?.(turn === 1 ? "正在等待模型創作回應..." : "模型正在消化工具驗證結果並修正樂譜...");
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: options.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API error (${response.status}): ${errorText}`);
+    }
+
+    const data = await response.json();
+    const candidate = data.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
+
+    // Check if there are function calls
+    const functionCallPart = parts.find((p: any) => p.functionCall);
+    if (functionCallPart && options.toolContext) {
+      const fn = functionCallPart.functionCall;
+      options.onStatus?.(`🔧 AI 正在調用 Web MCP 工具 [${fn.name}] 檢驗小節...`);
+
+      const toolResult = await executeAiTool(fn.name, fn.args || {}, options.toolContext);
+
+      // Append model assistant turn and function response turn
+      contents.push(candidate.content);
+      contents.push({
+        role: "function",
+        parts: [
+          {
+            functionResponse: {
+              name: fn.name,
+              response: { result: toolResult },
+            },
+          },
+        ],
+      });
+      continue;
+    }
+
+    // Normal text output
+    const textPart = parts.find((p: any) => p.text);
+    const finalContent = textPart?.text || "";
+    if (finalContent && options.onChunk) {
+      options.onChunk(finalContent);
+    }
+    return finalContent;
   }
 
-  return readSSEStream(response, options.onChunk, (json) => {
-    const candidate = json.candidates?.[0];
-    const textPart = candidate?.content?.parts?.[0]?.text;
-    return textPart || "";
-  });
+  return "";
 }
 
 async function callOpenAICompatible(
@@ -93,31 +146,80 @@ async function callOpenAICompatible(
     headers["Authorization"] = `Bearer ${config.apiKey.trim()}`;
   }
 
-  const body = {
-    model: config.model,
-    stream: true,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    temperature: 0.7,
-  };
+  const toolDeclarations = options.toolContext
+    ? buildAiToolDeclarations(options.toolContext)
+    : null;
 
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-    signal: options.signal,
-  });
+  const messages: any[] = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ];
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`${provider.toUpperCase()} API error (${response.status}): ${errorText}`);
+  let turn = 0;
+  const maxTurns = 4;
+
+  while (turn < maxTurns) {
+    turn++;
+    options.onStatus?.(turn === 1 ? "正在等待模型創作回應..." : "模型正在消化工具驗證結果並修正樂譜...");
+
+    const body: any = {
+      model: config.model,
+      messages,
+      temperature: 0.7,
+      stream: false,
+    };
+
+    if (toolDeclarations && toolDeclarations.openAiTools.length > 0) {
+      body.tools = toolDeclarations.openAiTools;
+    }
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+      signal: options.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`${provider.toUpperCase()} API error (${response.status}): ${errorText}`);
+    }
+
+    const json = await response.json();
+    const choice = json.choices?.[0];
+    const message = choice?.message;
+
+    if (message?.tool_calls && message.tool_calls.length > 0 && options.toolContext) {
+      messages.push(message);
+      for (const call of message.tool_calls) {
+        const fnName = call.function.name;
+        let fnArgs = {};
+        try {
+          fnArgs = JSON.parse(call.function.arguments || "{}");
+        } catch {
+          fnArgs = {};
+        }
+
+        options.onStatus?.(`🔧 AI 正在調用 Web MCP 工具 [${fnName}] 檢驗小節...`);
+        const toolRes = await executeAiTool(fnName, fnArgs, options.toolContext);
+
+        messages.push({
+          role: "tool",
+          tool_call_id: call.id,
+          content: toolRes,
+        });
+      }
+      continue;
+    }
+
+    const finalContent = message?.content || "";
+    if (finalContent && options.onChunk) {
+      options.onChunk(finalContent);
+    }
+    return finalContent;
   }
 
-  return readSSEStream(response, options.onChunk, (json) => {
-    return json.choices?.[0]?.delta?.content || "";
-  });
+  return "";
 }
 
 async function callAnthropic(

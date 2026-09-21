@@ -1,3 +1,5 @@
+import type { TmdWebMcpContext } from "../mcp/webmcpIntegration.js";
+
 export type AIProviderType = "gemini" | "openai" | "groq" | "anthropic" | "custom";
 
 export interface AIModelPreset {
@@ -27,5 +29,7 @@ export interface GenerateOptions {
   currentTmd?: string;
   mode?: "compose" | "arrange" | "extend" | "debug" | "reharm";
   onChunk?: (chunk: string) => void;
+  onStatus?: (status: string) => void;
+  toolContext?: TmdWebMcpContext;
   signal?: AbortSignal;
 }

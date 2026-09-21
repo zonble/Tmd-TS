@@ -265,4 +265,42 @@ verse:Piano@|0|{
     expect(validResult.measureIssues.length).toBe(0);
     expect(validResult.allValid).toBe(true);
   });
+
+  it('builds tool declarations for Gemini and OpenAI providers from Web MCP tools', async () => {
+    const { buildAiToolDeclarations, executeAiTool } = await import('../web/src/ai/tools.js');
+    const mockContext = {
+      getCurrentScore: () => '::SCORE::\n** Current **\n!= 120\n?= C\n<4/4>\nA:Piano@|0|{ 1 2 3 4 }\n-> A ->#',
+      loadScoreToEditor: () => {},
+    };
+
+    const decls = buildAiToolDeclarations(mockContext);
+    expect(decls.geminiTools).toBeDefined();
+    expect(decls.geminiTools[0].function_declarations.length).toBeGreaterThanOrEqual(2);
+    expect(decls.geminiTools[0].function_declarations.some((f: any) => f.name === 'checkTmd')).toBe(true);
+    expect(decls.geminiTools[0].function_declarations.some((f: any) => f.name === 'getCurrentScore')).toBe(true);
+
+    expect(decls.openAiTools).toBeDefined();
+    expect(decls.openAiTools.length).toBeGreaterThanOrEqual(2);
+    expect(decls.openAiTools.some((t: any) => t.function.name === 'checkTmd')).toBe(true);
+    expect(decls.openAiTools.some((t: any) => t.function.name === 'getCurrentScore')).toBe(true);
+
+    // Test execution of checkTmd
+    const checkGood = await executeAiTool('checkTmd', {
+      text: '::SCORE::\n** Good **\n!= 120\n?= C\n<4/4>\nA:Piano@|0|{ <4*> | 1 2 3 4 | }\n-> A ->#',
+    }, mockContext);
+    const parsedGood = JSON.parse(checkGood);
+    expect(parsedGood.valid).toBe(true);
+    expect(parsedGood.issueCount).toBe(0);
+
+    const checkBad = await executeAiTool('checkTmd', {
+      text: '::SCORE::\n** Bad **\n!= 120\n?= C\n<4/4>\nA:Piano@|0|{ <4*> | 1 2 3 | }\n-> A ->#',
+    }, mockContext);
+    const parsedBad = JSON.parse(checkBad);
+    expect(parsedBad.valid).toBe(false);
+    expect(parsedBad.issueCount).toBe(1);
+
+    // Test execution of getCurrentScore
+    const currentScore = await executeAiTool('getCurrentScore', {}, mockContext);
+    expect(currentScore).toContain('** Current **');
+  });
 });

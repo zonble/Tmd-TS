@@ -552,18 +552,32 @@ export class TMDAIDrawerController {
     this.aiAbortController = new AbortController();
     if (btnAiGenerate) btnAiGenerate.style.display = "none";
     if (btnAiStop) btnAiStop.style.display = "inline-flex";
-    aiStatusText.textContent = t("aiStatusGenerating");
+
+    aiStatusText.classList.add("generating");
+    aiStatusText.innerHTML = `<span class="ai-spinner"></span> <span>${t("aiStatusGenerating")}</span>`;
+
     aiResultContainer.style.display = "block";
     if (aiValidationBanner) aiValidationBanner.style.display = "none";
     if (btnAiPreviewPlay) {
       btnAiPreviewPlay.disabled = false;
       btnAiPreviewPlay.title = t("aiBtnPlayPreview");
     }
-    aiResultOutput.textContent = "";
+
+    aiResultOutput.classList.add("is-loading");
+    aiResultOutput.textContent = "/* 正在連線模型並創作樂譜，請稍候... */";
     this.aiCurrentGeneratedCode = "";
 
     const mode = (aiPromptInput.dataset.activeMode as any) || "compose";
     let accumulatedText = "";
+    const startTime = Date.now();
+
+    const timerInterval = setInterval(() => {
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      const currentLabel = aiStatusText.querySelector("span:last-child");
+      if (currentLabel && !currentLabel.textContent?.includes("(")) {
+        // preserve action, just update timer
+      }
+    }, 500);
 
     try {
       const editor = this.getEditor();
@@ -571,28 +585,47 @@ export class TMDAIDrawerController {
         prompt,
         currentTmd: editor.getContent(),
         mode,
+        toolContext: {
+          getCurrentScore: () => editor.getContent(),
+          loadScoreToEditor: (text) => {
+            editor.setContent(text);
+            this.onScoreUpdated(text);
+          },
+          startPlayback: () => this.startPlayback(editor.getContent()),
+        },
         signal: this.aiAbortController.signal,
+        onStatus: (status) => {
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          aiStatusText.innerHTML = `<span class="ai-spinner"></span> <span>${status} (${elapsed}s)</span>`;
+        },
         onChunk: (chunk) => {
+          aiResultOutput.classList.remove("is-loading");
           accumulatedText += chunk;
           aiResultOutput.textContent = accumulatedText;
           aiResultOutput.scrollTop = aiResultOutput.scrollHeight;
         },
       });
 
+      aiResultOutput.classList.remove("is-loading");
       aiResultOutput.textContent = accumulatedText;
       const extracted = extractTmdCode(accumulatedText);
       if (extracted) {
         await this.handleValidationAndRepair(extracted, prompt, provider, config, true);
       } else {
+        aiStatusText.classList.remove("generating");
         aiStatusText.textContent = t("aiNoCodeFound");
       }
     } catch (err: any) {
+      aiResultOutput.classList.remove("is-loading");
+      aiStatusText.classList.remove("generating");
       if (err.name === "AbortError") {
         aiStatusText.textContent = "已停止生成。";
       } else {
         aiStatusText.textContent = `生成失敗: ${err.message}`;
       }
     } finally {
+      clearInterval(timerInterval);
+      aiStatusText.classList.remove("generating");
       if (btnAiGenerate) btnAiGenerate.style.display = "inline-flex";
       if (btnAiStop) btnAiStop.style.display = "none";
       this.aiAbortController = null;
