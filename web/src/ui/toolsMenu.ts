@@ -203,9 +203,10 @@ export class TMDToolsAndContextMenuController {
       }
 
       if (ctx.hasSelection) {
-        ctxFormatLabel.textContent = "格式化選取範圍 (Format Selection)";
+        ctxFormatLabel.textContent = t("toolFormatSelection");
         if (this.contextElements.ctxTransposeLabel) {
-          this.contextElements.ctxTransposeLabel.textContent = "轉調選取範圍 (Transpose Selection)...";
+          this.contextElements.ctxTransposeLabel.textContent =
+            t("toolTransposeSelection");
         }
       } else {
         ctxFormatLabel.textContent = t("toolFormatDocument");
