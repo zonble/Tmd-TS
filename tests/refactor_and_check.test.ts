@@ -790,9 +790,9 @@ verse:Piano@|0|{
     expect(issues[0].measureIndex).toBe(2);
   });
 
-  it("reports section instrument length mismatch", () => {
+  it("allows section tracks with natural staggered entrances and early exits (implicit rests)", () => {
     const input = `::SCORE::
-** Mismatched Section Length Song **
+** Layered Section Song **
 != 120
 ?= C
 <4/4>
@@ -811,19 +811,18 @@ verse:Bass@|0|{
     | 1 - - - |
 }
 
+verse:Chorus@|+2|{
+    <4*>
+    | 1 2 3 4 |
+}
+
 -> verse ->#
 `;
 
+    // Bass exits early (2 measures out of 4), Chorus enters at +2 and exits at 3.
+    // In TMD, these are valid staggered entrances / early exits without reporting error.
     const issues = TMDMeasureChecker.check(input);
-    const sectionIssues = issues.filter((i) => i.measureIndex === 0);
-    expect(sectionIssues).toHaveLength(1);
-    const issue = sectionIssues[0];
-    expect(issue.paragraphName).toBe("verse");
-    expect(issue.instrument).toBe("Bass");
-    expect(issue.expectedUnits).toBe(4);
-    expect(issue.actualUnits).toBe(2);
-    expect(issue.description).toContain("Expected 4 measures");
-    expect(issue.description).toContain("found 2 measures");
+    expect(issues).toHaveLength(0);
   });
 
   it("handles section instrument length with delayed start", () => {
@@ -1139,6 +1138,86 @@ v1:Piano@|0|{
     expect(v1Tok!.range.start.line).toBe(2);
     expect(v1Tok!.token.line).toBe(2);
 
+    const issues = TMDMeasureChecker.check(code);
+    expect(issues).toHaveLength(0);
+  });
+
+  it("accurately checks pipeless measures and mixed pipe/pipeless paragraphs", () => {
+    const code = `::SCORE::
+** Pipeless Measure Test **
+!= 120
+?= C
+<4/4>
+
+intro:CHORD@|0|{
+<2*>
+|[1] - | - [7,] |
+|[1] - | - [7,] |
+|[1] - | - [7,] |
+|[1] - | - [7,] |
+
+<4*>
+[1]-----[7,]-
+[1]-----[7,]-
+}
+
+-> intro ->#
+`;
+    // intro:CHORD has 8 measures of <2*> (16 half notes = 32 quarter notes = 8 measures)
+    // plus 2 measures of <4*> (8 quarter notes = 2 measures)
+    // total 10 measures. Should have 0 issues.
+    const issues = TMDMeasureChecker.check(code);
+    expect(issues).toHaveLength(0);
+  });
+
+  it("accepts Aguai's Three Days and Three Nights layered intro pattern without false errors", () => {
+    const code = `::SCORE::
+** 三天三夜 Intro Test **
+!= 133
+?= A'
+<4/4>
+
+intro:CHORD@|0|{
+<2*>
+|[1] - | - [7,] |
+|[1] - | - [7,] |
+|[1] - | - [7,] |
+|[1] - | - [7,] |
+
+<4*>
+[1]-----[7,]-
+[1]-----[7,]-
+}
+intro:Chorus-1@|+4|{
+<16*>
+1_- 1_ - 1_ - - 1_ - 1_ - 1_ 1_ - - -
+1_- 1_ - 1_ - - 1_ - 1_ - 1_ 1_ - - -
+1_- 1_ - 1_ - - 1_ - 1_ - 1_ 1_ - - -
+1_- 1_ - 1_ - - 1_ - 1_ - 1_ 1_ - - -
+}
+
+intro:Chorus-2@|+6|{
+<16*>
+3_- 3_ - 3_ - - 3_ - 3_ - 3_ 3_ - - -
+3_- 3_ - 3_ - - 3_ - 3_ - 3_ 3_ - - -
+3_- 3_ - 3_ - - 3_ - 3_ - 3_ 3_ - - -
+}
+intro:Chorus-3@|+8|{
+<16*>
+5_- 5_ - 5_ - - 5_ - 5_ - 5_ 5_ - - -
+5_- 5_ - 5_ - - 5_ - 5_ - 5_ 5_ - - -
+}
+
+intro:Guitar@{
+<16*>
+(7,1)%(--) 1 (7,1)%(--) 1 (7,1)%(--)1 (7,1)%(--) 6 7, 6 7, 6 
+(7,1)%(--) 1 (7,1)%(--) 1 (7,1)%(--)1 (7,1)%(--) 6 7, 6 7, 6  
+(7,1)%(--) 1 (7,1)%(--) 1 (7,1)%(--)1 (7,1)%(--) 6 7, 6 7, 6 
+(7,1)%(--) 1 (7,1)%(--) 1 (7,1)%(--)1 (7,1)%(--) 6 7, 6 7, 6 
+}
+
+-> intro ->#
+`;
     const issues = TMDMeasureChecker.check(code);
     expect(issues).toHaveLength(0);
   });

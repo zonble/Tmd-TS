@@ -373,7 +373,7 @@ export class TMDMeasureChecker {
 
         const nominalMeasureDur = (Math.max(1, beat.count) * 4.0) / Math.max(1, beat.noteValue);
         const calculatedMeasures = Math.round(paragraphQuarterNotes / nominalMeasureDur);
-        const actualMeasures = measureCount > 0 ? measureCount : Math.max(1, calculatedMeasures);
+        const actualMeasures = Math.max(measureCount, calculatedMeasures, 1);
 
         const endMeasure =
           startOffset < 0 ? Math.max(0, startOffset + actualMeasures) : startOffset + actualMeasures;
@@ -492,89 +492,9 @@ export class TMDMeasureChecker {
       }
     }
 
-    // Section length consistency check
-    const paragraphsBySection = new Map<string, ParagraphSpanInfo[]>();
-    for (const p of paragraphInfos) {
-      const list = paragraphsBySection.get(p.paragraphName) || [];
-      list.push(p);
-      paragraphsBySection.set(p.paragraphName, list);
-    }
-
-    for (const [sectionName, list] of paragraphsBySection.entries()) {
-      if (list.length < 2) continue;
-
-
-      // Find the longest track by endMeasure (and endQuarterNotes)
-      let maxTrack = list[0];
-      for (let i = 1; i < list.length; i++) {
-        const cur = list[i];
-        if (cur.endMeasure !== maxTrack.endMeasure) {
-          if (cur.endMeasure > maxTrack.endMeasure) maxTrack = cur;
-        } else if (cur.endQuarterNotes > maxTrack.endQuarterNotes) {
-          maxTrack = cur;
-        }
-      }
-
-      const expectedMeasures = maxTrack.endMeasure;
-      const expectedBeats = maxTrack.endQuarterNotes;
-
-      for (const track of list) {
-        if (track.endMeasure < expectedMeasures) {
-          const diffBeats = track.endQuarterNotes - expectedBeats;
-          const diffBeatsStr = diffBeats > 0 ? `+${diffBeats.toFixed(1)}` : `${diffBeats.toFixed(1)}`;
-          const expectedBeatsStr = expectedBeats.toFixed(1);
-          const trackBeatsStr = track.endQuarterNotes.toFixed(1);
-
-          const snippet = `${expectedBeatsStr} beats based on ${maxTrack.instrument}; found ${trackBeatsStr} beats, ${diffBeatsStr} beats`;
-          const delta = track.endMeasure - expectedMeasures;
-          const issueObj = {
-            paragraphName: sectionName,
-            instrument: track.instrument,
-            lineNumber: track.startLine,
-            measureIndex: 0,
-            expectedUnits: expectedMeasures,
-            actualUnits: track.endMeasure,
-            deltaUnits: delta,
-            noteLength: 4,
-            beat,
-            snippet,
-          };
-          issues.push({
-            ...issueObj,
-            description: formatIssueDescription(issueObj),
-          });
-        } else if (
-          track.endMeasure === expectedMeasures &&
-          track.startOffset >= 0 &&
-          maxTrack.startOffset >= 0 &&
-          track.endQuarterNotes + 1e-4 < expectedBeats
-        ) {
-          const diffBeats = track.endQuarterNotes - expectedBeats;
-          const diffBeatsStr = diffBeats > 0 ? `+${diffBeats.toFixed(1)}` : `${diffBeats.toFixed(1)}`;
-          const expectedBeatsStr = expectedBeats.toFixed(1);
-          const trackBeatsStr = track.endQuarterNotes.toFixed(1);
-
-          const snippet = `${expectedBeatsStr} beats based on ${maxTrack.instrument}; found ${trackBeatsStr} beats, ${diffBeatsStr} beats`;
-          const delta = track.endMeasure - expectedMeasures;
-          const issueObj = {
-            paragraphName: sectionName,
-            instrument: track.instrument,
-            lineNumber: track.startLine,
-            measureIndex: 0,
-            expectedUnits: expectedMeasures,
-            actualUnits: track.endMeasure,
-            deltaUnits: delta,
-            noteLength: 4,
-            beat,
-            snippet,
-          };
-          issues.push({
-            ...issueObj,
-            description: formatIssueDescription(issueObj),
-          });
-        }
-      }
-    }
+    // Note: in TMD, tracks within the same section may enter and exit freely (staggered entrance,
+    // early exit / solos / breakdowns). TMDPlaybackRenderer pads trailing silence up to durationOf(section),
+    // so shorter tracks are considered natural implicit rests rather than errors.
 
     return issues;
   }
