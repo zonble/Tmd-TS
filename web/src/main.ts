@@ -72,13 +72,16 @@ function triggerSavePanelsState() {
 }
 
 function updateProblems(text: string) {
-  updateProblemsPanel(text, {
+  const issues = updateProblemsPanel(text, {
     problemsPanel: dom.problemsPanel,
     btnToggleProblems: dom.btnToggleProblems,
     btnFixProblemsAi: dom.btnFixProblemsAi,
     problemsCountBadge: dom.problemsCountBadge,
     problemsList: dom.problemsList,
   });
+  if (editor) {
+    editor.setMeasureIssues(issues);
+  }
 }
 
 let selectedPitchInstrument: string | undefined = undefined;

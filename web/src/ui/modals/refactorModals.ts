@@ -84,6 +84,7 @@ export function setupRefactorModals(
 ): {
   openDuplicateModal: (initialSection?: string, initialInstrument?: string) => void;
   openHarmonyModal: (initialSection?: string, initialInstrument?: string) => void;
+  openTransposeModal: (initialSemitones?: number, initialKey?: string) => void;
 } {
   const {
     refactorInstrumentModal,

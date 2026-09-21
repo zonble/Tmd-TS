@@ -187,13 +187,26 @@ export class Lexer {
   }
 
   public tokenizeWithRanges(): LexedToken[] {
-    const tokens = this.tokenize(); let offset = 0;
-    return tokens.map(token => {
-      const index = token.text ? this.input.indexOf(token.text, offset) : this.input.length;
-      const start = index < 0 ? offset : index; offset = start + token.text.length;
-      const before = this.input.slice(0, start); const line = (before.match(/\n/g) || []).length + 1;
-      const column = start - Math.max(-1, before.lastIndexOf("\n"));
-      return { token, text: token.text, range: { start: { offset: start, line, column }, length: token.text.length, endOffset: start + token.text.length } };
+    const tokens = this.tokenize();
+    let offset = 0;
+    return tokens.map((token) => {
+      const line = token.line;
+      const column = token.column;
+      let start = offset;
+      if (token.text) {
+        const index = this.input.indexOf(token.text, offset);
+        start = index < 0 ? offset : index;
+        offset = start + token.text.length;
+      }
+      return {
+        token,
+        text: token.text,
+        range: {
+          start: { offset: start, line, column },
+          length: token.text.length,
+          endOffset: start + token.text.length,
+        },
+      };
     });
   }
 

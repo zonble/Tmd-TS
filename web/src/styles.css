@@ -2154,3 +2154,15 @@ dialog.modal.modal-lg .modal-body {
 .cm-section-play-btn:active {
   transform: scale(0.95);
 }
+
+/* ==========================================================================
+   Problematic Measure Highlighting
+   ========================================================================== */
+
+.cm-measure-issue {
+  background-color: rgba(248, 81, 73, 0.16) !important;
+  text-decoration: underline wavy var(--accent-red, #f85149);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+

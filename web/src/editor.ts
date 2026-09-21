@@ -1,9 +1,10 @@
 import { EditorView, basicSetup } from "codemirror";
-import { EditorState, Compartment } from "@codemirror/state";
+import { EditorState, Compartment, StateEffect, StateField, RangeSetBuilder } from "@codemirror/state";
 import { StreamLanguage, StringStream } from "@codemirror/language";
 import { toggleComment, indentWithTab } from "@codemirror/commands";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { keymap, gutter, GutterMarker, BlockInfo } from "@codemirror/view";
+import { keymap, gutter, GutterMarker, BlockInfo, Decoration, DecorationSet } from "@codemirror/view";
+import type { TMDMeasureIssue } from "../../src/core/measure_check.js";
 
 interface TMDParserState {
   inComment: boolean;
@@ -138,6 +139,7 @@ export interface TMDWebEditor {
   scrollToRange(startLine: number, startCol: number, endLine: number, endCol: number): void;
   getCursorContext(): CursorContext;
   toggleComment(): void;
+  setMeasureIssues(issues: TMDMeasureIssue[]): void;
   focus(): void;
 }
 
@@ -223,11 +225,55 @@ export function createTmdEditor(
     initialSpacer: () => new SectionPlayGutterMarker("", ""),
   });
 
+  const setMeasureIssuesEffect = StateEffect.define<TMDMeasureIssue[]>();
+
+  const measureIssuesField = StateField.define<DecorationSet>({
+    create() {
+      return Decoration.none;
+    },
+    update(decorations, tr) {
+      decorations = decorations.map(tr.changes);
+      for (const effect of tr.effects) {
+        if (effect.is(setMeasureIssuesEffect)) {
+          const issues = effect.value;
+          if (!issues || issues.length === 0) {
+            decorations = Decoration.none;
+          } else {
+            const builder = new RangeSetBuilder<Decoration>();
+            // Deduplicate line numbers and sort
+            const lines = Array.from(
+              new Set(
+                issues
+                  .map((i) => i.lineNumber)
+                  .filter((ln) => typeof ln === "number" && ln >= 1 && ln <= tr.state.doc.lines)
+              )
+            ).sort((a, b) => a - b);
+
+            for (const lineNum of lines) {
+              const lineObj = tr.state.doc.line(lineNum);
+              builder.add(
+                lineObj.from,
+                lineObj.from,
+                Decoration.line({
+                  class: "cm-measure-issue",
+                })
+              );
+            }
+            decorations = builder.finish();
+          }
+        }
+      }
+      return decorations;
+    },
+    provide: (f) => EditorView.decorations.from(f),
+  });
+
   const state = EditorState.create({
     doc: initialContent,
     extensions: [
       basicSetup,
       sectionPlayGutter,
+      measureIssuesField,
       oneDark,
       languageCompartment.of(tmdLanguage),
       updateListener,
@@ -358,6 +404,11 @@ export function createTmdEditor(
     toggleComment() {
       toggleComment(view);
       view.focus();
+    },
+    setMeasureIssues(issues: TMDMeasureIssue[]) {
+      view.dispatch({
+        effects: setMeasureIssuesEffect.of(issues),
+      });
     },
     focus() {
       view.focus();

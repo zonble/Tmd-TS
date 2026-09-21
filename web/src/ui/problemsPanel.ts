@@ -28,9 +28,9 @@ let currentSyntaxError: { message: string; line: number; snippet?: string } | nu
 export function updateProblemsPanel(
   text: string,
   elements: ProblemsPanelElements
-): void {
+): TMDMeasureIssue[] {
   const { problemsPanel, btnFixProblemsAi, problemsCountBadge, problemsList } = elements;
-  if (!problemsPanel || !problemsList || !problemsCountBadge) return;
+  if (!problemsPanel || !problemsList || !problemsCountBadge) return [];
 
   const fixAllBtn = btnFixProblemsAi || (problemsPanel.querySelector("#btn-fix-problems-ai") as HTMLButtonElement | null);
 
@@ -60,7 +60,7 @@ export function updateProblemsPanel(
         </button>
       </div>
     `;
-    return;
+    return [];
   }
 
   // If syntax is valid, run TMDMeasureChecker
@@ -94,6 +94,7 @@ export function updateProblemsPanel(
       })
       .join("");
   }
+  return issues;
 }
 
 export function setupProblemsPanelEvents(

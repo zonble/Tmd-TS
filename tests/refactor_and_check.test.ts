@@ -4,6 +4,7 @@ import {
   TMDMeasureChecker,
   TMDMeasureIssue,
   TmdParser,
+  Lexer,
 } from "../src/index.js";
 
 describe("TMDRefactor (TDD)", () => {
@@ -1122,6 +1123,24 @@ describe("TMD CLI subcommands check, format, and refactor (TDD)", () => {
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
+  });
+
+  it("accurately computes token line numbers when comments contain token text", () => {
+    const code = `/* comment containing v1 inside */
+v1:Piano@|0|{
+    | 1 2 3 4 |
+}
+-> v1 ->#
+`;
+    const lexer = new Lexer(code);
+    const tokens = lexer.tokenizeWithRanges();
+    const v1Tok = tokens.find((t) => t.text === "v1");
+    expect(v1Tok).toBeDefined();
+    expect(v1Tok!.range.start.line).toBe(2);
+    expect(v1Tok!.token.line).toBe(2);
+
+    const issues = TMDMeasureChecker.check(code);
+    expect(issues).toHaveLength(0);
   });
 });
 
