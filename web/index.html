@@ -57,100 +57,100 @@
           </div>
 
           <!-- Library Drawer Button -->
-          <button id="btn-toggle-library" class="btn" title="我的樂譜庫與範例" data-i18n-title="btnLibraryTitle">
+          <button id="btn-toggle-library" class="btn" title="Toggle score library drawer" data-i18n-title="btnLibraryTitle">
             <span class="btn-icon">📁</span>
-            <span class="btn-text" data-i18n="btnLibrary">樂譜庫</span>
+            <span class="btn-text" data-i18n="btnLibrary">Library</span>
           </button>
 
           <!-- New Song Button -->
-          <button id="btn-new-song" class="btn" title="開始寫新歌 (載入乾淨範本)" data-i18n-title="btnNewSongTitle">
+          <button id="btn-new-song" class="btn" title="Start a new song with clean template" data-i18n-title="btnNewSongTitle">
             <span class="btn-icon">➕</span>
-            <span class="btn-text" data-i18n="btnNewSong">寫新歌</span>
+            <span class="btn-text" data-i18n="btnNewSong">New</span>
           </button>
         </div>
 
         <div class="nav-center">
           <!-- Play Button -->
-          <button id="btn-play" class="btn btn-primary" title="線上試聽樂曲" data-i18n-title="btnPlayTitle">
+          <button id="btn-play" class="btn btn-primary" title="Play score in browser" data-i18n-title="btnPlayTitle">
             <span class="btn-icon">▶</span>
-            <span class="btn-text" data-i18n="btnPlayText">試聽</span>
+            <span class="btn-text" data-i18n="btnPlayText">Play</span>
           </button>
 
           <!-- Share Button -->
           <!-- Tools Dropdown -->
           <div class="dropdown" id="tools-dropdown">
-            <button id="btn-tools-menu" class="btn" title="格式化與重構工具" data-i18n-title="btnToolsMenuTitle">
+            <button id="btn-tools-menu" class="btn" title="Score formatting and refactoring tools" data-i18n-title="btnToolsMenuTitle">
               <span class="btn-icon">🛠️</span>
-              <span class="btn-text" data-i18n="btnToolsText">工具</span>
+              <span class="btn-text" data-i18n="btnToolsText">Tools</span>
               <span style="font-size: 10px;">▼</span>
             </button>
             <div class="dropdown-menu">
               <button class="dropdown-item" id="tool-format-document">
-                <span>🪄</span> <span data-i18n="toolFormatDocument">格式化樂譜 (Shift+Alt+F)</span>
+                <span>🪄</span> <span data-i18n="toolFormatDocument">Format Document (Shift+Alt+F)</span>
               </button>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="tool-double-grid">
-                <span>⏩</span> <span data-i18n="toolDoubleGrid">細分網格時值 (Double Grid: &lt;4*&gt; ➔ &lt;8*&gt;)</span>
+                <span>⏩</span> <span data-i18n="toolDoubleGrid">Subdivide Grid (Double Grid: &lt;4*&gt; ➔ &lt;8*&gt;)</span>
               </button>
               <button class="dropdown-item" id="tool-halve-grid">
-                <span>⏪</span> <span data-i18n="toolHalveGrid">減半網格時值 (Halve Grid: &lt;8*&gt; ➔ &lt;4*&gt;)</span>
+                <span>⏪</span> <span data-i18n="toolHalveGrid">Compress Grid (Halve Grid: &lt;8*&gt; ➔ &lt;4*&gt;)</span>
               </button>
               <button class="dropdown-item" id="tool-optimize-grid">
-                <span>⚡</span> <span data-i18n="toolOptimizeGrid">最佳化網格時值 (Optimize Grid)</span>
+                <span>⚡</span> <span data-i18n="toolOptimizeGrid">Optimize Grid Resolution</span>
               </button>
               <button class="dropdown-item" id="tool-transpose">
-                <span>🔄</span> <span data-i18n="toolTranspose">全域 / 選取範圍轉調...</span>
+                <span>🔄</span> <span data-i18n="toolTranspose">Transpose Score / Selection...</span>
               </button>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="tool-duplicate-track">
-                <span>👯</span> <span data-i18n="toolDuplicateTrack">複製音軌 (Duplicate Track)...</span>
+                <span>👯</span> <span data-i18n="toolDuplicateTrack">Duplicate Track...</span>
               </button>
               <button class="dropdown-item" id="tool-generate-harmony">
-                <span>🎶</span> <span data-i18n="toolGenerateHarmony">自動二部和聲 (Generate Harmony)...</span>
+                <span>🎶</span> <span data-i18n="toolGenerateHarmony">Generate Harmony (Parallel Intervals)...</span>
               </button>
               <button class="dropdown-item" id="tool-inline-orders">
-                <span>📜</span> <span data-i18n="toolInlineOrders">展開演奏流程 (Inline Orders)</span>
+                <span>📜</span> <span data-i18n="toolInlineOrders">Inline Orders to Linear Score</span>
               </button>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="tool-rename-instrument">
-                <span>🏷️</span> <span data-i18n="toolRenameInstrument">重新命名樂器...</span>
+                <span>🏷️</span> <span data-i18n="toolRenameInstrument">Rename Instrument...</span>
               </button>
               <button class="dropdown-item" id="tool-rename-section">
-                <span>📑</span> <span data-i18n="toolRenameSection">重新命名段落...</span>
+                <span>📑</span> <span data-i18n="toolRenameSection">Rename Section...</span>
               </button>
               <button class="dropdown-item" id="tool-extract-instrument">
-                <span>🎼</span> <span data-i18n="toolExtractInstrument">抽取樂器音軌...</span>
+                <span>🎼</span> <span data-i18n="toolExtractInstrument">Extract Instrument...</span>
               </button>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="tool-insert-section">
-                <span>➕</span> <span data-i18n="toolInsertSection">插入新段落範本 (Insert Section)...</span>
+                <span>➕</span> <span data-i18n="toolInsertSection">Insert Section Snippet...</span>
               </button>
               <button class="dropdown-item" id="tool-hum-recording">
-                <span>🎤</span> <span data-i18n="toolHumToTmd">哼唱轉記為樂段 (Hum to TMD)...</span>
+                <span>🎤</span> <span data-i18n="toolHumToTmd">Hum to TMD Section (Basic Pitch)...</span>
               </button>
             </div>
           </div>
 
           <!-- Export Dropdown -->
           <div class="dropdown" id="export-dropdown">
-            <button id="btn-export-menu" class="btn" title="匯出樂譜檔案" data-i18n-title="btnExportMenuTitle">
+            <button id="btn-export-menu" class="btn" title="Export / Download formats" data-i18n-title="btnExportMenuTitle">
               <span class="btn-icon">📥</span>
-              <span class="btn-text" data-i18n="btnExportText">匯出 / 下載</span>
+              <span class="btn-text" data-i18n="btnExportText">Export</span>
               <span style="font-size: 10px;">▼</span>
             </button>
             <div class="dropdown-menu">
               <button class="dropdown-item" id="export-tmd">
-                <span>📄</span> <span data-i18n="exportTmd">TMD 樂譜原始檔 (.tmd)</span>
+                <span>📄</span> <span data-i18n="exportTmd">TMD Score File (.tmd)</span>
               </button>
               <button class="dropdown-item" id="export-library-zip">
-                <span>📦</span> <span data-i18n="exportLibraryZip">打包所有樂譜 (ZIP)</span>
+                <span>📦</span> <span data-i18n="exportLibraryZip">Export All Scores (.zip)</span>
               </button>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="export-midi">
                 <span>🎹</span> <span data-i18n="exportMidi">Standard MIDI (.mid)</span>
               </button>
               <button class="dropdown-item" id="export-reaper">
-                <span>🎛️</span> <span data-i18n="exportReaper">REAPER 專案檔 (.rpp)</span>
+                <span>🎛️</span> <span data-i18n="exportReaper">REAPER Project (.rpp)</span>
               </button>
               <button class="dropdown-item" id="export-musicxml">
                 <span>🎼</span> <span data-i18n="exportMusicXML">MusicXML 4.0 (.musicxml)</span>
@@ -162,10 +162,10 @@
                 <span>🔤</span> <span data-i18n="exportABC">ABC Notation (.abc)</span>
               </button>
               <button class="dropdown-item" id="export-vsq">
-                <span>🎤</span> <span data-i18n="exportVsq">VOCALOID2 專案檔 (.vsq)</span>
+                <span>🎤</span> <span data-i18n="exportVsq">VOCALOID2 Project (.vsq)</span>
               </button>
               <button class="dropdown-item" id="export-vsqx">
-                <span>✨</span> <span data-i18n="exportVsqx">VOCALOID3/4 專案檔 (.vsqx)</span>
+                <span>✨</span> <span data-i18n="exportVsqx">VOCALOID3/4 Project (.vsqx)</span>
               </button>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="export-wav">
@@ -173,41 +173,41 @@
               </button>
               <div class="dropdown-divider"></div>
               <button class="dropdown-item" id="export-skill">
-                <span>🤖</span> <span data-i18n="exportSkill">AI Agent 技能 (SKILL.md)</span>
+                <span>🤖</span> <span data-i18n="exportSkill">AI Agent Skill (SKILL.md)</span>
               </button>
             </div>
           </div>
-          <button id="btn-share" class="btn" title="複製含有這份樂譜的分享連結" data-i18n-title="btnShareTitle">
+          <button id="btn-share" class="btn" title="Copy a link that contains this score" data-i18n-title="btnShareTitle">
             <span class="btn-icon">🔗</span>
-            <span class="btn-text" data-i18n="btnShare">分享</span>
+            <span class="btn-text" data-i18n="btnShare">Share</span>
           </button>
         </div>
 
         <div class="nav-right">
           <!-- Toggle Inspector -->
-          <button id="btn-toggle-inspector" class="btn btn-icon-only" title="開啟/關閉樂譜資訊側欄"
+          <button id="btn-toggle-inspector" class="btn btn-icon-only" title="Toggle score inspector sidebar"
             data-i18n-title="btnToggleInspectorTitle">
             <span class="btn-icon">📊</span>
           </button>
 
           <!-- Toggle AI Assistant Drawer -->
-          <button id="btn-toggle-ai" class="btn btn-primary" title="開啟 AI 智慧作曲面板" data-i18n-title="btnAiAssistantTitle">
+          <button id="btn-toggle-ai" class="btn btn-primary" title="Open AI Co-Composing Drawer" data-i18n-title="btnAiAssistantTitle">
             <span class="btn-icon">✨</span>
             <span class="btn-text" data-i18n="btnAiAssistant">AI</span>
           </button>
 
           <!-- Help Modal Button -->
-          <button id="btn-help" class="btn btn-icon-only" title="語法速查與說明" data-i18n-title="btnHelpTitle">
+          <button id="btn-help" class="btn btn-icon-only" title="Syntax quick reference & help" data-i18n-title="btnHelpTitle">
             <span class="btn-icon">❓</span>
           </button>
 
           <!-- Language Toggle Button -->
-          <button id="btn-lang-toggle" class="btn btn-icon-only" title="切換語言 (Language)" data-i18n-title="langToggleTitle">
+          <button id="btn-lang-toggle" class="btn btn-icon-only" title="Switch to Traditional Chinese" data-i18n-title="langToggleTitle">
             <span class="btn-icon">🌐</span>
           </button>
 
           <!-- Theme Toggle Button (Dark / Light) -->
-          <button id="btn-theme-toggle" class="btn btn-icon-only" title="切換淺色/深色主題" data-i18n-title="btnThemeToggleTitle">
+          <button id="btn-theme-toggle" class="btn btn-icon-only" title="Toggle Light/Dark Theme" data-i18n-title="btnThemeToggleTitle">
             <span id="theme-toggle-icon" class="btn-icon">☀️</span>
           </button>
 
@@ -226,13 +226,13 @@
         <aside id="library-drawer" class="library-drawer hidden">
           <div class="panel-header">
             <div class="library-toolbar-actions" style="display: flex; align-items: center; gap: 4px;">
-              <button id="btn-library-new" class="btn btn-sm" title="建立新樂譜" data-i18n-title="btnNewSongTitle"><span class="btn-icon">➕</span><span data-i18n="btnNewSong">寫新歌</span></button>
-              <label for="input-import-tmd" class="btn btn-sm" title="匯入 .tmd 檔案" data-i18n-title="btnImportTmdTitle" style="cursor: pointer; margin: 0;">
-                <span class="btn-icon">📂</span><span data-i18n="btnImportTmd">匯入</span>
+              <button id="btn-library-new" class="btn btn-sm" title="Start a new song with clean template" data-i18n-title="btnNewSongTitle"><span class="btn-icon">➕</span><span data-i18n="btnNewSong">New</span></button>
+              <label for="input-import-tmd" class="btn btn-sm" title="Import .tmd file from disk" data-i18n-title="btnImportTmdTitle" style="cursor: pointer; margin: 0;">
+                <span class="btn-icon">📂</span><span data-i18n="btnImportTmd">Import</span>
                 <input type="file" id="input-import-tmd" accept=".tmd,.txt" style="display: none;" />
               </label>
-              <button id="btn-import-gist" class="btn btn-sm" title="從 GitHub Gist 匯入樂譜" data-i18n-title="btnImportGistTitle"><span class="btn-icon">🐙</span><span data-i18n="btnImportGist">Gist</span></button>
-              <button id="btn-backup-zip" class="btn btn-sm" title="打包下載所有自訂樂譜 (ZIP)" data-i18n-title="btnBackupZipTitle"><span class="btn-icon">📦</span><span data-i18n="btnBackupZip">備份打包</span></button>
+              <button id="btn-import-gist" class="btn btn-sm" title="Import score from GitHub Gist" data-i18n-title="btnImportGistTitle"><span class="btn-icon">🐙</span><span data-i18n="btnImportGist">Gist</span></button>
+              <button id="btn-backup-zip" class="btn btn-sm" title="Export all saved scores as ZIP bundle" data-i18n-title="btnBackupZipTitle"><span class="btn-icon">📦</span><span data-i18n="btnBackupZip">Backup ZIP</span></button>
             </div>
             <button id="btn-close-library" class="btn btn-icon-only" style="padding: 2px 6px; font-size: 11px;">✕</button>
           </div>
@@ -240,7 +240,7 @@
             <!-- Section: My Saved Scores (IndexedDB) -->
             <div class="library-section">
               <div class="library-section-header">
-                <span class="card-title" data-i18n="myScoresTitle" style="margin: 0;">我的樂譜 (本機保存)</span>
+                <span class="card-title" data-i18n="myScoresTitle" style="margin: 0;">My Scores (Local IndexedDB)</span>
                 <span id="library-scores-count" class="library-count-badge">0</span>
               </div>
               <div id="library-scores-list" class="library-list">
@@ -251,7 +251,7 @@
             <!-- Section: Built-in Samples -->
             <div class="library-section">
               <div class="library-section-header">
-                <span class="card-title" data-i18n="sampleTemplatesTitle" style="margin: 0;">範例曲目</span>
+                <span class="card-title" data-i18n="sampleTemplatesTitle" style="margin: 0;">Samples</span>
               </div>
               <div id="library-samples-list" class="library-list">
                 <!-- Dynamically populated from SAMPLES -->
@@ -269,20 +269,20 @@
             <div class="virtual-keyboard-header">
               <div class="virtual-keyboard-title-wrap">
                 <span class="virtual-keyboard-icon">🎹</span>
-                <span class="virtual-keyboard-title" data-i18n="virtualKeyboardTitle">虛擬鍵盤</span>
+                <span class="virtual-keyboard-title" data-i18n="virtualKeyboardTitle">Virtual Keyboard</span>
                 <span id="virtual-keyboard-key-badge" class="virtual-keyboard-key-badge">Key: C</span>
               </div>
               <div class="virtual-keyboard-controls">
                 <div class="keyboard-mode-toggle">
-                  <button id="btn-keyboard-mode-audition" class="btn btn-xs active" title="發聲試聽" data-i18n="virtualKeyboardAuditionMode">發聲試聽</button>
-                  <button id="btn-keyboard-mode-insert" class="btn btn-xs" title="輸入至游標" data-i18n="virtualKeyboardInsertMode">輸入至游標</button>
+                  <button id="btn-keyboard-mode-audition" class="btn btn-xs active" title="Audition" data-i18n="virtualKeyboardAuditionMode" data-i18n-title="virtualKeyboardAuditionMode">Audition</button>
+                  <button id="btn-keyboard-mode-insert" class="btn btn-xs" title="Insert" data-i18n="virtualKeyboardInsertMode" data-i18n-title="virtualKeyboardInsertMode">Insert</button>
                 </div>
                 <div class="keyboard-octave-controls">
-                  <button id="btn-keyboard-octave-down" class="btn btn-xs btn-icon-only" title="八度 -" data-i18n-title="virtualKeyboardOctaveDown">◀</button>
+                  <button id="btn-keyboard-octave-down" class="btn btn-xs btn-icon-only" title="Octave -" data-i18n-title="virtualKeyboardOctaveDown">◀</button>
                   <span id="virtual-keyboard-octave-display" class="keyboard-octave-display"></span>
-                  <button id="btn-keyboard-octave-up" class="btn btn-xs btn-icon-only" title="八度 +" data-i18n-title="virtualKeyboardOctaveUp">▶</button>
+                  <button id="btn-keyboard-octave-up" class="btn btn-xs btn-icon-only" title="Octave +" data-i18n-title="virtualKeyboardOctaveUp">▶</button>
                 </div>
-                <button id="btn-toggle-keyboard" class="btn btn-icon-only" title="切換虛擬鍵盤" data-i18n-title="virtualKeyboardToggleTitle">▲</button>
+                <button id="btn-toggle-keyboard" class="btn btn-icon-only" title="Toggle Virtual Keyboard" data-i18n-title="virtualKeyboardToggleTitle">▲</button>
               </div>
             </div>
             <div id="virtual-keyboard-body" class="virtual-keyboard-body">
@@ -296,12 +296,12 @@
             <div class="problems-panel-header">
               <div class="problems-panel-title-wrap">
                 <span class="problems-panel-icon">⚠️</span>
-                <span class="problems-panel-title" data-i18n="problemsPanelTitle">問題與檢驗</span>
+                <span class="problems-panel-title" data-i18n="problemsPanelTitle">Problems & Validation</span>
                 <span id="problems-count-badge" class="problems-badge valid">0</span>
               </div>
               <div style="display: flex; align-items: center; gap: 6px;">
-                <button id="btn-fix-problems-ai" class="btn btn-sm btn-fix-all-ai" style="display: none; font-size: 11px; padding: 2px 8px;" data-i18n="problemsFixAllWithAi">✨ AI 一鍵修復全部</button>
-                <button id="btn-toggle-problems" class="btn btn-icon-only" title="切換問題面板" data-i18n-title="btnToggleProblems">▼</button>
+                <button id="btn-fix-problems-ai" class="btn btn-sm btn-fix-all-ai" style="display: none; font-size: 11px; padding: 2px 8px;" data-i18n="problemsFixAllWithAi">✨ Fix All with AI</button>
+                <button id="btn-toggle-problems" class="btn btn-icon-only" title="Toggle Problems Panel" data-i18n-title="btnToggleProblems">▼</button>
               </div>
             </div>
             <div id="problems-list" class="problems-list">
@@ -320,7 +320,7 @@
           <input type="range" id="player-progress" class="player-slider" min="0" max="100" value="0" step="0.1" title="Seek" />
           <div class="player-synth-wrapper">
             <label for="synth-select" style="display:none;">Synth</label>
-            <select id="synth-select" class="player-synth-select" title="選擇合成器音色庫" data-i18n-title="synthSelectTitle">
+            <select id="synth-select" class="player-synth-select" title="Select Synthesizer / SoundFont" data-i18n-title="synthSelectTitle">
               <option value="piano" data-i18n="synthOptionPiano">🎹 Grand Piano (FluidR3)</option>
               <option value="tiny" data-i18n="synthOptionTiny">⚡ Tiny Synth (Chiptune)</option>
               <option value="webmidi" data-i18n="synthOptionWebMidi">🎛 System MIDI Out</option>
@@ -336,46 +336,46 @@
         <!-- Inspector Sidebar -->
         <aside id="inspector-panel" class="inspector-panel">
           <div class="panel-header">
-            <span data-i18n="inspectorTitle">樂譜資訊</span>
+            <span data-i18n="inspectorTitle">Score Inspector</span>
             <button id="btn-close-inspector" class="btn btn-icon-only" style="padding: 2px 6px; font-size: 11px;">✕</button>
           </div>
           <div class="panel-body">
             <!-- Syntax Check Status -->
             <div class="card">
-              <div class="card-title" data-i18n="inspectorStatusTitle">語法檢查</div>
-              <div id="inspector-status" class="status-badge success" data-i18n="statusValid">✓ 語法解析正確</div>
+              <div class="card-title" data-i18n="inspectorStatusTitle">Status</div>
+              <div id="inspector-status" class="status-badge success" data-i18n="statusValid">✓ Syntax Valid</div>
             </div>
 
             <!-- Global Overview & Metadata -->
             <div class="card">
-              <div class="card-title" data-i18n="inspectorMetaTitle">樂譜總覽與基本設定</div>
+              <div class="card-title" data-i18n="inspectorMetaTitle">Overview & Settings</div>
               <div class="stat-grid">
                 <div class="stat-item">
-                  <span class="stat-label" data-i18n="statLabelTitle">曲名</span>
+                  <span class="stat-label" data-i18n="statLabelTitle">Title</span>
                   <span class="stat-value" id="stat-title">-</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-label" data-i18n="statLabelTempo">速度 (BPM)</span>
+                  <span class="stat-label" data-i18n="statLabelTempo">Tempo (BPM)</span>
                   <span class="stat-value" id="stat-tempo">-</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-label" data-i18n="statLabelKey">調號 (Key)</span>
+                  <span class="stat-label" data-i18n="statLabelKey">Key</span>
                   <span class="stat-value" id="stat-key">-</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-label" data-i18n="statLabelMeter">拍號 (Meter)</span>
+                  <span class="stat-label" data-i18n="statLabelMeter">Meter</span>
                   <span class="stat-value" id="stat-meter">-</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-label" data-i18n="statLabelDuration">演奏時長</span>
+                  <span class="stat-label" data-i18n="statLabelDuration">Duration</span>
                   <span class="stat-value" id="stat-duration">-</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-label" data-i18n="statLabelMeasures">小節總數</span>
+                  <span class="stat-label" data-i18n="statLabelMeasures">Measures</span>
                   <span class="stat-value" id="stat-measures">-</span>
                 </div>
                 <div class="stat-item" style="grid-column: span 2;">
-                  <span class="stat-label" data-i18n="statLabelDensity">同時最高軌數</span>
+                  <span class="stat-label" data-i18n="statLabelDensity">Peak Density</span>
                   <span class="stat-value" id="stat-density">-</span>
                 </div>
               </div>
@@ -384,19 +384,19 @@
             <!-- Vocal Range & Pitch Profile -->
             <div class="card">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div class="card-title" data-i18n="inspectorPitchTitle" style="margin: 0;">音高分析</div>
-                <select id="inspector-pitch-inst-select" class="form-control" style="font-size: 11px; padding: 2px 6px; height: 24px; max-width: 140px;" title="選擇分析音軌">
+                <div class="card-title" data-i18n="inspectorPitchTitle" style="margin: 0;">Pitch Profile</div>
+                <select id="inspector-pitch-inst-select" class="form-control" style="font-size: 11px; padding: 2px 6px; height: 24px; max-width: 140px;" title="Select track to analyze" data-i18n-title="inspectorPitchSelectTitle">
                   <!-- Dynamically populated -->
                 </select>
               </div>
               <div id="inspector-vocal" class="vocal-profile-container">
                 <div class="stat-grid" style="margin-bottom: 6px;">
                   <div class="stat-item">
-                    <span class="stat-label" id="label-pitch-range" data-i18n="statLabelPitchRange">音軌音域</span>
+                    <span class="stat-label" id="label-pitch-range" data-i18n="statLabelPitchRange">Track Range</span>
                     <span class="stat-value" id="stat-vocal-range" style="font-size: 13px;">-</span>
                   </div>
                   <div class="stat-item">
-                    <span class="stat-label" data-i18n="statLabelVocalSpan">音域跨度</span>
+                    <span class="stat-label" data-i18n="statLabelVocalSpan">Pitch Span</span>
                     <span class="stat-value" id="stat-vocal-span" style="font-size: 13px;">-</span>
                   </div>
                 </div>
@@ -406,9 +406,9 @@
 
             <!-- Harmony & Chords -->
             <div class="card">
-              <div class="card-title" data-i18n="inspectorHarmonyTitle">和弦與轉調</div>
+              <div class="card-title" data-i18n="inspectorHarmonyTitle">Chords & Modulations</div>
               <div id="inspector-harmony" class="tags-list" style="margin-bottom: 6px;">
-                <span class="stat-label" data-i18n="noChords">無和弦標記</span>
+                <span class="stat-label" data-i18n="noChords">No chords defined</span>
               </div>
               <div id="inspector-modulations" class="tags-list"></div>
             </div>
@@ -416,21 +416,21 @@
             <!-- Playback Flow / Orders -->
             <div class="card">
               <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div class="card-title" data-i18n="inspectorOrdersTitle" style="margin-bottom: 0;">演奏順序</div>
-                <button type="button" id="btn-jump-orders" class="btn btn-sm btn-jump-orders" data-i18n-title="jumpToOrdersTitle" title="跳轉至編輯區修改演奏順序" style="font-size: 11px; padding: 1px 6px;">
-                  <span>✏️</span> <span data-i18n="jumpToOrders">前往編輯</span>
+                <div class="card-title" data-i18n="inspectorOrdersTitle" style="margin-bottom: 0;">Playback Order</div>
+                <button type="button" id="btn-jump-orders" class="btn btn-sm btn-jump-orders" data-i18n-title="jumpToOrdersTitle" title="Jump to editor to modify playback order" style="font-size: 11px; padding: 1px 6px;">
+                  <span>✏️</span> <span data-i18n="jumpToOrders">Edit Order</span>
                 </button>
               </div>
               <div id="inspector-orders" class="tags-list">
-                <span class="stat-label" data-i18n="noOrders">未定義 -> 播放流程</span>
+                <span class="stat-label" data-i18n="noOrders">No playback orders defined</span>
               </div>
             </div>
 
             <!-- Tracks & Instruments -->
             <div class="card">
-              <div class="card-title" data-i18n="inspectorTracksTitle">軌道與樂器編制</div>
+              <div class="card-title" data-i18n="inspectorTracksTitle">Tracks & Instruments</div>
               <div id="inspector-tracks" style="display: flex; flex-direction: column; gap: 6px;">
-                <span class="stat-label" data-i18n="noTracks">無音軌段落</span>
+                <span class="stat-label" data-i18n="noTracks">No tracks defined</span>
               </div>
             </div>
           </div>
@@ -440,12 +440,12 @@
           <div class="panel-header">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 16px;">✨</span>
-              <span data-i18n="aiAssistantTitle" style="font-weight: 700;">AI 助手</span>
+              <span data-i18n="aiAssistantTitle" style="font-weight: 700;">AI Assistant</span>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
-              <button id="btn-open-ai-settings" class="btn btn-sm btn-ai-settings" title="AI 模型與金鑰設定" data-i18n-title="aiBtnSettings">
+              <button id="btn-open-ai-settings" class="btn btn-sm btn-ai-settings" title="Settings" data-i18n-title="aiBtnSettings">
                 <span>⚙️</span>
-                <span data-i18n="aiBtnSettings">設定</span>
+                <span data-i18n="aiBtnSettings">Settings</span>
               </button>
               <button id="btn-close-ai-drawer" class="btn btn-icon-only" style="padding: 2px 6px; font-size: 11px;">✕</button>
             </div>
@@ -455,24 +455,24 @@
             <div class="ai-section">
               <!-- Quick Preset Actions -->
               <div class="card">
-                <div class="card-title" data-i18n="aiQuickPresetTitle">快捷創作動作</div>
+                <div class="card-title" data-i18n="aiQuickPresetTitle">Quick Actions</div>
                 <div class="ai-quick-actions">
-                  <button class="btn btn-sm ai-preset-btn" data-mode="compose" data-i18n="aiActionCompose">🎲 靈感整首生成</button>
-                  <button class="btn btn-sm ai-preset-btn" data-mode="arrange" data-i18n="aiActionArrange">🎸 自動配器伴奏</button>
-                  <button class="btn btn-sm ai-preset-btn" data-mode="extend" data-i18n="aiActionExtend">🎼 動機發展續寫</button>
-                  <button class="btn btn-sm ai-preset-btn" data-mode="reharm" data-i18n="aiActionReharm">🎹 和聲豐富重編</button>
-                  <button class="btn btn-sm ai-preset-btn" data-mode="debug" data-i18n="aiActionDebug">🔍 語法診斷修復</button>
+                  <button class="btn btn-sm ai-preset-btn" data-mode="compose" data-i18n="aiActionCompose">🎲 Full Song Generator</button>
+                  <button class="btn btn-sm ai-preset-btn" data-mode="arrange" data-i18n="aiActionArrange">🎸 Auto-Arrangement</button>
+                  <button class="btn btn-sm ai-preset-btn" data-mode="extend" data-i18n="aiActionExtend">🎼 Motif Continuation</button>
+                  <button class="btn btn-sm ai-preset-btn" data-mode="reharm" data-i18n="aiActionReharm">🎹 Re-Harmonization</button>
+                  <button class="btn btn-sm ai-preset-btn" data-mode="debug" data-i18n="aiActionDebug">🔍 Syntax Diagnostics</button>
                 </div>
               </div>
 
               <!-- Prompt Input & Controls -->
               <div class="card">
-                <textarea id="ai-prompt-input" class="ai-prompt-textarea" rows="3" data-i18n-placeholder="aiPromptPlaceholder" placeholder="輸入創作需求，例如：請以 80 BPM G 大調寫一首溫暖的 City Pop 主歌，帶木吉他與放克貝斯..."></textarea>
+                <textarea id="ai-prompt-input" class="ai-prompt-textarea" rows="3" data-i18n-placeholder="aiPromptPlaceholder" placeholder="Describe what you want to compose or arrange, e.g.: Write an 80 BPM City Pop verse in G major with acoustic guitar and funk bass..."></textarea>
                 <div class="ai-action-bar">
-                  <div id="ai-status-text" class="ai-status-hint" data-i18n="aiStatusIdle">準備就緒，自備 API Key 直接在瀏覽器運行，不消耗伺服器 Token。</div>
+                  <div id="ai-status-text" class="ai-status-hint" data-i18n="aiStatusIdle">Ready. Uses your own API key directly in-browser. Zero server token costs.</div>
                   <div style="display: flex; gap: 8px;">
-                    <button id="btn-ai-stop" class="btn btn-sm" style="display: none;" data-i18n="aiBtnStop">⏹ 停止生成</button>
-                    <button id="btn-ai-generate" class="btn btn-sm btn-primary" data-i18n="aiBtnGenerate">✨ 開始生成</button>
+                    <button id="btn-ai-stop" class="btn btn-sm" style="display: none;" data-i18n="aiBtnStop">⏹ Stop</button>
+                    <button id="btn-ai-generate" class="btn btn-sm btn-primary" data-i18n="aiBtnGenerate">✨ Generate</button>
                   </div>
                 </div>
               </div>
@@ -482,18 +482,18 @@
                 <!-- Validation Error Banner -->
                 <div id="ai-validation-banner" class="ai-validation-banner" style="display: none; margin-bottom: 10px; padding: 8px 12px; background: rgba(248, 81, 73, 0.12); border: 1px solid var(--accent-red, #f85149); border-radius: 6px; font-size: 12px; color: var(--accent-red, #f85149); justify-content: space-between; align-items: center; gap: 8px;">
                   <span id="ai-validation-msg" style="word-break: break-word; line-height: 1.4;"></span>
-                  <button id="btn-ai-retry-repair" class="btn btn-sm" style="flex-shrink: 0; background: var(--accent-red, #f85149); color: #fff; border: none; font-size: 11px; padding: 4px 8px; cursor: pointer;" data-i18n="aiBtnRetryRepair">🔧 請 AI 再次修復</button>
+                  <button id="btn-ai-retry-repair" class="btn btn-sm" style="flex-shrink: 0; background: var(--accent-red, #f85149); color: #fff; border: none; font-size: 11px; padding: 4px 8px; cursor: pointer;" data-i18n="aiBtnRetryRepair">🔧 Ask AI to Fix</button>
                 </div>
                 <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <span>生成結果 (TMD Preview)</span>
-                    <span id="ai-preview-problems-badge" class="problems-badge valid" style="display: none; cursor: pointer; font-size: 11px;">0 問題</span>
+                    <span data-i18n="aiResultPreviewTitle">Generated TMD Score (Preview)</span>
+                    <span id="ai-preview-problems-badge" class="problems-badge valid" style="display: none; cursor: pointer; font-size: 11px;">0 issues</span>
                   </div>
                   <div class="ai-result-btn-row">
-                    <button id="btn-ai-preview-play" class="btn btn-sm" title="試聽生成的樂譜" data-i18n="aiBtnPlayPreview">▶️ 試聽</button>
-                    <button id="btn-ai-copy-code" class="btn btn-sm" title="複製代碼" data-i18n="aiBtnCopyCode">📋 複製</button>
-                    <button id="btn-ai-apply-replace" class="btn btn-sm btn-primary" title="替換目前編輯器內容" data-i18n="aiBtnApplyReplace">替換目前樂譜</button>
-                    <button id="btn-ai-apply-insert" class="btn btn-sm" title="插入至游標位置" data-i18n="aiBtnApplyInsert">插入游標處</button>
+                    <button id="btn-ai-preview-play" class="btn btn-sm" title="Preview This" data-i18n="aiBtnPlayPreview">▶️ Preview This</button>
+                    <button id="btn-ai-copy-code" class="btn btn-sm" title="Copy Code" data-i18n="aiBtnCopyCode">Copy Code</button>
+                    <button id="btn-ai-apply-replace" class="btn btn-sm btn-primary" title="Replace Current Score" data-i18n="aiBtnApplyReplace">Replace Current Score</button>
+                    <button id="btn-ai-apply-insert" class="btn btn-sm" title="Insert at Cursor" data-i18n="aiBtnApplyInsert">Insert at Cursor</button>
                   </div>
                 </div>
                 <!-- AI Preview Problems Dropdown / List -->
@@ -504,74 +504,70 @@
 
             <!-- Divider -->
             <div class="ai-section-divider">
-              <span data-i18n="aiTabSkill">協作技巧與 Skill 匯出</span>
+              <span data-i18n="aiTabSkill">Skill & Guide</span>
             </div>
 
             <!-- Section 2: TMD Skill & Collaboration Guide -->
             <div class="ai-section ai-guide-section">
               <!-- Guide: Co-Composing Patterns -->
               <div class="ai-step-card">
-                <h3 class="ai-step-title" data-i18n="aiGuideTitle">AI 協同作曲技巧</h3>
-                <p class="ai-step-desc" data-i18n="aiGuideDesc">
-                  無論在此 Web 介面或外部 AI 工具，以下 5 種 Prompt 模式能幫你精確創作與編排：
-                </p>
+                <h3 class="ai-step-title" data-i18n="aiGuideTitle">AI Co-Composing Patterns</h3>
+                <p class="ai-step-desc" data-i18n="aiGuideDesc">Whether generating inside this Web Studio or working with external AI tools, these 5 prompt patterns help you arrange and compose effectively:</p>
 
                 <div class="ai-patterns-grid">
                   <!-- Pattern 1 -->
                   <div class="ai-pattern-item">
-                    <div class="ai-pattern-title" data-i18n="aiPattern1Title">1. 旋律配器編排（Lead-to-Arrangement）</div>
-                    <div class="ai-pattern-desc" data-i18n="aiPattern1Desc">人類寫好主旋律（Vocal），請 AI 加上木吉他伴奏、貝斯走音與鼓組進場。</div>
-                    <div class="ai-prompt-box" data-i18n="aiPattern1Prompt">Prompt 範例：「這是我用 TMD 寫的主旋律，請為它編排伴奏：加入 CHORD 軌彈奏吉他和弦、Bass 軌彈奏根音，並在第 2 小節以 @|+2| 讓鼓組 Drums 進場。」</div>
+                    <div class="ai-pattern-title" data-i18n="aiPattern1Title">1. Lead-to-Arrangement</div>
+                    <div class="ai-pattern-desc" data-i18n="aiPattern1Desc">You compose the vocal melody in TMD; prompt the AI to generate supporting tracks (acoustic guitar chords, walking bass, and drum groove).</div>
+                    <div class="ai-prompt-box" data-i18n="aiPattern1Prompt">Prompt Example: 'Here is my vocal melody in TMD. Please arrange accompaniment: add a CHORD track with acoustic guitar chords, a Bass track with root/passing notes, and a Drums track entering at measure 2 with @|+2|.'</div>
                   </div>
 
                   <!-- Pattern 2 -->
                   <div class="ai-pattern-item">
-                    <div class="ai-pattern-title" data-i18n="aiPattern2Title">2. 動機延伸與問答樂句（Motif Continuation）</div>
-                    <div class="ai-pattern-desc" data-i18n="aiPattern2Desc">提供 2 到 4 小節核心旋律動機，請 AI 依據問句（Antecedent）與答句（Consequent）發展成完整 8 小節樂段。</div>
-                    <div class="ai-prompt-box" data-i18n="aiPattern2Prompt">Prompt 範例：「這是一段 2 小節動機：1 2 3 5 | 6 5 3 -。請幫我依古典樂問答樂句結構，發展成完整 8 小節段落，並在第 8 小節收束在主音 1。」</div>
+                    <div class="ai-pattern-title" data-i18n="aiPattern2Title">2. Motif Continuation & Phrasing</div>
+                    <div class="ai-pattern-desc" data-i18n="aiPattern2Desc">Provide a 2 to 4-measure melodic hook; prompt the AI to develop it into a full 8-measure section using antecedent-consequent question-and-answer phrasing.</div>
+                    <div class="ai-prompt-box" data-i18n="aiPattern2Prompt">Prompt Example: 'Here is a 2-bar motif: 1 2 3 5 | 6 5 3 -. Please develop this into a complete 8-bar section using classical question-and-answer phrasing, resolving to the tonic on bar 8.'</div>
                   </div>
 
                   <!-- Pattern 3 -->
                   <div class="ai-pattern-item">
-                    <div class="ai-pattern-title" data-i18n="aiPattern3Title">3. 和弦風格探索與重配（Re-Harmonization）</div>
-                    <div class="ai-pattern-desc" data-i18n="aiPattern3Desc">TMD 的和弦是一等公民（如 [1]、[6m]、[Cmaj7]、[Am7]），可隨時請 AI 嘗試標準流行進行或 Neo-Soul / 爵士副屬和弦重配。</div>
-                    <div class="ai-prompt-box" data-i18n="aiPattern3Prompt">Prompt 範例：「請針對這段旋律提出兩種不同風格的 TMD 和弦進行：1. 標準流行樂 1-5-6-4；2. 帶有次屬和弦與調式互換的 Neo-Soul / 爵士和弦。」</div>
+                    <div class="ai-pattern-title" data-i18n="aiPattern3Title">3. Re-Harmonization & Chord Exploration</div>
+                    <div class="ai-pattern-desc" data-i18n="aiPattern3Desc">Because chords in TMD are first-class tokens ([Cmaj7], [Am7], [1], [6m]), you can effortlessly ask the AI to propose diverse harmonic flavors.</div>
+                    <div class="ai-prompt-box" data-i18n="aiPattern3Prompt">Prompt Example: 'Propose two different TMD chord arrangements for this melody: 1. Standard pop 1-5-6-4; 2. Neo-Soul / Jazz progression with secondary dominants and modal interchange.'</div>
                   </div>
 
                   <!-- Pattern 4 -->
                   <div class="ai-pattern-item">
-                    <div class="ai-pattern-title" data-i18n="aiPattern4Title">4. 動態織度與段落進場（Textural Build-Up）</div>
-                    <div class="ai-pattern-desc" data-i18n="aiPattern4Desc">善用 TMD 的小節位移語法 @|0|、@|+4| 與弱起過門 @|-1|，指揮 AI 安排樂器逐層堆疊與退場，營造豐富的起承轉合。</div>
-                    <div class="ai-prompt-box" data-i18n="aiPattern4Prompt">Prompt 範例：「第 1 段主歌只留木吉他；第 4 小節加入貝斯；在副歌前 1 小節以 @|-1| 讓鼓組進行過門（Fill-in），隨後副歌全體齊奏進場。」</div>
+                    <div class="ai-pattern-title" data-i18n="aiPattern4Title">4. Textural Layering & Arrangement Build-Up</div>
+                    <div class="ai-pattern-desc" data-i18n="aiPattern4Desc">Use TMD's track offset syntax @|0|, @|+4| and pickup measures @|-1| to orchestrate gradual instrument entry and dynamic builds.</div>
+                    <div class="ai-prompt-box" data-i18n="aiPattern4Prompt">Prompt Example: 'Verse 1: Acoustic Guitar only; enter Bass at measure 4; add a Drum fill-in 1 bar before Chorus with @|-1|, followed by full-band tutti in Chorus.'</div>
                   </div>
 
                   <!-- Pattern 5 -->
                   <div class="ai-pattern-item">
-                    <div class="ai-pattern-title" data-i18n="aiPattern5Title">5. 巨觀曲式流程與轉調（Macro Flow & Modulation）</div>
-                    <div class="ai-pattern-desc" data-i18n="aiPattern5Desc">段落各自獨立完成後，由 AI 在 -> 播放順序中規劃重複與轉調（如最後一次副歌升半音 {?+1}）。</div>
-                    <div class="ai-prompt-box" data-i18n="aiPattern5Prompt">Prompt 範例：「我已經寫好了 intro、verse、chorus、bridge，請幫我規劃 TMD 的 -> 演奏順序，並在最後一段副歌加入升半音轉調 {?+1}。」</div>
+                    <div class="ai-pattern-title" data-i18n="aiPattern5Title">5. Macro Song Structuring & Modulations</div>
+                    <div class="ai-pattern-desc" data-i18n="aiPattern5Desc">After authoring individual song sections, have the AI plan the overarching playback sequence and half-step key changes in ->.</div>
+                    <div class="ai-prompt-box" data-i18n="aiPattern5Prompt">Prompt Example: 'I have defined intro, verse, chorus, and bridge. Please design a complete -> playback flow with a half-step key modulation {?+1} for the final chorus.'</div>
                   </div>
                 </div>
               </div>
 
               <!-- Skill Export Card (For External AI Agents) -->
               <div class="ai-step-card">
-                <h3 class="ai-step-title" data-i18n="aiSkillExportTitle">匯出 TMD Skill（給本機與其他 AI 工具使用）</h3>
-                <p class="ai-step-desc" data-i18n="aiSkillExportDesc">
-                  TMD 是純文字音樂語言。你可以將 TMD Skill 匯出並安裝至 Claude Code、Codex、Antigravity、Gemini 或 Cursor，讓外部 AI 精準理解並生成符合 TMD 語法的簡譜與編排：
-                </p>
+                <h3 class="ai-step-title" data-i18n="aiSkillExportTitle">Export TMD Skill (For Local & External AI Tools)</h3>
+                <p class="ai-step-desc" data-i18n="aiSkillExportDesc">TMD is a text-based music notation DSL. You can export and install the TMD Skill into Claude Code, Codex, Antigravity, Gemini, or Cursor so external AI agents can understand and generate valid TMD syntax:</p>
                 <div class="ai-btn-group">
-                  <button id="ai-btn-download" class="btn btn-primary" data-i18n="aiBtnDownloadSkill">📥 下載 SKILL.md</button>
-                  <button id="ai-btn-copy-skill" class="btn" data-i18n="aiBtnCopySkill">📋 複製 SKILL.md 內容</button>
+                  <button id="ai-btn-download" class="btn btn-primary" data-i18n="aiBtnDownloadSkill">📥 Download SKILL.md</button>
+                  <button id="ai-btn-copy-skill" class="btn" data-i18n="aiBtnCopySkill">📋 Copy SKILL.md Content</button>
                 </div>
 
                 <div class="ai-paths-section">
-                  <div class="ai-paths-title" data-i18n="aiPathsTitle">各工具常見 Skill 目錄（將下載的 SKILL.md 放入即可）：</div>
+                  <div class="ai-paths-title" data-i18n="aiPathsTitle">Standard Skill Directories (simply place the downloaded SKILL.md inside):</div>
                   <ul class="ai-paths-list">
                     <li><strong data-i18n="aiPathClaude">Claude Code</strong>: <code>~/.claude/skills/tmd/SKILL.md</code></li>
                     <li><strong data-i18n="aiPathCodex">Codex</strong>: <code>~/.codex/skills/tmd/SKILL.md</code></li>
                     <li><strong data-i18n="aiPathGemini">Gemini / Antigravity</strong>: <code>~/.gemini/config/skills/tmd/SKILL.md</code></li>
-                    <li><strong data-i18n="aiPathCursor">Cursor / VS Code</strong>: <code>.cursor/rules/tmd.md</code> / <span data-i18n="aiPathProjectRoot">專案根目錄</span> <code>AGENTS.md</code></li>
+                    <li><strong data-i18n="aiPathCursor">Cursor / VS Code</strong>: <code>.cursor/rules/tmd.md</code> / <span data-i18n="aiPathProjectRoot">Project Root</span> <code>AGENTS.md</code></li>
                   </ul>
                 </div>
               </div>
@@ -580,31 +576,27 @@
               <div class="ai-step-card">
                 <div class="ai-step-header">
                   <span class="ai-step-badge">MCP</span>
-                  <h3 class="ai-step-title" data-i18n="aiWebMcpTitle" style="margin: 0;">Web MCP 服務（讓外部 AI Agent 連線調用）</h3>
+                  <h3 class="ai-step-title" data-i18n="aiWebMcpTitle" style="margin: 0;">Web MCP Service (For External AI Agents)</h3>
                 </div>
-                <p class="ai-step-desc" data-i18n="aiWebMcpDesc">
-                  本網頁內建 Web MCP 服務（Model Context Protocol）。任何支援 MCP 的外部 AI 工具（如 Claude Desktop、Cursor、Local LLM）均可直接連線此網頁，調用 5 大專業音樂工具：
-                </p>
+                <p class="ai-step-desc" data-i18n="aiWebMcpDesc">This studio provides an in-browser Web MCP (Model Context Protocol) service. Any MCP-compliant client (Claude Desktop, Cursor, Local LLMs) can directly connect and utilize 5 music production tools:</p>
 
                 <div class="ai-paths-section">
-                  <div class="ai-paths-title" data-i18n="aiWebMcpToolsTitle">開放的 MCP 工具：</div>
+                  <div class="ai-paths-title" data-i18n="aiWebMcpToolsTitle">Exposed MCP Tools:</div>
                   <ul class="ai-paths-list">
-                    <li><code>getTmdSkill</code>: <span data-i18n="aiMcpToolSkill">取得 TMD 完整語法規範與 Prompt Skill</span></li>
-                    <li><code>parseTmd</code>: <span data-i18n="aiMcpToolParse">驗證 TMD 語法、回傳調性、速度、軌道與診斷報告</span></li>
-                    <li><code>convertTmd</code>: <span data-i18n="aiMcpToolConvert">一鍵轉換 TMD 為 MIDI (Base64)、MusicXML、LilyPond、ABC</span></li>
-                    <li><code>getCurrentScore</code>: <span data-i18n="aiMcpToolGet">讀取目前瀏覽器編輯器內的樂譜內容</span></li>
-                    <li><code>loadScoreToEditor</code>: <span data-i18n="aiMcpToolLoad">將 AI 生成的樂譜推送至編輯器，並可觸發自動播放</span></li>
+                    <li><code>getTmdSkill</code>: <span data-i18n="aiMcpToolSkill">Get TMD language specification and prompt engineering skill</span></li>
+                    <li><code>parseTmd</code>: <span data-i18n="aiMcpToolParse">Validate TMD score, return key, BPM, tracks, and syntax diagnostics</span></li>
+                    <li><code>convertTmd</code>: <span data-i18n="aiMcpToolConvert">Convert TMD to MIDI (Base64), MusicXML, LilyPond, and ABC</span></li>
+                    <li><code>getCurrentScore</code>: <span data-i18n="aiMcpToolGet">Read score content currently open in the studio editor</span></li>
+                    <li><code>loadScoreToEditor</code>: <span data-i18n="aiMcpToolLoad">Push generated score into editor and optionally trigger playback</span></li>
                   </ul>
                 </div>
 
-                <div style="margin-top: 6px; font-size: 11.5px; color: var(--text-secondary); line-height: 1.5;" data-i18n="aiWebMcpWidgetHint">
-                  💡 點擊右下角藍色方塊即可開啟 WebMCP 連線視窗與配對 Token；若瀏覽器支援 <code>navigator.modelContext</code> 亦已自動完成原生註冊。
-                </div>
+                <div style="margin-top: 6px; font-size: 11.5px; color: var(--text-secondary); line-height: 1.5;" data-i18n="aiWebMcpWidgetHint">💡 Click the blue widget at bottom-right to open WebMCP connection settings and pair token; native navigator.modelContext is also registered.</div>
 
                 <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-subtle);">
                   <a id="ai-webmcp-ask-link" href="https://www.google.com/search?q=%E6%80%8E%E6%A8%A3%E8%A8%AD%E5%AE%9A+Web+MCP&hl=zh-TW" target="_blank" rel="noopener noreferrer" class="ai-helper-link" style="color: var(--accent-green); text-decoration: none; display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500;">
                     <span>🤖</span>
-                    <span id="ai-webmcp-ask-text" data-i18n="aiAskWebMcpHowTo">問問 AI：怎樣設定與連線 Web MCP？ ↗</span>
+                    <span id="ai-webmcp-ask-text" data-i18n="aiAskWebMcpHowTo">Ask AI: How to setup and connect to Web MCP? ↗</span>
                   </a>
                 </div>
               </div>
@@ -616,14 +608,14 @@
       <!-- AI Settings Modal Dialog -->
       <dialog id="ai-settings-modal" class="modal">
         <div class="modal-header">
-          <h2 class="modal-title" data-i18n="aiSettingsTitle">AI 模型與金鑰設定</h2>
+          <h2 class="modal-title" data-i18n="aiSettingsTitle">AI Provider & Key Settings</h2>
           <button id="btn-close-ai-settings" class="btn btn-icon-only">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="ai-settings-provider" data-i18n="aiProviderSelect">AI 提供商</label>
+            <label for="ai-settings-provider" data-i18n="aiProviderSelect">AI Provider</label>
             <select id="ai-settings-provider" class="select-control" style="width: 100%;">
-              <option value="gemini">Gemini (推薦)</option>
+              <option value="gemini">Gemini (Recommended)</option>
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
               <option value="groq">Groq</option>
@@ -632,41 +624,41 @@
           </div>
 
           <div class="form-group">
-            <label for="ai-settings-model-preset" data-i18n="aiModelSelect">模型 (Model)</label>
+            <label for="ai-settings-model-preset" data-i18n="aiModelSelect">Model</label>
             <select id="ai-settings-model-preset" class="select-control" style="width: 100%;">
               <!-- populated dynamically -->
             </select>
           </div>
 
           <div class="form-group">
-            <label for="ai-settings-model-custom" data-i18n="aiCustomModelInput">或自訂模型名稱 (Free Text)</label>
-            <input type="text" id="ai-settings-model-custom" class="text-control" data-i18n-placeholder="aiCustomModelPlaceholder" placeholder="自訂模型，如 deepseek-chat 或 gpt-4o" autocomplete="off" autocapitalize="none" spellcheck="false" data-1p-ignore="true" />
+            <label for="ai-settings-model-custom" data-i18n="aiCustomModelInput">Or Custom Model Name (Free Text)</label>
+            <input type="text" id="ai-settings-model-custom" class="text-control" data-i18n-placeholder="aiCustomModelPlaceholder" placeholder="e.g. deepseek-chat, gpt-4o, etc." autocomplete="off" autocapitalize="none" spellcheck="false" data-1p-ignore="true" />
           </div>
 
           <div class="form-group">
-            <label for="ai-settings-key" data-i18n="aiApiKeyLabel">API Key (儲存於本機瀏覽器，安全無伺服器中轉)</label>
-            <input type="password" id="ai-settings-key" class="text-control" data-i18n-placeholder="aiApiKeyPlaceholder" placeholder="請輸入 API Key..." autocomplete="new-password" />
+            <label for="ai-settings-key" data-i18n="aiApiKeyLabel">API Key (Saved locally in browser, no server proxy)</label>
+            <input type="password" id="ai-settings-key" class="text-control" data-i18n-placeholder="aiApiKeyPlaceholder" placeholder="Enter your API Key..." autocomplete="new-password" />
             <div class="ai-key-helper-links" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 8px; font-size: 11.5px;">
               <a id="ai-key-official-link" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="ai-helper-link" style="color: var(--accent-blue); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
                 <span>🔗</span>
-                <span id="ai-key-official-text" data-i18n="aiGetOfficialKey">前往官方取得金鑰 ↗</span>
+                <span id="ai-key-official-text" data-i18n="aiGetOfficialKey">Get official API key ↗</span>
               </a>
               <span style="color: var(--border-color);">•</span>
               <a id="ai-key-ask-ai-link" href="https://www.google.com/search?q=%E5%A6%82%E4%BD%95%E7%94%B3%E8%AB%8B+Google+Gemini+API+Key+%E6%AD%A5%E9%A9%9F" target="_blank" rel="noopener noreferrer" class="ai-helper-link" style="color: var(--accent-green); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
                 <span>🤖</span>
-                <span id="ai-key-ask-ai-text" data-i18n="aiAskAiHowToGet">問問 AI 怎麼申請 ↗</span>
+                <span id="ai-key-ask-ai-text" data-i18n="aiAskAiHowToGet">Ask AI how to apply ↗</span>
               </a>
             </div>
           </div>
 
           <div id="ai-settings-baseurl-group" class="form-group" style="display: none;">
-            <label for="ai-settings-baseurl" data-i18n="aiBaseUrlLabel">API Base URL (適用於自訂相容端點或本機 Ollama)</label>
-            <input type="text" id="ai-settings-baseurl" class="text-control" data-i18n-placeholder="aiBaseUrlPlaceholder" placeholder="https://api.deepseek.com/v1 或 http://localhost:11434/v1" />
+            <label for="ai-settings-baseurl" data-i18n="aiBaseUrlLabel">API Base URL (For OpenAI-compatible or local Ollama)</label>
+            <input type="text" id="ai-settings-baseurl" class="text-control" data-i18n-placeholder="aiBaseUrlPlaceholder" placeholder="https://api.deepseek.com/v1 or http://localhost:11434/v1" />
           </div>
         </div>
         <form method="dialog" class="modal-footer">
-          <button id="btn-save-ai-settings" class="btn btn-primary" data-i18n="aiSaveSettings">儲存設定</button>
-          <button id="btn-dismiss-ai-settings" class="btn" data-i18n="aiCloseSettings">關閉</button>
+          <button id="btn-save-ai-settings" class="btn btn-primary" data-i18n="aiSaveSettings">Save Settings</button>
+          <button id="btn-dismiss-ai-settings" class="btn" data-i18n="aiCloseSettings">Close</button>
         </form>
       </dialog>
 
@@ -677,7 +669,7 @@
           <span id="sb-summary"></span>
         </div>
         <div class="status-right">
-          <span id="sb-cursor" class="sb-cursor" title="游標位置 (行:列)">Ln 1, Col 1</span>
+          <span id="sb-cursor" class="sb-cursor" title="Cursor Position (Line:Column)" data-i18n-title="sbCursorTitle">Ln 1, Col 1</span>
           <span class="sb-divider">|</span>
           <span data-i18n="tributeText" data-i18n-html="true">In memory of <a href="https://github.com/aguai" target="_blank" rel="noopener noreferrer" class="tribute-link">Chen, Chih-Han (阿怪, 1974–2019)</a></span>
         </div>
@@ -686,327 +678,327 @@
       <!-- Help Dialog -->
       <dialog id="help-modal" class="modal">
         <div class="modal-header">
-          <h2 class="modal-title" data-i18n="helpTitle">TMD 簡明語法速查</h2>
+          <h2 class="modal-title" data-i18n="helpTitle">TMD Quick Reference & Philosophy</h2>
           <button id="btn-close-help" class="btn btn-icon-only">✕</button>
         </div>
         <div class="modal-body">
-          <p data-i18n="helpIntro">TMD (Timebase Mark Down) 是阿怪設計的純文字音樂標記語言，支援多音軌簡譜、和弦與播放流導出。</p>
+          <p data-i18n="helpIntro">TMD (Timebase Mark Down) was designed by composer and producer aguai (阿怪). Unlike black-box audio generation (like Suno), TMD gives artists full creative agency over exact notes, chords, and arrangements. Built for creative thinking rather than sheet music printing, it is the ultimate pair-composing DSL for the AI era. Let's write music together!</p>
           <pre><code>::SCORE::
-** 曲名 (Title) **
-!= 120              /* 速度 BPM */
-?= C                /* 調號 Key */
-&lt;4/4&gt;               /* 拍號 Meter */
+** Song Title **
+!= 120              /* Tempo BPM */
+?= C                /* Key signature */
+&lt;4/4&gt;               /* Time signature */
 
-/* 段落:樂器@|小節偏移|{ ... } */
+/* Section:Instrument@|MeasureOffset|{ ... } */
 intro:Piano@|0|{
-  &lt;2*&gt;              /* 1 小節 2 拍 */
+  &lt;2*&gt;              /* 2 beats per unit */
   |[1] - | [6m] - |
 }
 
 verse:Lead@|0|{
-  &lt;4*&gt;              /* 1 小節 4 拍 */
+  &lt;4*&gt;              /* 4 beats per unit */
   | 1 2 3 1 | 5 - 3 - |
 }
 
-/* 演奏流程宣告與轉調 */
+/* Playback order and modulation */
 -&gt; intro -&gt; verse -&gt; {?+1} -&gt; verse -&gt;#</code></pre>
           <ul style="padding-left: 20px; font-size: 13px; display: flex; flex-direction: column; gap: 6px;">
-            <li data-i18n="helpLi1" data-i18n-html="true"><code>1</code>–<code>7</code>：簡譜音階；<code>^</code>：高八度；<code>_</code>：低八度。</li>
-            <li data-i18n="helpLiAccidentals" data-i18n-html="true"><code>1'</code>, <code>4'</code>：升半音（Sharp）；<code>2,</code>, <code>7,</code>：降半音（Flat）。可與八度疊加如 <code>1'^</code> 或 <code>7,_</code>。</li>
-            <li data-i18n="helpLi2" data-i18n-html="true"><code>[1]</code>, <code>[6m]</code>, <code>[Cmaj7]</code>：和弦標記。</li>
-            <li data-i18n="helpLi3" data-i18n-html="true"><code>(1 2 3)%(--)</code>：連音符（三連音等）。</li>
-            <li data-i18n="helpLiTuplets" data-i18n-html="true"><code>(1 2)%(-)</code>, <code>(1 2 3)%(-)</code>：切分音符時值（在 1 個單位時值內平均分割演奏 2 或 3 個音）。</li>
-            <li data-i18n="helpLi4" data-i18n-html="true"><code>{!= 140}</code>, <code>{?+2}</code>：動態速度與轉調指令。</li>
+            <li data-i18n="helpLi1" data-i18n-html="true"><code>1</code>–<code>7</code>: Jianpu scale degrees; <code>^</code>: Octave up; <code>_</code>: Octave down.</li>
+            <li data-i18n="helpLiAccidentals" data-i18n-html="true"><code>1'</code>, <code>4'</code>: Sharp semitone; <code>2,</code>, <code>7,</code>: Flat semitone. Stackable with octaves like <code>1'^</code> or <code>7,_</code>.</li>
+            <li data-i18n="helpLi2" data-i18n-html="true"><code>[1]</code>, <code>[6m]</code>, <code>[Cmaj7]</code>: Chord symbols.</li>
+            <li data-i18n="helpLi3" data-i18n-html="true"><code>(1 2 3)%(--)</code>: Tuplets across unit groups (e.g. triplets).</li>
+            <li data-i18n="helpLiTuplets" data-i18n-html="true"><code>(1 2)%(-)</code>, <code>(1 2 3)%(-)</code>: Tuplet note subdivisions (evenly dividing notes within the duration defined in <code>%(-)</code>).</li>
+            <li data-i18n="helpLi4" data-i18n-html="true"><code>{!= 140}</code>, <code>{?+2}</code>: Dynamic tempo and key directives.</li>
           </ul>
           <div style="margin-top: 14px; padding: 10px 12px; background: rgba(88, 166, 255, 0.08); border-radius: 6px; font-size: 12.5px; border-left: 3px solid var(--accent-blue, #58a6ff);">
-            <span data-i18n="helpSamplesAndExtensions" data-i18n-html="true">💡 更多 TMD 範例樂譜與編輯器外掛（如 VS Code 語法標亮）可至 <a href="https://github.com/zonble/TmdSwift" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">TmdSwift 專案</a> 取得。</span>
+            <span data-i18n="helpSamplesAndExtensions" data-i18n-html="true">💡 More TMD score samples and editor extensions (such as VS Code syntax highlighting) are available from the <a href="https://github.com/zonble/TmdSwift" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">TmdSwift repository</a>.</span>
           </div>
         </div>
         <form method="dialog" class="modal-footer">
-          <button id="btn-dismiss-help" class="btn btn-primary" data-i18n="btnDismissHelp">了解</button>
+          <button id="btn-dismiss-help" class="btn btn-primary" data-i18n="btnDismissHelp">Close</button>
         </form>
       </dialog>
 
       <!-- Import Gist Modal -->
       <dialog id="import-gist-modal" class="modal">
         <div class="modal-header">
-          <h2 class="modal-title" data-i18n="importGistModalTitle">從 GitHub Gist 匯入樂譜</h2>
+          <h2 class="modal-title" data-i18n="importGistModalTitle">Import Score from GitHub Gist</h2>
           <button class="btn btn-icon-only btn-close-modal">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="input-gist-url" data-i18n="importGistPrompt">請輸入 GitHub Gist 網址或 Gist ID：</label>
-            <input type="text" id="input-gist-url" class="text-control" data-i18n-placeholder="importGistPlaceholder" placeholder="https://gist.github.com/username/id 或 Gist ID" />
+            <label for="input-gist-url" data-i18n="importGistPrompt">Enter GitHub Gist URL or Gist ID:</label>
+            <input type="text" id="input-gist-url" class="text-control" data-i18n-placeholder="importGistPlaceholder" placeholder="https://gist.github.com/username/id or Gist ID" />
           </div>
         </div>
         <div class="modal-footer">
-          <button id="btn-confirm-import-gist" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
-          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+          <button id="btn-confirm-import-gist" class="btn btn-primary" data-i18n="btnConfirm">Confirm</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">Cancel</button>
         </div>
       </dialog>
 
       <!-- Refactor Modals -->
       <dialog id="refactor-instrument-modal" class="modal">
         <div class="modal-header">
-          <h2 class="modal-title" data-i18n="refactorInstrumentTitle">重新命名樂器</h2>
+          <h2 class="modal-title" data-i18n="refactorInstrumentTitle">Rename Instrument</h2>
           <button class="btn btn-icon-only btn-close-modal">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="refactor-old-inst" data-i18n="labelOldInstrument">原樂器名稱：</label>
+            <label for="refactor-old-inst" data-i18n="labelOldInstrument">Original instrument:</label>
             <select id="refactor-old-inst" class="text-control"></select>
           </div>
           <div class="form-group">
-            <label for="refactor-new-inst" data-i18n="labelNewInstrument">新樂器名稱：</label>
+            <label for="refactor-new-inst" data-i18n="labelNewInstrument">New instrument name:</label>
             <input type="text" id="refactor-new-inst" class="text-control" placeholder="e.g. AcousticGuitar" />
           </div>
         </div>
         <div class="modal-footer">
-          <button id="btn-confirm-rename-inst" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
-          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+          <button id="btn-confirm-rename-inst" class="btn btn-primary" data-i18n="btnConfirm">Confirm</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">Cancel</button>
         </div>
       </dialog>
 
       <dialog id="refactor-section-modal" class="modal">
         <div class="modal-header">
-          <h2 class="modal-title" data-i18n="refactorSectionTitle">重新命名段落</h2>
+          <h2 class="modal-title" data-i18n="refactorSectionTitle">Rename Section</h2>
           <button class="btn btn-icon-only btn-close-modal">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="refactor-old-sec" data-i18n="labelOldSection">原段落名稱：</label>
+            <label for="refactor-old-sec" data-i18n="labelOldSection">Original section:</label>
             <select id="refactor-old-sec" class="text-control"></select>
           </div>
           <div class="form-group">
-            <label for="refactor-new-sec" data-i18n="labelNewSection">新段落名稱：</label>
+            <label for="refactor-new-sec" data-i18n="labelNewSection">New section name:</label>
             <input type="text" id="refactor-new-sec" class="text-control" placeholder="e.g. verseA" />
           </div>
         </div>
         <div class="modal-footer">
-          <button id="btn-confirm-rename-sec" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
-          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+          <button id="btn-confirm-rename-sec" class="btn btn-primary" data-i18n="btnConfirm">Confirm</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">Cancel</button>
         </div>
       </dialog>
 
       <dialog id="refactor-extract-modal" class="modal">
         <div class="modal-header">
-          <h2 class="modal-title" data-i18n="refactorExtractTitle">抽取樂器音軌為新樂譜</h2>
+          <h2 class="modal-title" data-i18n="refactorExtractTitle">Extract Instrument to New Score</h2>
           <button class="btn btn-icon-only btn-close-modal">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="refactor-extract-inst" data-i18n="labelSelectInstrument">選擇要抽取的樂器：</label>
+            <label for="refactor-extract-inst" data-i18n="labelSelectInstrument">Select instrument to extract:</label>
             <select id="refactor-extract-inst" class="text-control"></select>
           </div>
         </div>
         <div class="modal-footer">
-          <button id="btn-confirm-extract" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
-          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+          <button id="btn-confirm-extract" class="btn btn-primary" data-i18n="btnConfirm">Confirm</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">Cancel</button>
         </div>
       </dialog>
 
       <dialog id="refactor-duplicate-modal" class="modal">
         <div class="modal-header">
-          <h2 class="modal-title" data-i18n="refactorDuplicateTitle">複製樂器音軌</h2>
+          <h2 class="modal-title" data-i18n="refactorDuplicateTitle">Duplicate Instrument Track</h2>
           <button class="btn btn-icon-only btn-close-modal">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="refactor-dup-source" data-i18n="labelSourceInstrument">來源樂器音軌：</label>
+            <label for="refactor-dup-source" data-i18n="labelSourceInstrument">Source instrument track:</label>
             <select id="refactor-dup-source" class="text-control"></select>
           </div>
           <div class="form-group">
-            <label for="refactor-dup-target" data-i18n="labelTargetInstrument">目標新樂器名稱：</label>
+            <label for="refactor-dup-target" data-i18n="labelTargetInstrument">Target instrument name:</label>
             <input type="text" id="refactor-dup-target" class="text-control" placeholder="e.g. Violin2" />
           </div>
           <div class="form-group">
-            <label for="refactor-dup-octave" data-i18n="labelOctaveShift">八度位移 (Octave Shift)：</label>
+            <label for="refactor-dup-octave" data-i18n="labelOctaveShift">Octave Shift:</label>
             <select id="refactor-dup-octave" class="text-control">
-              <option value="0">0 (無位移)</option>
-              <option value="1">+1 (高一個八度 ^)</option>
-              <option value="2">+2 (高兩個八度 ^^)</option>
-              <option value="-1">-1 (低一個八度 _)</option>
-              <option value="-2">-2 (低兩個八度 __)</option>
+              <option value="0">0 (No shift)</option>
+              <option value="1">+1 (Octave up ^)</option>
+              <option value="2">+2 (2 Octaves up ^^)</option>
+              <option value="-1">-1 (Octave down _)</option>
+              <option value="-2">-2 (2 Octaves down __)</option>
             </select>
           </div>
           <div class="form-group" id="refactor-dup-scope-group">
-            <label data-i18n="labelScope">套用範圍 (Scope)：</label>
+            <label data-i18n="labelScope">Scope:</label>
             <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px; font-size: 13px;">
               <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                 <input type="radio" name="refactor-dup-scope" id="refactor-dup-scope-section" value="section" checked />
-                <span id="refactor-dup-scope-section-label" data-i18n="scopeSectionOnly">僅套用於目前段落</span>
+                <span id="refactor-dup-scope-section-label" data-i18n="scopeSectionOnly">Current section only ({section})</span>
               </label>
               <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                 <input type="radio" name="refactor-dup-scope" id="refactor-dup-scope-global" value="global" />
-                <span data-i18n="scopeGlobal">整首樂譜中所有同名音軌 (Global)</span>
+                <span data-i18n="scopeGlobal">All matching tracks in score (Global)</span>
               </label>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button id="btn-confirm-duplicate" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
-          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+          <button id="btn-confirm-duplicate" class="btn btn-primary" data-i18n="btnConfirm">Confirm</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">Cancel</button>
         </div>
       </dialog>
 
       <dialog id="refactor-harmony-modal" class="modal">
         <div class="modal-header">
-          <h2 class="modal-title" data-i18n="refactorHarmonyTitle">自動二部和聲 (平行度數)</h2>
+          <h2 class="modal-title" data-i18n="refactorHarmonyTitle">Generate Diatonic Harmony</h2>
           <button class="btn btn-icon-only btn-close-modal">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="refactor-harm-source" data-i18n="labelSourceInstrument">來源樂器音軌：</label>
+            <label for="refactor-harm-source" data-i18n="labelSourceInstrument">Source instrument track:</label>
             <select id="refactor-harm-source" class="text-control"></select>
           </div>
           <div class="form-group">
-            <label for="refactor-harm-target" data-i18n="labelTargetInstrument">目標新樂器名稱：</label>
+            <label for="refactor-harm-target" data-i18n="labelTargetInstrument">Target instrument name:</label>
             <input type="text" id="refactor-harm-target" class="text-control" placeholder="e.g. LeadHarmony" />
           </div>
           <div class="form-group">
-            <label for="refactor-harm-interval" data-i18n="labelHarmonyInterval">平行和聲度數 (Interval)：</label>
+            <label for="refactor-harm-interval" data-i18n="labelHarmonyInterval">Harmony Interval:</label>
             <select id="refactor-harm-interval" class="text-control">
-              <option value="2" data-i18n="harmonyThirdUp">上行三度 (+3rd, +2 scale degrees)</option>
-              <option value="-2" data-i18n="harmonyThirdDown">下行三度 (-3rd, -2 scale degrees)</option>
-              <option value="5" data-i18n="harmonySixthUp">上行六度 (+6th, +5 scale degrees)</option>
-              <option value="-5" data-i18n="harmonySixthDown">下行六度 (-6th, -5 scale degrees)</option>
+              <option value="2" data-i18n="harmonyThirdUp">Ascending 3rd (+3rd, +2 scale degrees)</option>
+              <option value="-2" data-i18n="harmonyThirdDown">Descending 3rd (-3rd, -2 scale degrees)</option>
+              <option value="5" data-i18n="harmonySixthUp">Ascending 6th (+6th, +5 scale degrees)</option>
+              <option value="-5" data-i18n="harmonySixthDown">Descending 6th (-6th, -5 scale degrees)</option>
             </select>
           </div>
           <div class="form-group" id="refactor-harm-scope-group">
-            <label data-i18n="labelScope">套用範圍 (Scope)：</label>
+            <label data-i18n="labelScope">Scope:</label>
             <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px; font-size: 13px;">
               <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                 <input type="radio" name="refactor-harm-scope" id="refactor-harm-scope-section" value="section" checked />
-                <span id="refactor-harm-scope-section-label" data-i18n="scopeSectionOnly">僅套用於目前段落</span>
+                <span id="refactor-harm-scope-section-label" data-i18n="scopeSectionOnly">Current section only ({section})</span>
               </label>
               <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                 <input type="radio" name="refactor-harm-scope" id="refactor-harm-scope-global" value="global" />
-                <span data-i18n="scopeGlobal">整首樂譜中所有同名音軌 (Global)</span>
+                <span data-i18n="scopeGlobal">All matching tracks in score (Global)</span>
               </label>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button id="btn-confirm-harmony" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
-          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+          <button id="btn-confirm-harmony" class="btn btn-primary" data-i18n="btnConfirm">Confirm</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">Cancel</button>
         </div>
       </dialog>
 
       <!-- Transpose Modal -->
       <dialog id="refactor-transpose-modal" class="modal">
         <div class="modal-header">
-          <h2 class="modal-title" data-i18n="refactorTransposeTitle">樂譜與選取範圍轉調 (Transpose)</h2>
+          <h2 class="modal-title" data-i18n="refactorTransposeTitle">Transpose Score / Selection</h2>
           <button class="btn btn-icon-only btn-close-modal">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="refactor-transpose-semitones" data-i18n="labelTransposeSemitones">升降半音 (Semitones / Key Shift)：</label>
+            <label for="refactor-transpose-semitones" data-i18n="labelTransposeSemitones">Semitones (Key Shift):</label>
             <select id="refactor-transpose-semitones" class="text-control">
-              <option value="1">+1 半音 (升半音)</option>
-              <option value="2" selected>+2 半音 (升全音 / 大二度)</option>
-              <option value="3">+3 半音 (小三度)</option>
-              <option value="4">+4 半音 (大三度)</option>
-              <option value="5">+5 半音 (完全四度)</option>
-              <option value="7">+7 半音 (完全五度)</option>
-              <option value="12">+12 半音 (高八度)</option>
-              <option value="-1">-1 半音 (降半音)</option>
-              <option value="-2">-2 半音 (降全音 / 大二度)</option>
-              <option value="-3">-3 半音 (小三度)</option>
-              <option value="-4">-4 半音 (大三度)</option>
-              <option value="-5">-5 半音 (完全四度)</option>
-              <option value="-7">-7 半音 (完全五度)</option>
-              <option value="-12">-12 半音 (低八度)</option>
+              <option value="1">+1 semitone (half step up)</option>
+              <option value="2" selected>+2 semitones (whole step up / Major 2nd)</option>
+              <option value="3">+3 semitones (Minor 3rd)</option>
+              <option value="4">+4 semitones (Major 3rd)</option>
+              <option value="5">+5 semitones (Perfect 4th)</option>
+              <option value="7">+7 semitones (Perfect 5th)</option>
+              <option value="12">+12 semitones (Octave up)</option>
+              <option value="-1">-1 semitone (half step down)</option>
+              <option value="-2">-2 semitones (whole step down / Major 2nd)</option>
+              <option value="-3">-3 semitones (Minor 3rd)</option>
+              <option value="-4">-4 semitones (Major 3rd)</option>
+              <option value="-5">-5 semitones (Perfect 4th)</option>
+              <option value="-7">-7 semitones (Perfect 5th)</option>
+              <option value="-12">-12 semitones (Octave down)</option>
             </select>
           </div>
 
           <div class="form-group" id="refactor-transpose-scope-group" style="display: none;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <input type="checkbox" id="refactor-transpose-selection-only" checked style="cursor: pointer; width: 16px; height: 16px; margin: 0;" />
-              <label for="refactor-transpose-selection-only" data-i18n="labelTransposeSelectionOnly" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal;">僅套用於目前選取範圍 (Selection Only)</label>
+              <label for="refactor-transpose-selection-only" data-i18n="labelTransposeSelectionOnly" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal;">Apply to current selection only</label>
             </div>
           </div>
 
           <div class="form-group" id="refactor-transpose-updatekey-group">
             <div style="display: flex; align-items: center; gap: 8px;">
               <input type="checkbox" id="refactor-transpose-update-key" checked style="cursor: pointer; width: 16px; height: 16px; margin: 0;" />
-              <label for="refactor-transpose-update-key" data-i18n="labelTransposeUpdateKey" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal;">同步更新樂譜調號標頭 (?= ...)</label>
+              <label for="refactor-transpose-update-key" data-i18n="labelTransposeUpdateKey" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal;">Update score key signature (?= ...)</label>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button id="btn-confirm-transpose" class="btn btn-primary" data-i18n="btnConfirm">確認</button>
-          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+          <button id="btn-confirm-transpose" class="btn btn-primary" data-i18n="btnConfirm">Confirm</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">Cancel</button>
         </div>
       </dialog>
 
       <!-- Insert Section Modal -->
       <dialog id="insert-section-modal" class="modal">
         <div class="modal-header">
-          <h2 class="modal-title" data-i18n="insertSectionTitle">插入新段落範本 (Section Snippet)</h2>
+          <h2 class="modal-title" data-i18n="insertSectionTitle">Insert Section Snippet</h2>
           <button class="btn btn-icon-only btn-close-modal">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label for="insert-sec-name" data-i18n="labelNewSection">段落名稱：</label>
+            <label for="insert-sec-name" data-i18n="labelNewSection">New section name:</label>
             <input type="text" id="insert-sec-name" class="text-control" value="verse2" placeholder="e.g. verse2, bridge" />
           </div>
           <div class="form-group">
-            <label for="insert-sec-inst" data-i18n="labelNewInstrument">樂器名稱：</label>
+            <label for="insert-sec-inst" data-i18n="labelNewInstrument">New instrument name:</label>
             <input type="text" id="insert-sec-inst" class="text-control" value="Lead" placeholder="e.g. Lead, Piano, Guitar, Drums" />
           </div>
           <div class="form-group">
-            <label for="insert-sec-template" data-i18n="labelSectionType">段落範本類型：</label>
+            <label for="insert-sec-template" data-i18n="labelSectionType">Snippet Template:</label>
             <select id="insert-sec-template" class="text-control">
-              <option value="melody" data-i18n="insertSnippetMelody">主旋律範本 (Melody - Lead, 4/4)</option>
-              <option value="chords" data-i18n="insertSnippetChords">和弦伴奏範本 (Chords - Piano, 4/4)</option>
-              <option value="drums" data-i18n="insertSnippetDrums">標準流行節奏鼓組 (Drums - 4/4 Kick & Snare)</option>
-              <option value="bass" data-i18n="insertSnippetBass">貝斯走音根音範本 (Bass - Root Notes)</option>
+              <option value="melody" data-i18n="insertSnippetMelody">Melody Template (Lead, 4/4)</option>
+              <option value="chords" data-i18n="insertSnippetChords">Chord Progression Template (Piano, 4/4)</option>
+              <option value="drums" data-i18n="insertSnippetDrums">Pop Drum Groove (Drums - Kick & Snare)</option>
+              <option value="bass" data-i18n="insertSnippetBass">Bass Root Notes Template (Bass)</option>
             </select>
           </div>
           <div class="form-group">
-            <label for="insert-sec-measures" data-i18n="labelInsertMeasureCount">小節數量 (Measures)：</label>
+            <label for="insert-sec-measures" data-i18n="labelInsertMeasureCount">Measure Count:</label>
             <select id="insert-sec-measures" class="text-control">
-              <option value="4" selected>4 小節 (4 Measures)</option>
-              <option value="8">8 小節 (8 Measures)</option>
-              <option value="2">2 小節 (2 Measures)</option>
+              <option value="4" selected>4 Measures</option>
+              <option value="8">8 Measures</option>
+              <option value="2">2 Measures</option>
             </select>
           </div>
         </div>
         <div class="modal-footer">
-          <button id="btn-confirm-insert-sec" class="btn btn-primary" data-i18n="btnConfirm">確認插入</button>
-          <button class="btn btn-close-modal" data-i18n="btnCancel">取消</button>
+          <button id="btn-confirm-insert-sec" class="btn btn-primary" data-i18n="btnConfirm">Confirm</button>
+          <button class="btn btn-close-modal" data-i18n="btnCancel">Cancel</button>
         </div>
       </dialog>
 
       <!-- Humming to TMD Dialog (Spotify Basic Pitch) -->
       <dialog id="hum-modal" class="modal modal-lg">
         <div class="modal-header">
-          <div class="modal-title" data-i18n="humModalTitle">🎤 哼唱轉記為 TMD 樂段 (Spotify Basic Pitch)</div>
+          <div class="modal-title" data-i18n="humModalTitle">🎤 Hum to TMD Section (Spotify Basic Pitch)</div>
           <button class="btn-close-modal">×</button>
         </div>
         <div class="modal-body">
-          <p class="modal-desc" data-i18n="humModalDesc">對著麥克風哼唱旋律，系統將透過 Spotify Basic Pitch 模型在本機即時辨識音高與時值，並自動量化為 TMD 簡譜樂段（完全本機運算，無音訊上傳）。</p>
+          <p class="modal-desc" data-i18n="humModalDesc">Hum or sing a melody into your microphone. Spotify Basic Pitch model will transcribe notes and quantize them into a clean TMD Jianpu section in real-time (entirely local processing, no audio uploaded).</p>
           
           <div style="display: flex; gap: 12px; align-items: center; margin: 16px 0;">
             <button id="hum-btn-record" class="btn btn-primary" style="padding: 10px 20px; font-size: 14px;">
-              <span id="hum-record-icon">🔴</span> <span id="hum-record-text" data-i18n="humBtnRecord">開始錄音</span>
+              <span id="hum-record-icon">🔴</span> <span id="hum-record-text" data-i18n="humBtnRecord">Start Recording</span>
             </button>
-            <div id="hum-status-indicator" style="font-size: 13px; color: var(--text-secondary);" data-i18n="humStatusIdle">點擊上方按鈕開始錄音，哼唱你的旋律（建議 2~8 小節）...</div>
+            <div id="hum-status-indicator" style="font-size: 13px; color: var(--text-secondary);" data-i18n="humStatusIdle">Click the button above and hum your melody (2~8 measures recommended)...</div>
           </div>
 
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px;">
             <div class="form-group">
-              <label for="hum-section-name" data-i18n="humSectionName">段落名稱：</label>
+              <label for="hum-section-name" data-i18n="humSectionName">Section Name:</label>
               <input type="text" id="hum-section-name" class="text-control" value="hummed" />
             </div>
             <div class="form-group">
-              <label for="hum-instrument" data-i18n="humInstrument">樂器：</label>
+              <label for="hum-instrument" data-i18n="humInstrument">Instrument:</label>
               <input type="text" id="hum-instrument" class="text-control" value="Vocal" />
             </div>
             <div class="form-group">
-              <label for="hum-key" data-i18n="humKey">預期調性：</label>
+              <label for="hum-key" data-i18n="humKey">Expected Key:</label>
               <select id="hum-key" class="text-control">
-                <option value="AUTO" selected data-i18n="humKeyAuto">✨ 自動偵測調性 (Auto-Detect)</option>
+                <option value="AUTO" selected data-i18n="humKeyAuto">✨ Auto-Detect Key</option>
                 <option value="C">C</option>
                 <option value="D">D</option>
                 <option value="E">E</option>
@@ -1022,15 +1014,15 @@ verse:Lead@|0|{
               </select>
             </div>
             <div class="form-group">
-              <label for="hum-bpm" data-i18n="humBpm">參考速度 (BPM)：</label>
+              <label for="hum-bpm" data-i18n="humBpm">Reference Tempo (BPM):</label>
               <input type="number" id="hum-bpm" class="text-control" value="120" min="40" max="240" />
             </div>
             <div class="form-group">
-              <label for="hum-grid" data-i18n="humGrid">時間網格：</label>
+              <label for="hum-grid" data-i18n="humGrid">Time Grid:</label>
               <select id="hum-grid" class="text-control">
-                <option value="8" data-i18n="humGrid8" selected>8 分音符 (&lt;8*&gt;)</option>
-                <option value="4" data-i18n="humGrid4">4 分音符 (&lt;4*&gt;)</option>
-                <option value="16" data-i18n="humGrid16">16 分音符 (&lt;16*&gt;)</option>
+                <option value="8" data-i18n="humGrid8" selected>8th Notes (&lt;8*&gt;)</option>
+                <option value="4" data-i18n="humGrid4">Quarter Notes (&lt;4*&gt;)</option>
+                <option value="16" data-i18n="humGrid16">16th Notes (&lt;16*&gt;)</option>
               </select>
             </div>
           </div>
@@ -1038,37 +1030,37 @@ verse:Lead@|0|{
           <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; text-align: left; width: 100%;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <input type="checkbox" id="hum-snap-scale" checked style="cursor: pointer; width: 16px; height: 16px; margin: 0; flex-shrink: 0;" />
-              <label for="hum-snap-scale" data-i18n="humSnapScale" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal; color: var(--text-primary); text-align: left; user-select: none;">吸附至自然音階（過濾微走音與跑調怪音）</label>
+              <label for="hum-snap-scale" data-i18n="humSnapScale" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal; color: var(--text-primary); text-align: left; user-select: none;">Snap to Natural Diatonic Scale (eliminate microtonal glitches)</label>
             </div>
             <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <input type="checkbox" id="hum-enable-metronome" checked style="cursor: pointer; width: 16px; height: 16px; margin: 0; flex-shrink: 0;" />
-                <label for="hum-enable-metronome" data-i18n="humEnableMetronome" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal; color: var(--text-primary); user-select: none;">啟用節拍器 (Metronome)</label>
+                <label for="hum-enable-metronome" data-i18n="humEnableMetronome" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal; color: var(--text-primary); user-select: none;">Enable Metronome</label>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <input type="checkbox" id="hum-enable-countin" checked style="cursor: pointer; width: 16px; height: 16px; margin: 0; flex-shrink: 0;" />
-                <label for="hum-enable-countin" data-i18n="humEnableCountIn" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal; color: var(--text-primary); user-select: none;">4 拍預備倒數 (Count-in)</label>
+                <label for="hum-enable-countin" data-i18n="humEnableCountIn" style="margin: 0; cursor: pointer; font-size: 13.5px; font-weight: normal; color: var(--text-primary); user-select: none;">4-Beat Count-in</label>
               </div>
               <div style="font-size: 12px; color: var(--accent-orange, #d29922); display: flex; align-items: center; gap: 4px;">
-                <span>🎧</span> <span data-i18n="humHeadphoneHint">建議配戴耳機哼唱，避免節拍器被麥克風錄入</span>
+                <span>🎧</span> <span data-i18n="humHeadphoneHint">Headphones recommended to avoid click bleed into mic</span>
               </div>
             </div>
           </div>
 
           <div class="form-group">
-            <label for="hum-result-code" data-i18n="humResultCodePreview">TMD 簡譜產生結果預覽 (Preview)：</label>
-            <textarea id="hum-result-code" class="text-control" rows="7" style="font-family: var(--font-mono); font-size: 13px; line-height: 1.5; white-space: pre;" data-i18n-placeholder="humPlaceholderResult" placeholder="錄音辨識後的 TMD 代碼將顯示於此..."></textarea>
+            <label for="hum-result-code" data-i18n="humResultCodePreview">Transcribed TMD Section Preview:</label>
+            <textarea id="hum-result-code" class="text-control" rows="7" style="font-family: var(--font-mono); font-size: 13px; line-height: 1.5; white-space: pre;" data-i18n-placeholder="humPlaceholderResult" placeholder="Transcribed TMD code will appear here after recording..."></textarea>
           </div>
         </div>
         <div class="modal-footer" style="display: flex; justify-content: space-between;">
           <div>
             <button id="hum-btn-play-preview" class="btn" style="display: none;">
-              <span>▶️</span> <span data-i18n="humBtnPlayPreview">試聽辨識結果</span>
+              <span>▶️</span> <span data-i18n="humBtnPlayPreview">Preview Result</span>
             </button>
           </div>
           <div style="display: flex; gap: 8px;">
-            <button id="hum-btn-apply" class="btn btn-primary" data-i18n="humBtnApply" disabled>置入編輯器 (Insert Section)</button>
-            <button class="btn btn-close-modal" data-i18n="humBtnClose">關閉</button>
+            <button id="hum-btn-apply" class="btn btn-primary" data-i18n="humBtnApply" disabled>Insert Section into Editor</button>
+            <button class="btn btn-close-modal" data-i18n="humBtnClose">Close</button>
           </div>
         </div>
       </dialog>
@@ -1077,47 +1069,47 @@ verse:Lead@|0|{
       <div id="editor-context-menu" class="context-menu" style="display: none;">
         <div id="ctx-header-info" class="context-menu-header" style="display: none;"></div>
         <button class="context-menu-item" id="ctx-format">
-          <span>🪄</span> <span id="ctx-format-label" data-i18n="toolFormatDocument">格式化樂譜 (Shift+Alt+F)</span>
+          <span>🪄</span> <span id="ctx-format-label" data-i18n="toolFormatDocument">Format Document (Shift+Alt+F)</span>
         </button>
         <button class="context-menu-item" id="ctx-comment">
-          <span>💬</span> <span id="ctx-comment-label" data-i18n="ctxComment">切換註解 (Cmd+/)</span>
+          <span>💬</span> <span id="ctx-comment-label" data-i18n="ctxComment">Toggle Comment (Cmd+/)</span>
         </button>
         <div class="context-menu-divider"></div>
         <button class="context-menu-item" id="ctx-insert-section">
-          <span>➕</span> <span data-i18n="toolInsertSection">插入新段落範本 (Insert Section)...</span>
+          <span>➕</span> <span data-i18n="toolInsertSection">Insert Section Snippet...</span>
         </button>
         <button class="context-menu-item" id="ctx-hum-recording">
-          <span>🎤</span> <span data-i18n="toolHumToTmd">哼唱轉記為樂段 (Hum to TMD)...</span>
+          <span>🎤</span> <span data-i18n="toolHumToTmd">Hum to TMD Section (Basic Pitch)...</span>
         </button>
         <div class="context-menu-divider"></div>
         <button class="context-menu-item" id="ctx-double-grid">
-          <span>⏩</span> <span data-i18n="toolDoubleGrid">細分網格時值 (Double Grid: &lt;4*&gt; ➔ &lt;8*&gt;)</span>
+          <span>⏩</span> <span data-i18n="toolDoubleGrid">Subdivide Grid (Double Grid: &lt;4*&gt; ➔ &lt;8*&gt;)</span>
         </button>
         <button class="context-menu-item" id="ctx-halve-grid">
-          <span>⏪</span> <span data-i18n="toolHalveGrid">減半網格時值 (Halve Grid: &lt;8*&gt; ➔ &lt;4*&gt;)</span>
+          <span>⏪</span> <span data-i18n="toolHalveGrid">Compress Grid (Halve Grid: &lt;8*&gt; ➔ &lt;4*&gt;)</span>
         </button>
         <button class="context-menu-item" id="ctx-optimize-grid">
-          <span>⚡</span> <span data-i18n="toolOptimizeGrid">最佳化網格時值 (Optimize Grid)</span>
+          <span>⚡</span> <span data-i18n="toolOptimizeGrid">Optimize Grid Resolution</span>
         </button>
         <button class="context-menu-item" id="ctx-transpose">
-          <span>🔄</span> <span id="ctx-transpose-label" data-i18n="toolTranspose">全域 / 選取範圍轉調...</span>
+          <span>🔄</span> <span id="ctx-transpose-label" data-i18n="toolTranspose">Transpose Score / Selection...</span>
         </button>
         <div class="context-menu-divider"></div>
         <button class="context-menu-item" id="ctx-duplicate-track">
-          <span>👯</span> <span data-i18n="toolDuplicateTrack">複製音軌 (Duplicate Track)...</span>
+          <span>👯</span> <span data-i18n="toolDuplicateTrack">Duplicate Track...</span>
         </button>
         <button class="context-menu-item" id="ctx-generate-harmony">
-          <span>🎶</span> <span data-i18n="toolGenerateHarmony">自動二部和聲 (Generate Harmony)...</span>
+          <span>🎶</span> <span data-i18n="toolGenerateHarmony">Generate Harmony (Parallel Intervals)...</span>
         </button>
         <button class="context-menu-item" id="ctx-extract-instrument">
-          <span>🎼</span> <span data-i18n="toolExtractInstrument">抽取樂器音軌...</span>
+          <span>🎼</span> <span data-i18n="toolExtractInstrument">Extract Instrument...</span>
         </button>
         <div class="context-menu-divider"></div>
         <button class="context-menu-item" id="ctx-rename-instrument">
-          <span>🏷️</span> <span data-i18n="toolRenameInstrument">重新命名樂器...</span>
+          <span>🏷️</span> <span data-i18n="toolRenameInstrument">Rename Instrument...</span>
         </button>
         <button class="context-menu-item" id="ctx-rename-section">
-          <span>📑</span> <span data-i18n="toolRenameSection">重新命名段落...</span>
+          <span>📑</span> <span data-i18n="toolRenameSection">Rename Section...</span>
         </button>
       </div>
 

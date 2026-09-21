@@ -78,4 +78,14 @@ describe("i18n and Default Language (TDD)", () => {
     // Default meta/og tags should reflect English defaults
     expect(html).toContain('<meta property="og:locale" content="en_US" />');
   });
+
+  it("ensures index.html is valid HTML without unescaped brackets (e.g. <4*>, <8*>, <16*>)", () => {
+    const htmlPath = path.join(__dirname, "../web/index.html");
+    const html = fs.readFileSync(htmlPath, "utf-8");
+
+    // Must not contain raw unescaped '<' followed by digits/special chars which breaks parse5
+    expect(html).not.toMatch(/<[0-9*]/);
+    expect(html).toContain('&lt;4*&gt;');
+    expect(html).toContain('&lt;8*&gt;');
+  });
 });
