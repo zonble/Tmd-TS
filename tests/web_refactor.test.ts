@@ -15,6 +15,8 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     // Tool actions
     expect((zhTW as any).toolFormatDocument).toBeDefined();
     expect((en as any).toolFormatDocument).toBeDefined();
+    expect((zhTW as any).toolFormatSelection).toBeDefined();
+    expect((en as any).toolFormatSelection).toBeDefined();
     expect((zhTW as any).toolDoubleGrid).toBeDefined();
     expect((en as any).toolDoubleGrid).toBeDefined();
     expect((zhTW as any).toolHalveGrid).toBeDefined();
@@ -37,6 +39,8 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect((en as any).toolInlineOrders).toBeDefined();
     expect((zhTW as any).toolTranspose).toBeDefined();
     expect((en as any).toolTranspose).toBeDefined();
+    expect((zhTW as any).toolTransposeSelection).toBeDefined();
+    expect((en as any).toolTransposeSelection).toBeDefined();
     expect((zhTW as any).refactorTransposeTitle).toBeDefined();
     expect((en as any).refactorTransposeTitle).toBeDefined();
 
