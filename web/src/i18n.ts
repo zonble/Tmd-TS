@@ -8,7 +8,7 @@ export const translations = {
   "zh-TW": zhTW,
 };
 
-let currentLocale: Locale = "zh-TW";
+let currentLocale: Locale = "en";
 const changeListeners: Array<(lang: Locale) => void> = [];
 
 export function detectLanguage(): Locale {
@@ -29,7 +29,7 @@ export function detectLanguage(): Locale {
     if (/^en/i.test(lang.trim())) return "en";
   }
 
-  return "zh-TW";
+  return "en";
 }
 
 export function getCurrentLocale(): Locale {
@@ -37,8 +37,8 @@ export function getCurrentLocale(): Locale {
 }
 
 export function t(key: keyof typeof en, params?: Record<string, string | number>): string {
-  const dict = translations[currentLocale] || translations["zh-TW"];
-  let str: string = dict[key] || translations["en"][key] || key;
+  const dict = translations[currentLocale] || translations["en"];
+  let str: string = dict[key] || translations["zh-TW"][key] || key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       str = str.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
