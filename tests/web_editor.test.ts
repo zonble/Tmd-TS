@@ -71,4 +71,16 @@ describe("Web Studio Editor Configuration (TDD)", () => {
     expect((en as any).helpLiTuplets).toContain("(1 2)%(-)");
     expect((en as any).helpLiTuplets).toContain("(1 2 3)%(-)");
   });
+
+  it("binds browser-safe Mod-Shift-F for format hotkey and updates UI labels", () => {
+    const editorPath = path.join(__dirname, "../web/src/editor.ts");
+    const editorContent = fs.readFileSync(editorPath, "utf-8");
+
+    // CodeMirror keymap must bind Mod-Shift-f
+    expect(editorContent).toContain('"Mod-Shift-f"');
+
+    // Locales must reflect Cmd+Shift+F or Ctrl+Shift+F
+    expect((zhTW as any).toolFormatDocument).toContain("Shift+F");
+    expect((en as any).toolFormatDocument).toContain("Shift+F");
+  });
 });

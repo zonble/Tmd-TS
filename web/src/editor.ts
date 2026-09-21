@@ -222,6 +222,16 @@ export function createTmdEditor(
 
   const editorKeymap = keymap.of([
     {
+      key: "Mod-Shift-f",
+      run: () => {
+        if (onFormat) {
+          onFormat();
+          return true;
+        }
+        return false;
+      },
+    },
+    {
       key: "Shift-Alt-f",
       run: () => {
         if (onFormat) {

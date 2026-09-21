@@ -37,7 +37,7 @@ export const zhTW = {
   btnThemeToggleTitle: "切換淺色/深色主題 (Toggle Theme)",
   btnToolsMenuTitle: "樂譜排版與重構工具",
   btnToolsText: "工具",
-  toolFormatDocument: "格式化樂譜 (Shift+Alt+F)",
+  toolFormatDocument: "格式化樂譜 (Cmd+Shift+F)",
   ctxComment: "切換註解 (Cmd+/)",
   toolDoubleGrid: "細分網格時值 (<4*> ➔ <8*>)",
   toolHalveGrid: "減半網格時值 (<8*> ➔ <4*>)",

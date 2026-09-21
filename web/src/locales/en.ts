@@ -34,7 +34,7 @@ export const en = {
   btnThemeToggleTitle: "Toggle Light/Dark Theme",
   btnToolsMenuTitle: "Score formatting and refactoring tools",
   btnToolsText: "Tools",
-  toolFormatDocument: "Format Document (Shift+Alt+F)",
+  toolFormatDocument: "Format Document (Cmd/Ctrl+Shift+F)",
   ctxComment: "Toggle Comment (Cmd+/)",
   toolDoubleGrid: "Subdivide Grid (Double Grid: <4*> ➔ <8*>)",
   toolHalveGrid: "Compress Grid (Halve Grid: <8*> ➔ <4*>)",
