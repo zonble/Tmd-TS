@@ -1,4 +1,4 @@
-# Macro Composing in TMD: Architectural Design & Specification (RFC)
+# Macro Composing in TMD: S-Expression Architecture & Specification (RFC)
 
 ## 1. Abstract & Motivation
 
@@ -7,17 +7,27 @@ In current Timebase Mark Down (TMD), musical arrangement follows a linear, imper
 - **Repetitive Authoring (WET)**: Classical and polyphonic forms such as **Canons**, **Fugues**, **Passacaglias**, and **Variations** require copy-pasting the exact same musical material across multiple tracks, manually padding offset rests (`0`), and hand-transposing notes.
 - **Flat Playback Orders**: The playback flow (`-> intro -> verse ->#`) only references flat section identifiers or simple modulation directives (`{?+2}`).
 
-**Macro Composing** elevates musical motifs into first-class, instrument-agnostic architectural abstractions. Drawing inspiration from software design patterns—such as prototypes, decorators, strategies, and functional pipelines—TMD composers can write a melodic theme once and orchestrate, transform, and layer it declaratively.
+### Why S-Expressions (Lisp Dialect) in Playback Flow?
+When designing macro functions for TMD, conventional functional syntax like `layer[canon(Theme, instruments:["Violin1", ...])]` introduces significant parser ambiguities:
+- Square brackets `[...]` already represent **chords** in TMD (e.g. `[C]`, `[1]`, `[6m]`).
+- Colons `:` are heavily overloaded for section instrument binding (`name:instrument`) and metadata tags.
+- String quotes `"` are generally avoided in musical scores except for header metadata.
+
+By adopting **S-Expressions** in the playback flow (`-> (op arg1 arg2 ...) ->`), TMD achieves:
+1. **Zero Lexer Ambiguity**: Only uses tokens already present in TMD (`(`, `)`, identifiers, numbers).
+2. **Minimal Parser Footprint**: A pure recursive S-Expression parser takes less than 30 lines of code.
+3. **Infinite Composability**: Macro calls can be seamlessly nested without precedence or delimiter conflicts.
+4. **Natural Ast Desugaring**: Musical motifs are evaluated and expanded into standard TMD conductor timelines before synthesis.
 
 ---
 
 ## 2. Core Concepts
 
-### 2.1 Abstract Musical Material (Prototypes / Macros)
-A musical section declared **without** an instrument binding serves as an abstract musical theme (or macro):
+### 2.1 Abstract Musical Material (Prototypes / Themes)
+A musical paragraph declared **without** an instrument binding serves as an abstract musical theme (prototype):
 
 ```tmd
-themeA {
+ThemeA {
     <4*>
     1 2 3 1 | 3 4 5 - | 5 6 5 4 | 3 - 1 - |
     2 5_ 1 - | - - - - |
@@ -25,258 +35,170 @@ themeA {
 ```
 
 - An abstract paragraph contains pure melodic, harmonic, and rhythmic units.
-- It is not tied to any MIDI channel or SoundFont instrument.
+- It is not tied to any MIDI channel, track offset, or SoundFont instrument.
 - It is not emitted into the final conductor timeline unless instantiated or referenced in the playback flow.
 
-### 2.2 Functional Playback Flow
-The playback order (`-> ... ->#`) transitions from a list of static symbols into an **evaluatable expression pipeline**:
+### 2.2 S-Expression Macro Playback Flow
+The playback order transitions from a list of static symbols into an **evaluatable S-Expression pipeline**:
 
 ```tmd
--> Intro -> Canon(themeA, instruments: ["Violin1", "Violin2"], delay: 2m) -> Outro ->#
+-> Intro -> (canon ThemeA (Violin1 Violin2 Cello) 2) -> Outro ->#
 ```
 
-When the compiler evaluates `Canon(...)`, it dynamically expands the prototype into concrete timeline tracks before audio synthesis or export.
+When the compiler evaluates `(canon ...)`, it dynamically expands the prototype into concrete timeline tracks before audio synthesis or export.
 
 ---
 
-## 3. Standard Macro Functions
+## 3. Standard Macro Functions (S-Expressions)
 
-### 3.1 `Canon` (Prototype + Temporal Decorator)
-Constructs a polyphonic canon by cloning an abstract theme across multiple voices, progressively offsetting each subsequent voice in time, with optional interval transpositions.
+### 3.1 `(canon <theme> (<instruments...>) <offset_bars>)`
+Constructs a polyphonic canon by cloning an abstract theme across multiple voices, progressively offsetting each subsequent voice in time by `offset_bars`.
 
-#### Signature:
-```
-Canon(
-    theme: Identifier,
-    instruments: [String],
-    delay: MeasureDuration = 1m | 2m | ...,
-    transposition?: [Integer]   /* Semitone offsets per voice, defaults to [0, 0, ...] */
-)
-```
-
-#### Example: Three-Voice Canon at the Fifth and Octave
+#### Example: Three-Voice Canon in D
 ```tmd
--> Canon(
-    themeA,
-    instruments: ["Violin1", "Violin2", "Cello"],
-    delay: 2m,
-    transposition: [0, +7, -12]
-) ->#
+-> (canon Theme (Violin1 Violin2 Violin3) 2) ->#
 ```
 
-**Compiler Expansion:**
-- Voice 0 (`Violin1`): `offset = 0`, `transpose = 0`
-- Voice 1 (`Violin2`): `offset = 2 measures`, `transpose = +7 semitones`
-- Voice 2 (`Cello`): `offset = 4 measures`, `transpose = -12 semitones`
-- Total duration: `themeA.duration + 4 measures`.
+**Compiler Desugaring:**
+- `Violin1`: Starts at bar 0 (`@|0|`), plays `Theme`.
+- `Violin2`: Starts at bar 2 (`@|+2|`), plays `Theme`.
+- `Violin3`: Starts at bar 4 (`@|+4|`), plays `Theme`.
 
 ---
 
-### 3.2 `Layer` (Composite / Parallel Concurrency)
-Combines multiple concrete or instantiated sections to play concurrently starting at the same measure timestamp.
+### 3.2 `(loop <theme> <instrument> <times>)`
+Repeats an abstract theme sequentially for `<times>` iterations on the specified `<instrument>`.
 
-#### Signature:
-```
-Layer([ SectionExpression, ... ])
-```
-
-#### Example:
+#### Example: Basso Ostinato (Ground Bass)
 ```tmd
--> Layer([
-    themeA(instrument: "Flute", octave: +1),
-    themeA(instrument: "Cello"),
-    ostinatoBass(instrument: "Contrabass")
-]) ->#
+-> (loop Bass Cello 8) ->#
+```
+
+**Compiler Desugaring:**
+- Generates a single continuous paragraph on `Cello` repeating `Bass` 8 times.
+
+---
+
+### 3.3 `(layer <expr1> <expr2> ...)`
+Executes multiple expressions concurrently, aligning their start positions to the exact same measure timestamp.
+
+#### Example: Pachelbel's Canon Full Section
+```tmd
+-> (layer
+     (canon Theme (Violin1 Violin2 Violin3) 2)
+     (loop Bass Cello 10))
+->#
 ```
 
 ---
 
-### 3.3 `Rondo` (Iterator + Recurring Callback)
-Generates an alternating classical rondo form: `Refrain -> Episode_1 -> Refrain -> Episode_2 -> ... -> Refrain`.
+### 3.4 Contrapuntal & Variation Combinators
 
-#### Signature:
-```
-Rondo(
-    refrain: SectionExpression,
-    episodes: [SectionExpression]
-)
-```
+Because S-Expressions are referentially transparent, classical contrapuntal transformations can be composed cleanly:
 
-#### Example:
+#### 1. `(transpose <semitones> <theme> [<instrument>])`
+Transposes a theme by a signed number of semitones.
 ```tmd
--> Rondo(refrain: ThemeA, episodes: [EpisodeB, EpisodeC]) ->#
-/* Expands to: ThemeA -> EpisodeB -> ThemeA -> EpisodeC -> ThemeA */
+(transpose +7 Theme Oboe)   /* Canon at the fifth / dominant answer */
+```
+
+#### 2. `(retrograde <theme> [<instrument>])`
+Reverses the chronological order of notes and durations (crab canon / cancrizans).
+```tmd
+(retrograde Theme ViolinSolo)
+```
+
+#### 3. `(invert <theme> [<axis_degree>] [<instrument>])`
+Inverts pitch intervals across an axis (defaults to tonic degree 1).
+```tmd
+(invert Theme 1 Flute)
+```
+
+#### 4. `(augment <theme> <factor> [<instrument>])`
+Stretches duration by a scalar factor (e.g. 2 = double duration).
+```tmd
+(augment Theme 2 Contrabass)
+```
+
+#### 5. `(diminish <theme> <factor> [<instrument>])`
+Compresses duration by a scalar factor (e.g. 0.5 = half duration).
+```tmd
+(diminish Theme 0.5 Piccolo)
 ```
 
 ---
 
-### 3.4 Atomic Variation & Transformation Functions
-Each compositional technique is an atomic, referentially transparent pure function accepting a theme (or section) and returning a transformed theme:
+## 4. AST & Grammar Specification
 
-#### 1. `Invert(theme, axis?: ScaleDegree)`
-Mirrors pitch intervals upside down across an axis (defaults to the first note of the theme, or a specified tonal center). Ascending intervals become descending intervals, and vice versa.
-```tmd
-Invert(ThemeA)                /* Melodic inversion around starting pitch */
-Invert(ThemeA, axis: 1)       /* Mirror around tonic degree 1 (Do) */
-```
-
-#### 2. `Retrograde(theme)`
-Reverses the theme backwards in time (the retrograde technique favored by Bach and 20th-century serialism).
-```tmd
-Retrograde(ThemeA)            /* Plays notes and durations in reverse order */
-```
-
-#### 3. `RetrogradeInvert(theme, axis?: ScaleDegree)` (or `RI`)
-Combines retrograde and inversion (the prime RI form in counterpoint and twelve-tone matrix composition).
-```tmd
-RetrogradeInvert(ThemeA)      /* Equivalent to Invert(Retrograde(ThemeA)) */
-```
-
-#### 4. `Augment(theme, factor: Number = 2.0)`
-Rhythmic augmentation: scales note and rest durations by `factor` (e.g. doubling note lengths, halving tempo perception).
-```tmd
-Augment(ThemeA, factor: 2.0)  /* Stretches quarter notes to half notes */
-```
-
-#### 5. `Diminish(theme, factor: Number = 0.5)`
-Rhythmic diminution: compresses note and rest durations by `factor` (e.g. doubling tempo perception).
-```tmd
-Diminish(ThemeA, factor: 0.5) /* Compresses quarter notes to eighth notes */
-```
-
-#### 6. `Minor(theme)` / `Major(theme)`
-Modal transformation: modifies diatonic intervals to switch between major and tonic minor (flattening or raising the 3rd, 6th, and 7th degrees).
-```tmd
-Minor(ThemeA)                 /* Converts major theme to tonic parallel minor */
-```
-
-#### 7. `Transpose(theme, semitones: Integer)`
-Chromatic pitch transposition by an exact number of semitones.
-```tmd
-Transpose(ThemeA, semitones: +7) /* Transpose up a perfect fifth */
-```
-
-#### 8. `Ornament(theme, style: String)`
-Injects motivic ornamentation (e.g., passing tones, arpeggios, appoggiaturas).
-```tmd
-Ornament(ThemeA, style: "arpeggio")
-```
-
----
-
-### 3.5 `Variations` (Theme and Variations as a Higher-Order Form)
-Arranges a base theme into a full classical **Theme and Variations** form (`Theme -> Var 1 -> Var 2 -> ... -> Finale/Coda`).
-
-#### Signature:
-```
-Variations(
-    theme: SectionExpression,
-    variations: [ SectionExpression | Transformation ]
-)
-```
-
-#### Example: Classical Theme and Variations
-```tmd
--> Variations(
-    theme: ThemeA(instrument: "Piano"),
-    variations: [
-        /* Var 1: Light ornamentation */
-        Ornament(ThemeA, style: "flow", instrument: "Flute"),
-
-        /* Var 2: Polyphonic layer: Inverted upper voice + Original bass */
-        Layer([
-            Invert(ThemeA, instrument: "Violin"),
-            ThemeA(instrument: "Cello", octave: -1)
-        ]),
-
-        /* Var 3: Parallel minor transformation */
-        Minor(ThemeA, instrument: "Oboe"),
-
-        /* Var 4: Solemn augmentation */
-        Augment(ThemeA, factor: 2, instrument: "Brass"),
-
-        /* Var 5: Canon variation */
-        Canon(ThemeA, instruments: ["Flute", "Clarinet"], delay: 1m),
-
-        /* Finale: Full orchestral restatement */
-        ThemeA(instrument: "Tutti")
-    ]
-) ->#
-```
-
----
-
-### 3.6 Function Composition and Pipelines
-Because transformations are pure functions, they can be nested or composed:
-```tmd
-/* Retrograde Inversion in minor mode with octaves: */
-Minor(Invert(Retrograde(ThemeA(instrument: "Violin", octave: +1))))
-```
-
----
-
-## 4. Proposed Grammar Updates (EBNF Delta)
-
-Extending `docs/TMD-EBNF.md` to accommodate Macro Composing:
+### 4.1 Grammar Update (EBNF)
 
 ```ebnf
 (* Abstract Paragraphs without instruments *)
-Paragraph               = ConcreteParagraph | AbstractParagraph ;
-ConcreteParagraph       = SectionName , ":" , InstrumentName , "@" , ParagraphOffset , "{" , ParagraphBody , "}" ;
-AbstractParagraph       = SectionName , "{" , ParagraphBody , "}" ;
+Paragraph         = ConcreteParagraph | AbstractParagraph ;
+ConcreteParagraph = SectionName , ":" , InstrumentName , "@" , ParagraphOffset , "{" , ParagraphBody , "}" ;
+AbstractParagraph = SectionName , "{" , ParagraphBody , "}" ;
 
-(* Playback Flow with Macro Expressions *)
-PlaybackFlow            = "->" , FlowExpression , { "->" , FlowExpression } , "->#" ;
+(* Playback Flow with S-Expressions *)
+PlaybackFlow      = "->" , FlowItem , { "->" , FlowItem } , "->#" ;
+FlowItem          = SectionName 
+                  | RelativeKeyFlowDirective 
+                  | AbsoluteKeyFlowDirective 
+                  | RelativeTempoFlowDirective 
+                  | SExpr ;
 
-FlowExpression          = SectionInvocation
-                        | MacroCall
-                        | RelativeKeyFlowDirective
-                        | AbsoluteKeyFlowDirective ;
+SExpr             = "(" , { SExprAtom | SExpr } , ")" ;
+SExprAtom         = Identifier | Number | SignedNumber ;
+```
 
-SectionInvocation       = SectionName , [ "(" , NamedArgumentList , ")" ] ;
+### 4.2 TypeScript AST Representation
 
-MacroCall               = MacroName , "(" , [ MacroArgumentList ] , ")" ;
-MacroName               = "Canon" | "Layer" | "Rondo" | "Variations" | Identifier ;
+```typescript
+export type SExprAtom = string | number;
+export type SExpr = SExprAtom | SExpr[];
 
-MacroArgumentList       = PositionalOrNamedArg , { "," , PositionalOrNamedArg } ;
-PositionalOrNamedArg    = [ Identifier , ":" ] , ( FlowExpression | ArrayLiteral | Literal ) ;
-ArrayLiteral            = "[" , [ ValueList ] , "]" ;
+export type Order =
+  | { type: "name"; name: string }
+  | { type: "relative"; value: number }
+  | { type: "absolute"; value: number }
+  | { type: "relativeTempo"; value: number }
+  | { type: "macro"; expr: SExpr[] };
 ```
 
 ---
 
 ## 5. Architectural Execution Model
 
-1. **Phase 1: AST Parsing & Symbol Collection**:
-   - Classify paragraphs into `concrete` and `abstract` (templates).
-   - Register template AST subtrees in a macro environment dictionary.
+```
+                    ┌────────────────────────────┐
+                    │      TMD Source File       │
+                    └─────────────┬──────────────┘
+                                  │
+                                  ▼
+                    ┌────────────────────────────┐
+                    │       TMD AST Parser       │
+                    │  - Abstract Paragraphs     │
+                    │  - Order S-Expressions     │
+                    └─────────────┬──────────────┘
+                                  │
+                                  ▼
+                    ┌────────────────────────────┐
+                    │     Macro Evaluator (IR)   │
+                    │  - (layer ...)             │
+                    │  - (canon ...)             │
+                    │  - (loop ...)              │
+                    └─────────────┬──────────────┘
+                                  │ (Desugared Concrete AST)
+                                  ▼
+                    ┌────────────────────────────┐
+                    │    TMDMeasureChecker &     │
+                    │    Playback Conductor      │
+                    └─────────────┬──────────────┘
+                                  │
+         ┌────────────────────────┼────────────────────────┐
+         ▼                        ▼                        ▼
+  MIDI Export               WAV Synthesis           MusicXML / LilyPond
+```
 
-2. **Phase 2: Macro Expansion (Desugaring / IR)**:
-   - Walk the `PlaybackFlow` expression tree.
-   - For each macro (e.g. `Canon`), generate synthetic concrete paragraphs with calculated `@|offset|`, instrument assignments, and transposed note tokens.
-   - Flatten nested expressions into a sequence of concrete playback events.
-
-3. **Phase 3: Measure Balance & Conductor Compilation**:
-   - The expanded AST passes through standard measure consistency checks (`tmd check`).
-   - Timelines, MIDI tracks, audio rendering, and MusicXML exports operate transparently on the desugared output without requiring changes to low-level synthesis engines.
-
----
-
-## 6. Comparison & Benefits
-
-| Aspect | Classic TMD | Macro Composing |
-| :--- | :--- | :--- |
-| **Philosophy** | Imperative, track-bound, linear | Declarative, motif-driven, architectural |
-| **Code Duplication** | High (manual copy-paste for polyphony) | Minimal (single source of truth for themes) |
-| **Canon / Polyphony** | Manual rest offsets (`0`) & manual transpose | Single function call: `Canon(...)` |
-| **Form Exploration** | Tedious rearrangements across tracks | Effortless parameter changes in `-> Order` |
-| **Tooling & IDE** | Static text highlighting | Interactive AST visualizations & parameter sliders |
-
----
-
-## 7. Next Steps & Roadmap
-
-1. **RFC & Discussion**: Review parameter semantics, keyword conventions, and edge cases (e.g. measure termination rules for staggered voices).
-2. **Grammar & Lexer Prototyping**: Update parser in `src/core/` to recognize abstract paragraphs and function invocations in `PlaybackFlow`.
-3. **Macro Engine Implementation**: Implement desugaring pipeline (`src/core/macro/`).
-4. **TMD Studio Integration**: Visual representations of macro-generated tracks on the Piano Roll and Outline panel.
+1. **AST Parsing**: Collects abstract prototypes into a symbol table and parses `Order.macro` trees.
+2. **Desugaring Phase**: Expands S-Expression macros into standard `Paragraph` structures with concrete offsets and instruments.
+3. **Execution & Export**: The existing rendering engine and exporters receive standard, fully resolved paragraphs without requiring underlying audio synthesis alterations.
