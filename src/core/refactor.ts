@@ -661,6 +661,56 @@ export class TMDRefactor {
     return this.format(resultLines.join("\n"));
   }
 
+  public static optimizeGrid(
+    source: string,
+    target?: { section?: string; instrument?: string }
+  ): string {
+    if (target?.section || target?.instrument) {
+      let current = source;
+      while (true) {
+        try {
+          const next = this.halveGrid(current, target);
+          if (next === current) break;
+          current = next;
+        } catch {
+          break;
+        }
+      }
+      return current;
+    }
+
+    // Optimize each paragraph independently so one indivisible track does not block other tracks
+    let current = source;
+    try {
+      const sheet = TmdParser.parseThrowing(current);
+      for (const p of sheet.paragraphs) {
+        let paraCurrent = current;
+        while (true) {
+          try {
+            const next = this.halveGrid(paraCurrent, { section: p.name, instrument: p.instrument });
+            if (next === paraCurrent) break;
+            paraCurrent = next;
+          } catch {
+            break;
+          }
+        }
+        current = paraCurrent;
+      }
+    } catch {
+      // Fallback to iterative halveGrid if sheet cannot be parsed throwing
+      while (true) {
+        try {
+          const next = this.halveGrid(current);
+          if (next === current) break;
+          current = next;
+        } catch {
+          break;
+        }
+      }
+    }
+    return current;
+  }
+
   public static transpose(
     source: string,
     options: {

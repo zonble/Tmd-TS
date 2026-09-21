@@ -331,6 +331,7 @@ SUBCOMMANDS:
   extract-instrument      Extract all tracks belonging to an instrument into a separate document.
   double-grid             Double grid resolution (<4*> -> <8*>) with ties.
   halve-grid              Halve grid resolution (<8*> -> <4*>) when divisible.
+  optimize-grid           Optimize and compress grid resolution (<4*> -> <1*>) where possible.
   duplicate-track         Duplicate an instrument track with optional octave shift.
   generate-harmony        Generate diatonic parallel harmony track (e.g. 3rd, 6th).
   inline-orders           Unroll order sequence into a single linear section.
@@ -537,7 +538,7 @@ SUBCOMMANDS:
     return 0;
   }
 
-  if (sub === "double-grid" || sub === "halve-grid") {
+  if (sub === "double-grid" || sub === "halve-grid" || sub === "optimize-grid") {
     let inputPath: string | undefined;
     let targetSection: string | undefined;
     let targetInstrument: string | undefined;
@@ -592,8 +593,10 @@ SUBCOMMANDS:
       const target = targetSection || targetInstrument ? { section: targetSection, instrument: targetInstrument } : undefined;
       if (sub === "double-grid") {
         transformed = TMDRefactor.doubleGrid(content, target);
-      } else {
+      } else if (sub === "halve-grid") {
         transformed = TMDRefactor.halveGrid(content, target);
+      } else {
+        transformed = TMDRefactor.optimizeGrid(content, target);
       }
     } catch (error: any) {
       console.error(`Refactor error: ${error.message || String(error)}`);

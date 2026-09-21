@@ -13,6 +13,7 @@ export interface ContextMenuElements {
   ctxInsertSection: HTMLButtonElement;
   ctxDoubleGrid: HTMLButtonElement;
   ctxHalveGrid: HTMLButtonElement;
+  ctxOptimizeGrid?: HTMLButtonElement;
   ctxDuplicateTrack: HTMLButtonElement;
   ctxGenerateHarmony: HTMLButtonElement;
   ctxExtractInstrument: HTMLButtonElement;
@@ -27,6 +28,7 @@ export interface ToolsDropdownElements {
   toolFormatDocument: HTMLButtonElement;
   toolDoubleGrid: HTMLButtonElement;
   toolHalveGrid: HTMLButtonElement;
+  toolOptimizeGrid?: HTMLButtonElement;
   toolTranspose: HTMLButtonElement;
   exportDropdown: HTMLElement;
 }
@@ -101,6 +103,31 @@ export class TMDToolsAndContextMenuController {
     }
   }
 
+  public handleOptimizeGrid(): void {
+    this.toolsElements.toolsDropdown?.classList.remove("open");
+    const editor = this.getEditor();
+    const selection = editor.getSelection();
+    try {
+      if (selection && selection.trim().length > 0) {
+        const optimized = TMDRefactor.optimizeGrid(selection);
+        editor.replaceSelection(optimized);
+      } else {
+        const full = editor.getContent();
+        const ctx = editor.getCursorContext();
+        const optimized = TMDRefactor.optimizeGrid(
+          full,
+          ctx.section && ctx.instrument ? { section: ctx.section, instrument: ctx.instrument } : undefined
+        );
+        editor.setContent(optimized);
+      }
+      const updated = editor.getContent();
+      this.onScoreUpdated(updated);
+      this.showToast(t("toastOptimizeGrid"));
+    } catch (err: any) {
+      this.showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");
+    }
+  }
+
   public init(): void {
     const {
       toolsDropdown,
@@ -153,6 +180,10 @@ export class TMDToolsAndContextMenuController {
 
     toolHalveGrid?.addEventListener("click", () => {
       this.handleHalveGrid();
+    });
+
+    this.toolsElements.toolOptimizeGrid?.addEventListener("click", () => {
+      this.handleOptimizeGrid();
     });
 
     const editorContainerEl = document.getElementById("editor-container");
@@ -218,6 +249,11 @@ export class TMDToolsAndContextMenuController {
     ctxHalveGrid?.addEventListener("click", () => {
       this.closeContextMenu();
       this.handleHalveGrid();
+    });
+
+    this.contextElements.ctxOptimizeGrid?.addEventListener("click", () => {
+      this.closeContextMenu();
+      this.handleOptimizeGrid();
     });
   }
 }

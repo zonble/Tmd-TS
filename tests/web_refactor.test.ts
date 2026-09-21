@@ -19,6 +19,10 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect((en as any).toolDoubleGrid).toBeDefined();
     expect((zhTW as any).toolHalveGrid).toBeDefined();
     expect((en as any).toolHalveGrid).toBeDefined();
+    expect((zhTW as any).toolOptimizeGrid).toBeDefined();
+    expect((en as any).toolOptimizeGrid).toBeDefined();
+    expect((zhTW as any).toastOptimizeGrid).toBeDefined();
+    expect((en as any).toastOptimizeGrid).toBeDefined();
     expect((zhTW as any).toolRenameInstrument).toBeDefined();
     expect((en as any).toolRenameInstrument).toBeDefined();
     expect((zhTW as any).toolRenameSection).toBeDefined();
@@ -55,6 +59,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(html).toContain('id="tool-format-document"');
     expect(html).toContain('id="tool-double-grid"');
     expect(html).toContain('id="tool-halve-grid"');
+    expect(html).toContain('id="tool-optimize-grid"');
     expect(html).toContain('id="tool-transpose"');
     expect(html).toContain('id="tool-duplicate-track"');
     expect(html).toContain('id="tool-generate-harmony"');
@@ -96,6 +101,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(fullContent).toContain("tool-format-document");
     expect(fullContent).toContain("tool-double-grid");
     expect(fullContent).toContain("tool-halve-grid");
+    expect(fullContent).toContain("tool-optimize-grid");
     expect(fullContent).toContain("tool-duplicate-track");
     expect(fullContent).toContain("tool-generate-harmony");
     expect(fullContent).toContain("tool-inline-orders");
@@ -129,6 +135,7 @@ describe("Web UI Tools, Refactoring & Problems Panel (TDD)", () => {
     expect(html).toContain('id="ctx-transpose"');
     expect(html).toContain('id="ctx-double-grid"');
     expect(html).toContain('id="ctx-halve-grid"');
+    expect(html).toContain('id="ctx-optimize-grid"');
     expect(html).toContain('id="ctx-duplicate-track"');
     expect(html).toContain('id="ctx-generate-harmony"');
     expect(html).toContain('id="ctx-extract-instrument"');

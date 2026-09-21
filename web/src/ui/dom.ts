@@ -126,6 +126,7 @@ export interface AppDOMElements {
   toolFormatDocument: HTMLButtonElement;
   toolDoubleGrid: HTMLButtonElement;
   toolHalveGrid: HTMLButtonElement;
+  toolOptimizeGrid: HTMLButtonElement;
   toolTranspose: HTMLButtonElement;
   toolDuplicateTrack: HTMLButtonElement;
   toolGenerateHarmony: HTMLButtonElement;
@@ -215,6 +216,7 @@ export interface AppDOMElements {
   ctxInsertSection: HTMLButtonElement;
   ctxDoubleGrid: HTMLButtonElement;
   ctxHalveGrid: HTMLButtonElement;
+  ctxOptimizeGrid: HTMLButtonElement;
   ctxDuplicateTrack: HTMLButtonElement;
   ctxGenerateHarmony: HTMLButtonElement;
   ctxExtractInstrument: HTMLButtonElement;
@@ -356,6 +358,7 @@ export function initAppDOMElements(): AppDOMElements {
     toolFormatDocument: getElement("tool-format-document"),
     toolDoubleGrid: getElement("tool-double-grid"),
     toolHalveGrid: getElement("tool-halve-grid"),
+    toolOptimizeGrid: getElement("tool-optimize-grid"),
     toolTranspose: getElement("tool-transpose"),
     toolDuplicateTrack: getElement("tool-duplicate-track"),
     toolGenerateHarmony: getElement("tool-generate-harmony"),
@@ -440,6 +443,7 @@ export function initAppDOMElements(): AppDOMElements {
     ctxInsertSection: getElement("ctx-insert-section"),
     ctxDoubleGrid: getElement("ctx-double-grid"),
     ctxHalveGrid: getElement("ctx-halve-grid"),
+    ctxOptimizeGrid: getElement("ctx-optimize-grid"),
     ctxDuplicateTrack: getElement("ctx-duplicate-track"),
     ctxGenerateHarmony: getElement("ctx-generate-harmony"),
     ctxExtractInstrument: getElement("ctx-extract-instrument"),

@@ -306,6 +306,95 @@ verse:Piano@|0|{
     expect(() => TMDRefactor.halveGrid(input)).toThrow();
   });
 
+  it("optimizes grid resolution repeatedly until minimal noteLength is reached", () => {
+    const input = `::SCORE::
+** Optimize Grid Test **
+!= 120
+? = E
+<4/4>
+
+b1:Bass@|0| {
+    <4*>
+    | 4__ - - - | 5__ - - - | 3__ - - - | 6__ - - - |
+    | 2__ - - - | 5__ - - - | 1_ - - - | 5__ - - - |
+    | 4__ - - - | 5__ - - - | 3__ - - - | 6__ - - - |
+    | 2__ - - - | 5__ - - - | 6__ - - - | - - - - |
+}
+
+-> b1 ->#
+`;
+
+    const optimized = TMDRefactor.optimizeGrid(input);
+    expect(optimized).toContain("<1*>");
+    expect(optimized).toContain("| 4__ | 5__ | 3__ | 6__ |");
+    expect(optimized).toContain("| 2__ | 5__ | 1_ | 5__ |");
+    expect(optimized).toContain("| 4__ | 5__ | 3__ | 6__ |");
+    expect(optimized).toContain("| 2__ | 5__ | 6__ | - |");
+
+    const issues = TMDMeasureChecker.check(optimized);
+    expect(issues).toHaveLength(0);
+  });
+
+  it("optimizes grid restricted to a specific section or instrument", () => {
+    const input = `::SCORE::
+** Multi-Track Optimize Test **
+!= 120
+?= C
+<4/4>
+
+verse:Bass@|0|{
+    <4*>
+    | 1_ - - - | 5__ - - - |
+}
+
+verse:Lead@|0|{
+    <4*>
+    | 1 2 3 4 | 5 6 7 1^ |
+}
+
+-> verse ->#
+`;
+
+    // Only optimize Bass in verse
+    const optBass = TMDRefactor.optimizeGrid(input, { instrument: "Bass" });
+    expect(optBass).toContain("<1*>");
+    expect(optBass).toContain("| 1_ | 5__ |");
+    // Lead should stay <4*>
+    expect(optBass).toContain("<4*>");
+    expect(optBass).toContain("| 1 2 3 4 | 5 6 7 1^ |");
+    expect(TMDMeasureChecker.check(optBass)).toHaveLength(0);
+  });
+
+  it("optimizes entire score across multiple paragraphs with different compressibility", () => {
+    const input = `::SCORE::
+** Global Optimize Test **
+!= 120
+?= C
+<4/4>
+
+verse:Bass@|0|{
+    <4*>
+    | 1_ - - - | 5__ - - - |
+}
+
+verse:Lead@|0|{
+    <4*>
+    | 1 2 3 4 | 5 6 7 1^ |
+}
+
+-> verse ->#
+`;
+
+    const optGlobal = TMDRefactor.optimizeGrid(input);
+    expect(optGlobal).toContain("verse:Bass@|0|{");
+    expect(optGlobal).toContain("<1*>");
+    expect(optGlobal).toContain("| 1_ | 5__ |");
+    expect(optGlobal).toContain("verse:Lead@|0|{");
+    expect(optGlobal).toContain("<4*>");
+    expect(optGlobal).toContain("| 1 2 3 4 | 5 6 7 1^ |");
+    expect(TMDMeasureChecker.check(optGlobal)).toHaveLength(0);
+  });
+
   it("duplicates a track with new instrument name and optional octave shift", () => {
     const input = `::SCORE::
 ** Dup Test **
@@ -1093,6 +1182,12 @@ describe("TMD CLI subcommands check, format, and refactor (TDD)", () => {
       content = readFileSync(file, "utf-8");
       expect(content).toContain("<4*>");
       expect(content).toContain("1 2 3 4");
+
+      // optimize-grid (Cello has 1_ - - - at <4*>, should compress to <1*>)
+      expect(main(["refactor", "optimize-grid", file, "--instrument", "Cello", "-i"])).toBe(0);
+      content = readFileSync(file, "utf-8");
+      expect(content).toContain("Chorus:Cello@|0|{\n    <1*>\n    1_\n}");
+      expect(content).toContain("Chorus:Fiddle@|0|{\n    <4*>");
 
       // duplicate-track
       expect(main(["refactor", "duplicate-track", file, "--source", "Fiddle", "--target", "Viola", "--octave", "-1", "-i"])).toBe(0);
