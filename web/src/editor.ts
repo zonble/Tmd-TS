@@ -3,7 +3,7 @@ import { EditorState, Compartment, StateEffect, StateField, RangeSetBuilder } fr
 import { StreamLanguage, StringStream } from "@codemirror/language";
 import { toggleComment, indentWithTab } from "@codemirror/commands";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { keymap, gutter, GutterMarker, BlockInfo, Decoration, DecorationSet } from "@codemirror/view";
+import { keymap, gutter, GutterMarker, BlockInfo, Decoration, DecorationSet, hoverTooltip, Tooltip } from "@codemirror/view";
 import type { TMDMeasureIssue } from "../../src/core/measure_check.js";
 
 interface TMDParserState {
@@ -227,6 +227,47 @@ export function createTmdEditor(
 
   const setMeasureIssuesEffect = StateEffect.define<TMDMeasureIssue[]>();
 
+  let activeIssues: TMDMeasureIssue[] = [];
+
+  const measureIssuesTooltip = hoverTooltip((view, pos, side): Tooltip | null => {
+    if (!activeIssues || activeIssues.length === 0) return null;
+    const doc = view.state.doc;
+    const line = doc.lineAt(pos);
+    const lineNum = line.number;
+
+    const matchingIssues = activeIssues.filter((i) => i.lineNumber === lineNum);
+    if (matchingIssues.length === 0) return null;
+
+    return {
+      pos: line.from,
+      end: line.to,
+      above: true,
+      create(view) {
+        const dom = document.createElement("div");
+        dom.className = "cm-issue-tooltip";
+
+        matchingIssues.forEach((issue) => {
+          const item = document.createElement("div");
+          item.className = "cm-issue-tooltip-item";
+
+          const icon = document.createElement("span");
+          icon.className = "cm-issue-tooltip-icon";
+          icon.textContent = "⚠";
+
+          const text = document.createElement("span");
+          text.className = "cm-issue-tooltip-text";
+          text.textContent = issue.description || `${issue.paragraphName}:${issue.instrument} measure issue`;
+
+          item.appendChild(icon);
+          item.appendChild(text);
+          dom.appendChild(item);
+        });
+
+        return { dom };
+      },
+    };
+  });
+
   const measureIssuesField = StateField.define<DecorationSet>({
     create() {
       return Decoration.none;
@@ -236,6 +277,7 @@ export function createTmdEditor(
       for (const effect of tr.effects) {
         if (effect.is(setMeasureIssuesEffect)) {
           const issues = effect.value;
+          activeIssues = issues || [];
           if (!issues || issues.length === 0) {
             decorations = Decoration.none;
           } else {
@@ -274,6 +316,7 @@ export function createTmdEditor(
       basicSetup,
       sectionPlayGutter,
       measureIssuesField,
+      measureIssuesTooltip,
       oneDark,
       languageCompartment.of(tmdLanguage),
       updateListener,

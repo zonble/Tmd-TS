@@ -2166,3 +2166,45 @@ dialog.modal.modal-lg .modal-body {
   text-underline-offset: 3px;
 }
 
+/* ==========================================================================
+   Error Hover Tooltip (CodeMirror Tooltip)
+   ========================================================================== */
+
+.cm-tooltip.cm-tooltip-hover {
+  border: 1px solid var(--border-color, #30363d) !important;
+  border-radius: 6px !important;
+  background-color: var(--bg-surface, #161b22) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+  z-index: 1000 !important;
+}
+
+.cm-issue-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  max-width: 480px;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-primary, #e6edf3);
+}
+
+.cm-issue-tooltip-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cm-issue-tooltip-icon {
+  color: #f85149;
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.cm-issue-tooltip-text {
+  flex: 1;
+  word-break: break-word;
+}
+

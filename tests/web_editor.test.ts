@@ -27,4 +27,21 @@ describe("Web Studio Editor Configuration (TDD)", () => {
     const cssContent = fs.readFileSync(cssPath, "utf-8");
     expect(cssContent).toContain(".cm-measure-issue");
   });
+
+  it("displays hover tooltip with error description when hovering over problematic line", () => {
+    const editorPath = path.join(__dirname, "../web/src/editor.ts");
+    const editorContent = fs.readFileSync(editorPath, "utf-8");
+
+    // Must import hoverTooltip from @codemirror/view
+    expect(editorContent).toMatch(/import\s*\{[^}]*hoverTooltip[^}]*\}\s*from\s*["']@codemirror\/view["']/);
+
+    // Must configure hoverTooltip in editor extensions
+    expect(editorContent).toContain("hoverTooltip");
+    expect(editorContent).toContain("cm-issue-tooltip");
+
+    // Must define CSS styles for error tooltip in styles.css
+    const cssPath = path.join(__dirname, "../web/src/styles.css");
+    const cssContent = fs.readFileSync(cssPath, "utf-8");
+    expect(cssContent).toContain(".cm-issue-tooltip");
+  });
 });
