@@ -75,6 +75,18 @@ describe("Theme Controller & Light Mode (TDD)", () => {
     expect(css).toContain('--text-primary:');
   });
 
+  it("ensures context-menu uses CSS variables that adapt properly to light mode", () => {
+    const cssPath = path.join(__dirname, "../web/src/styles.css");
+    const css = fs.readFileSync(cssPath, "utf-8");
+
+    // .context-menu must use --bg-secondary or --bg-surface mapped variable rather than unmapped fallback
+    expect(css).toMatch(/\.context-menu\s*\{[^}]*background:\s*var\(--bg-secondary/);
+    expect(css).toMatch(/\.context-menu-item\s*\{[^}]*color:\s*var\(--text-primary/);
+
+    // Light mode must customize context-menu shadow/background
+    expect(css).toContain('[data-theme="light"] .context-menu');
+  });
+
   it("includes theme toggle button in navbar with i18n support in index.html and locales", () => {
     const htmlPath = path.join(__dirname, "../web/index.html");
     const html = fs.readFileSync(htmlPath, "utf-8");
