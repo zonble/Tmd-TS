@@ -140,6 +140,7 @@ export interface TMDWebEditor {
   getCursorContext(): CursorContext;
   toggleComment(): void;
   setMeasureIssues(issues: TMDMeasureIssue[]): void;
+  setTheme(theme: "dark" | "light"): void;
   focus(): void;
 }
 
@@ -177,6 +178,35 @@ export function createTmdEditor(
   onPlaySection?: (section: string, instrument: string) => void
 ): TMDWebEditor {
   const languageCompartment = new Compartment();
+  const themeCompartment = new Compartment();
+
+  const lightEditorTheme = EditorView.theme({
+    "&": {
+      backgroundColor: "#ffffff",
+      color: "#1f2328",
+    },
+    ".cm-content": {
+      caretColor: "#0969da",
+    },
+    "&.cm-focused .cm-cursor": {
+      borderLeftColor: "#0969da",
+    },
+    "&.cm-focused .cm-selectionBackground, ::selection": {
+      backgroundColor: "#b6e3ff !important",
+    },
+    ".cm-gutters": {
+      backgroundColor: "#f6f8fa",
+      color: "#656d76",
+      borderRight: "1px solid #d0d7de",
+    },
+    ".cm-activeLine": {
+      backgroundColor: "rgba(234, 238, 242, 0.5)",
+    },
+    ".cm-activeLineGutter": {
+      backgroundColor: "#eaeef2",
+      color: "#1f2328",
+    },
+  }, { dark: false });
 
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged && onChange) {
@@ -317,7 +347,7 @@ export function createTmdEditor(
       sectionPlayGutter,
       measureIssuesField,
       measureIssuesTooltip,
-      oneDark,
+      themeCompartment.of(oneDark),
       languageCompartment.of(tmdLanguage),
       updateListener,
       editorKeymap,
@@ -451,6 +481,11 @@ export function createTmdEditor(
     setMeasureIssues(issues: TMDMeasureIssue[]) {
       view.dispatch({
         effects: setMeasureIssuesEffect.of(issues),
+      });
+    },
+    setTheme(theme: "dark" | "light") {
+      view.dispatch({
+        effects: themeCompartment.reconfigure(theme === "light" ? lightEditorTheme : oneDark),
       });
     },
     focus() {

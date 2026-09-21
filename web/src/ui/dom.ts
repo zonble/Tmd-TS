@@ -35,6 +35,8 @@ export interface AppDOMElements {
   exportDropdown: HTMLElement;
   btnExportMenu: HTMLButtonElement;
   btnLangToggle: HTMLButtonElement;
+  btnThemeToggle: HTMLButtonElement;
+  themeToggleIcon: HTMLElement;
   btnToggleAi: HTMLButtonElement;
   btnShare: HTMLButtonElement;
 
@@ -274,6 +276,8 @@ export function initAppDOMElements(): AppDOMElements {
     exportDropdown: getElement("export-dropdown"),
     btnExportMenu: getElement("btn-export-menu"),
     btnLangToggle: getElement("btn-lang-toggle"),
+    btnThemeToggle: getElement("btn-theme-toggle"),
+    themeToggleIcon: getElement("theme-toggle-icon"),
     btnToggleAi: getElement("btn-toggle-ai"),
     btnShare: getElement("btn-share"),
 

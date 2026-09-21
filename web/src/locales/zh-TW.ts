@@ -34,6 +34,7 @@ export const zhTW = {
   btnPlayText: "試聽",
   btnExportMenuTitle: "匯出樂譜檔案",
   btnExportText: "匯出",
+  btnThemeToggleTitle: "切換淺色/深色主題 (Toggle Theme)",
   btnToolsMenuTitle: "樂譜排版與重構工具",
   btnToolsText: "工具",
   toolFormatDocument: "格式化樂譜 (Shift+Alt+F)",

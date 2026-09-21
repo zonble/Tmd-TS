@@ -17,6 +17,48 @@
   --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
 }
 
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-tertiary: #eaeef2;
+  --border-color: #d0d7de;
+  --border-subtle: rgba(31, 35, 40, 0.1);
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --text-bright: #0969da;
+  --accent-blue: #0969da;
+  --accent-green: #1a7f37;
+  --accent-green-hover: #2da44e;
+  --accent-purple: #8250df;
+  --accent-yellow: #9a6700;
+  --accent-red: #cf222e;
+}
+
+[data-theme="light"] .virtual-keyboard-body {
+  background: #e8ecf1;
+}
+
+[data-theme="light"] .cm-tooltip.cm-tooltip-hover {
+  background-color: #ffffff !important;
+  border-color: #d0d7de !important;
+  color: #1f2328 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="light"] .cm-issue-tooltip {
+  color: #1f2328 !important;
+}
+
+[data-theme="light"] .piano-key.white-key {
+  background: #ffffff;
+  border-color: #bcc1c8;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.18), inset 0 -2px 0 #dbe0e8;
+}
+
+[data-theme="light"] .piano-key.white-key:hover {
+  background: #f4f6f8;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

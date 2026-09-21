@@ -31,6 +31,7 @@ export const en = {
   btnPlayText: "Play",
   btnExportMenuTitle: "Export / Download formats",
   btnExportText: "Export",
+  btnThemeToggleTitle: "Toggle Light/Dark Theme",
   btnToolsMenuTitle: "Score formatting and refactoring tools",
   btnToolsText: "Tools",
   toolFormatDocument: "Format Document (Shift+Alt+F)",

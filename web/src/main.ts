@@ -16,6 +16,7 @@ import { TmdStorage, SavedScore } from "./storage/db.js";
 
 // Extracted UI Controllers, Services & DOM
 import { initAppDOMElements, AppDOMElements } from "./ui/dom.js";
+import { initTheme, toggleTheme, getTheme } from "./ui/theme.js";
 import { TMDScoreService } from "./services/scoreService.js";
 import { renderInspectorView, setupInspectorPanelEvents } from "./ui/inspector.js";
 import { updateProblemsPanel, setupProblemsPanelEvents } from "./ui/problemsPanel.js";
@@ -486,6 +487,22 @@ function initEvents() {
     applyI18n(nextLocale);
   });
 
+  // 14. Theme switcher (Dark / Light)
+  const updateThemeToggleIcon = () => {
+    const currentTheme = getTheme();
+    if (dom.themeToggleIcon) {
+      dom.themeToggleIcon.textContent = currentTheme === "light" ? "🌙" : "☀️";
+    }
+  };
+
+  dom.btnThemeToggle.addEventListener("click", () => {
+    const nextTheme = toggleTheme();
+    updateThemeToggleIcon();
+    if (editor) {
+      editor.setTheme(nextTheme);
+    }
+  });
+
   const updateWebMcpAskLink = () => {
     const link = document.getElementById("ai-webmcp-ask-link") as HTMLAnchorElement | null;
     if (!link) return;
@@ -590,6 +607,12 @@ async function init() {
       playerController?.playSectionOrTrack(section, instrument);
     }
   );
+
+  const initialTheme = initTheme();
+  editor.setTheme(initialTheme);
+  if (dom.themeToggleIcon) {
+    dom.themeToggleIcon.textContent = initialTheme === "light" ? "🌙" : "☀️";
+  }
 
   initEvents();
   applyPanelsState({
