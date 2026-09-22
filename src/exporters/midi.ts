@@ -1189,7 +1189,24 @@ export class TMDMIDIGenerator {
       rootPitch = 48 + symbol.root.semitoneOffset;
     }
     const intervals = chordQualityIntervals(symbol.quality);
-    return intervals.map(i => rootPitch + i);
+    const pitches = intervals.map(i => rootPitch + i);
+    if (symbol.bass) {
+      let bassPitch: number;
+      if (symbol.bass.isScaleDegree) {
+        const bassNote: Note = {
+          accidental: symbol.bass.accidental,
+          degree: symbol.bass.degree,
+          octave: symbol.bass.octave,
+        };
+        bassPitch = this.noteToMIDIPitch(bassNote, keyOffset) - 24;
+      } else {
+        bassPitch = 36 + symbol.bass.semitoneOffset;
+      }
+      if (!pitches.includes(bassPitch)) {
+        pitches.unshift(bassPitch);
+      }
+    }
+    return pitches;
   }
 
   public static generalMidiProgram(instrument: string): number {

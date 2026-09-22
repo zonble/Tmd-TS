@@ -1,4 +1,4 @@
-import { Note, PitchMapping, PlaybackDirectiveEvent, Sheet, TMDPlaybackRenderer, TMDMeasureRenderer, SheetInstrumentHelper, TMDMacroEvaluator } from "../core";
+import { ChordSymbol, Note, PitchMapping, PlaybackDirectiveEvent, Sheet, TMDPlaybackRenderer, TMDMeasureRenderer, SheetInstrumentHelper, TMDMacroEvaluator } from "../core";
 
 export class TMDMusicXMLGenerator {
   public static generateMusicXML(rawSheet: Sheet): string {
@@ -54,7 +54,7 @@ export class TMDMusicXMLGenerator {
     for (const measure of measures) {
       let content = "";
       if (measure.index === 0) {
-        content += TMDMusicXMLGenerator.generateAttributesXML(sheet, divisions);
+        content += TMDMusicXMLGenerator.generateAttributesXML(sheet, instrument, divisions);
       }
       for (const directive of measure.directives) {
         content += TMDMusicXMLGenerator.generatePlaybackDirectiveXML(directive);
@@ -85,7 +85,7 @@ export class TMDMusicXMLGenerator {
             );
             break;
           case "chord":
-            content += TMDMusicXMLGenerator.generateChordXML(event.content.chord.toString(), duration, divisions);
+            content += TMDMusicXMLGenerator.generateChordXML(event.content.chord, duration, divisions, event.state.keyOffset);
             break;
           case "rest":
             content += TMDMusicXMLGenerator.generateRestXML(duration, divisions);
@@ -148,6 +148,56 @@ export class TMDMusicXMLGenerator {
     return xml;
   }
 
+  private static isPercussionInstrument(instrument: string, sheet: Sheet): boolean {
+    const lower = instrument.toLowerCase();
+    const aliases = ["drum", "drums", "groove", "percussion", "beat", "drumkit", "cajon", "snare", "kick", "hihat"];
+    if (aliases.some((a) => lower.includes(a))) return true;
+    return sheet.paragraphs
+      .filter((p) => p.instrument === instrument)
+      .some((p) =>
+        p.sections.some((s) =>
+          s.unitGroups.some((g) =>
+            g.units.some((u) => u.type === "percussion")
+          )
+        )
+      );
+  }
+
+  private static isBassClefInstrument(instrument: string): boolean {
+    const lower = instrument.toLowerCase();
+    const bassKeywords = ["bass", "cello", "tuba", "contrabass", "bassoon", "trombone", "baritone", "timpani"];
+    return bassKeywords.some((k) => lower.includes(k));
+  }
+
+  private static generateClefXML(instrument: string, sheet: Sheet): string {
+    if (TMDMusicXMLGenerator.isPercussionInstrument(instrument, sheet)) {
+      return `        <clef>\n          <sign>percussion</sign>\n        </clef>\n`;
+    } else if (TMDMusicXMLGenerator.isBassClefInstrument(instrument)) {
+      return `        <clef>\n          <sign>F</sign>\n          <line>4</line>\n        </clef>\n`;
+    } else {
+      return `        <clef>\n          <sign>G</sign>\n          <line>2</line>\n        </clef>\n`;
+    }
+  }
+
+  public static semitoneOffsetToFifths(semitoneOffset: number): number {
+    const normalized = ((semitoneOffset % 12) + 12) % 12;
+    switch (normalized) {
+      case 0: return 0;    // C
+      case 1: return -5;   // Db
+      case 2: return 2;    // D
+      case 3: return -3;   // Eb
+      case 4: return 4;    // E
+      case 5: return -1;   // F
+      case 6: return 6;    // F#
+      case 7: return 1;    // G
+      case 8: return -4;   // Ab
+      case 9: return 3;    // A
+      case 10: return -2;  // Bb
+      case 11: return 5;   // B
+      default: return 0;
+    }
+  }
+
   private static generatePlaybackDirectiveXML(directive: PlaybackDirectiveEvent): string {
     switch (directive.kind.type) {
       case "tempo":
@@ -157,17 +207,22 @@ export class TMDMusicXMLGenerator {
         return `      <attributes><time><beats>${directive.kind.beat.count}</beats><beat-type>${directive.kind.beat.noteValue}</beat-type></time></attributes>\n`;
       case "absoluteKey":
         return `      <attributes><key><fifths>${TMDMusicXMLGenerator.keySignatureToFifths(directive.kind.key)}</fifths></key></attributes>\n`;
-      case "relativeKey":
-        return `      <!-- TMD relative key modulation -->\n`;
+      case "relativeKey": {
+        const fifths = TMDMusicXMLGenerator.semitoneOffsetToFifths(directive.state.keyOffset);
+        return `      <attributes><key><fifths>${fifths}</fifths></key></attributes>\n`;
+      }
     }
   }
 
   private static generatePercussionXML(pattern: string, duration: number, divisions: number): string {
     const notes: [string, number][] = [];
     for (const c of pattern) {
-      if (c === "X" || c === "x") notes.push(["F", 5]);
-      else if (c === "T" || c === "t") notes.push(["A", 4]);
-      else if (c === "S" || c === "s") notes.push(["D", 5]);
+      if (c === "D" || c === "d" || c === "B" || c === "b") notes.push(["F", 4]); // Bass drum (kick)
+      else if (c === "S" || c === "s") notes.push(["D", 5]); // Snare
+      else if (c === "X" || c === "x") notes.push(["F", 5]); // Closed hi-hat
+      else if (c === "O" || c === "o") notes.push(["G", 5]); // Open hi-hat
+      else if (c === "T" || c === "t") notes.push(["A", 4]); // Tom
+      else if (c === "C" || c === "c") notes.push(["A", 5]); // Crash cymbal
     }
     if (notes.length === 0) {
       return TMDMusicXMLGenerator.generateRestXML(duration, divisions);
@@ -185,8 +240,8 @@ export class TMDMusicXMLGenerator {
     return xml;
   }
 
-  private static generateAttributesXML(sheet: Sheet, divisions: number): string {
-    return `      <attributes>\n        <divisions>${divisions}</divisions>\n        <key>\n          <fifths>${TMDMusicXMLGenerator.keySignatureToFifths(sheet.keySignature.toString())}</fifths>\n        </key>\n        <time>\n          <beats>${sheet.beat.count}</beats>\n          <beat-type>${sheet.beat.noteValue}</beat-type>\n        </time>\n        <clef>\n          <sign>G</sign>\n          <line>2</line>\n        </clef>\n      </attributes>\n      <direction placement="above">\n        <direction-type>\n          <metronome>\n            <beat-unit>quarter</beat-unit>\n            <per-minute>${Math.round(sheet.speed > 0 ? sheet.speed : 120)}</per-minute>\n          </metronome>\n        </direction-type>\n        <sound tempo="${Math.round(sheet.speed > 0 ? sheet.speed : 120)}"/>\n      </direction>\n`;
+  private static generateAttributesXML(sheet: Sheet, instrument: string, divisions: number): string {
+    return `      <attributes>\n        <divisions>${divisions}</divisions>\n        <key>\n          <fifths>${TMDMusicXMLGenerator.keySignatureToFifths(sheet.keySignature.toString())}</fifths>\n        </key>\n        <time>\n          <beats>${sheet.beat.count}</beats>\n          <beat-type>${sheet.beat.noteValue}</beat-type>\n        </time>\n${TMDMusicXMLGenerator.generateClefXML(instrument, sheet)}      </attributes>\n      <direction placement="above">\n        <direction-type>\n          <metronome>\n            <beat-unit>quarter</beat-unit>\n            <per-minute>${Math.round(sheet.speed > 0 ? sheet.speed : 120)}</per-minute>\n          </metronome>\n        </direction-type>\n        <sound tempo="${Math.round(sheet.speed > 0 ? sheet.speed : 120)}"/>\n      </direction>\n`;
   }
 
   private static generateNoteXML(
@@ -224,8 +279,50 @@ export class TMDMusicXMLGenerator {
     return xml;
   }
 
-  private static generateChordXML(chordName: string, duration: number, divisions: number): string {
-    let xml = `      <harmony>\n        <root>\n          <root-step>${TMDMusicXMLGenerator.escapeXML(chordName)}</root-step>\n        </root>\n        <kind text="${TMDMusicXMLGenerator.escapeXML(chordName)}">other</kind>\n      </harmony>\n      <note>\n        <rest/>\n        <duration>${duration}</duration>\n`;
+  private static generateChordXML(chord: ChordSymbol, duration: number, divisions: number, keyOffset: number): string {
+    const semitone = chord.root.isScaleDegree
+      ? ((keyOffset + chord.root.semitoneOffset) % 12 + 12) % 12
+      : (chord.root.semitoneOffset % 12 + 12) % 12;
+
+    const rootStep = PitchMapping.musicXMLSteps[semitone];
+    const rootAlter = PitchMapping.musicXMLAlters[semitone];
+
+    let kindValue = "other";
+    const kindText = chord.toString();
+    switch (chord.quality) {
+      case "major": kindValue = "major"; break;
+      case "minor": kindValue = "minor"; break;
+      case "dominant7": kindValue = "dominant"; break;
+      case "major7": kindValue = "major-seventh"; break;
+      case "minor7": kindValue = "minor-seventh"; break;
+      case "diminished": kindValue = "diminished"; break;
+      case "halfDiminished": kindValue = "half-diminished"; break;
+      case "augmented": kindValue = "augmented"; break;
+      case "suspended": kindValue = "suspended-fourth"; break;
+      case "power": kindValue = "power"; break;
+      default: kindValue = "other"; break;
+    }
+
+    let xml = `      <harmony>\n        <root>\n          <root-step>${TMDMusicXMLGenerator.escapeXML(rootStep)}</root-step>\n`;
+    if (rootAlter !== 0) {
+      xml += `          <root-alter>${rootAlter}</root-alter>\n`;
+    }
+    xml += `        </root>\n        <kind text="${TMDMusicXMLGenerator.escapeXML(kindText)}">${kindValue}</kind>\n`;
+
+    if (chord.bass) {
+      const bassSemitone = chord.bass.isScaleDegree
+        ? ((keyOffset + chord.bass.semitoneOffset) % 12 + 12) % 12
+        : (chord.bass.semitoneOffset % 12 + 12) % 12;
+      const bassStep = PitchMapping.musicXMLSteps[bassSemitone];
+      const bassAlter = PitchMapping.musicXMLAlters[bassSemitone];
+      xml += `        <bass>\n          <bass-step>${TMDMusicXMLGenerator.escapeXML(bassStep)}</bass-step>\n`;
+      if (bassAlter !== 0) {
+        xml += `          <bass-alter>${bassAlter}</bass-alter>\n`;
+      }
+      xml += `        </bass>\n`;
+    }
+
+    xml += `      </harmony>\n      <note>\n        <rest/>\n        <duration>${duration}</duration>\n`;
     xml += TMDMusicXMLGenerator.generateDurationElementsXML(duration, divisions);
     xml += `      </note>\n`;
     return xml;

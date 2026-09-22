@@ -98,8 +98,11 @@ export class TMDLilyPondGenerator {
         return `\\time ${k.beat.count}/${k.beat.noteValue} `;
       case "absoluteKey":
         return `\\key ${TMDLilyPondGenerator.lilyPondKey(k.key)} `;
-      case "relativeKey":
-        return "% TMD relative key modulation ";
+      case "relativeKey": {
+        const semitone = ((directive.state.keyOffset % 12) + 12) % 12;
+        const keyTonic = PitchMapping.lilyPondNames[semitone];
+        return `\\key ${keyTonic} \\major `;
+      }
     }
   }
 
@@ -134,7 +137,13 @@ export class TMDLilyPondGenerator {
       case "percussion": {
         const pattern = event.content.pattern;
         const mapping: Record<string, string> = {
-          X: "hh", x: "hh", T: "toml", t: "toml", S: "sn", s: "sn"
+          X: "hh", x: "hh",
+          O: "hho", o: "hho",
+          T: "toml", t: "toml",
+          S: "sn", s: "sn",
+          D: "bd", d: "bd",
+          B: "bd", b: "bd",
+          C: "cymc", c: "cymc"
         };
         const names = Array.from(pattern).map((c) => mapping[c]).filter(Boolean);
         if (names.length === 0) {
@@ -170,7 +179,22 @@ export class TMDLilyPondGenerator {
       root = 48 + chord.root.semitoneOffset;
     }
     const intervals = chordQualityIntervals(chord.quality);
-    return intervals.map((i) => TMDLilyPondGenerator.midiPitchToLilyPond(root + i));
+    const pitches: number[] = intervals.map((i) => root + i);
+    if (chord.bass) {
+      let bassPitch: number;
+      if (chord.bass.isScaleDegree) {
+        bassPitch = 36 + keyOffset + (chord.bass.degree === 1 ? 0 : [0, 2, 4, 5, 7, 9, 11][chord.bass.degree - 1]);
+        if (chord.bass.accidental === "sharp") bassPitch += 1;
+        else if (chord.bass.accidental === "flat") bassPitch -= 1;
+        bassPitch += chord.bass.octave * 12;
+      } else {
+        bassPitch = 36 + chord.bass.semitoneOffset;
+      }
+      if (!pitches.includes(bassPitch)) {
+        pitches.unshift(bassPitch);
+      }
+    }
+    return pitches.map((p) => TMDLilyPondGenerator.midiPitchToLilyPond(p));
   }
 
   private static midiPitchToLilyPond(pitch: number): string {

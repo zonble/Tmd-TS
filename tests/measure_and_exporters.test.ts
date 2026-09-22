@@ -5,6 +5,7 @@ import {
   TMDLilyPondGenerator,
   TMDMusicXMLGenerator,
   TMDMeasureRenderer,
+  TMDMeasureChecker,
   NotationDuration,
 } from '../src/index.js';
 
@@ -279,6 +280,109 @@ Theme {
     const abc = TMDABCGenerator.generateABC(sheet);
     expect(abc).toContain('name="Violin1"');
     expect(abc).toContain('name="Violin2"');
+  });
+
+  it('handles MusicXML clef selection, drum mapping, and slash chord harmony tags', () => {
+    const tmd = `
+::SCORE::
+** Clef & Harmony Test **
+!= 120
+?= C
+<4/4>
+
+A:Drums@|0|{
+    <4*>
+    (D S X O) (T C B S) - -
+}
+A:Cello@|0|{
+    <4*>
+    1 2 3 4
+}
+A:CHORD@|0|{
+    <4*>
+    [C] [Am7] [C/E] [1/3]
+}
+-> A ->#
+`;
+    const sheet = TmdParser.parse(tmd)!;
+    const xml = TMDMusicXMLGenerator.generateMusicXML(sheet);
+
+    // Clefs
+    expect(xml).toContain('<sign>percussion</sign>');
+    expect(xml).toContain('<sign>F</sign>');
+    expect(xml).toContain('<line>4</line>');
+
+    // Percussion display steps
+    expect(xml).toContain('<display-step>F</display-step>');
+    expect(xml).toContain('<display-step>D</display-step>');
+    expect(xml).toContain('<display-step>G</display-step>');
+    expect(xml).toContain('<display-step>A</display-step>');
+
+    // Harmony root and bass
+    expect(xml).toContain('<root-step>C</root-step>');
+    expect(xml).toContain('<root-step>A</root-step>');
+    expect(xml).toContain('<bass-step>E</bass-step>');
+  });
+
+  it('handles relative key modulation in MusicXML, LilyPond, and ABC', () => {
+    const tmd = `
+::SCORE::
+** Relative Key Test **
+!= 120
+?= C
+<4/4>
+
+A:Drums@|0|{
+    <4*>
+    | D S X O | T C B S |
+}
+A:Piano@|0|{
+    <4*>
+    | 1 2 3 4 |
+    {?+2}
+    | 1 2 3 4 |
+}
+-> A ->#
+`;
+    const sheet = TmdParser.parse(tmd)!;
+
+    // MusicXML
+    const xml = TMDMusicXMLGenerator.generateMusicXML(sheet);
+    expect(xml).toContain('<fifths>0</fifths>');
+    expect(xml).toContain('<fifths>2</fifths>');
+
+    // LilyPond
+    const ly = TMDLilyPondGenerator.generateLilyPond(sheet);
+    expect(ly).toContain('bd4');
+    expect(ly).toContain('sn4');
+    expect(ly).toContain('hh4');
+    expect(ly).toContain('hho4');
+    expect(ly).toContain('toml4');
+    expect(ly).toContain('cymc4');
+    expect(ly).toContain('\\key d \\major');
+
+    // ABC
+    const abc = TMDABCGenerator.generateABC(sheet);
+    expect(abc).toContain('K:C');
+    expect(abc).toContain('K:D');
+  });
+
+  it('counts multi-digit numbers as multiple units in measure checker', () => {
+    const code = `
+::SCORE::
+** Multi-digit Jianpu Test **
+!= 120
+?= C
+<4/4>
+
+intro:Piano@|0|{
+    <4*>
+    | 1234 | 5671 | 0000 | 1020 |
+}
+-> intro ->#
+`;
+    const issues = TMDMeasureChecker.check(code);
+    expect(issues).toHaveLength(0);
   });
 });
 

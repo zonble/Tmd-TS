@@ -156,23 +156,20 @@ export function chordQualityIntervals(quality: ChordQualityKind): number[] {
 export class ChordSymbol {
   root: ChordRoot;
   quality: ChordQualityKind;
+  bass?: ChordRoot;
 
-  constructor(root: ChordRoot, quality: ChordQualityKind = "major") {
+  constructor(root: ChordRoot, quality: ChordQualityKind = "major", bass?: ChordRoot) {
     this.root = root;
     this.quality = quality;
+    this.bass = bass;
   }
 
-  static parse(value: string): ChordSymbol {
-    const str = value.trim();
-    if (!str.length) {
-      return new ChordSymbol(new ChordRoot(ScaleDegree.C), "");
-    }
+  static parseRoot(str: string): { root: ChordRoot; remaining: string } | null {
+    if (!str.length) return null;
     const first = str[0];
     const isDegree = first >= "1" && first <= "7";
     const degree = isDegree ? (parseInt(first, 10) as ScaleDegree) : letterToScaleDegree(first);
-    if (!degree) {
-      return new ChordSymbol(new ChordRoot(ScaleDegree.C), str);
-    }
+    if (!degree) return null;
 
     let accidental = Accidental.Natural;
     let idx = 1;
@@ -188,26 +185,57 @@ export class ChordSymbol {
       idx++;
     }
 
-    const suffix = str.slice(idx);
-    let quality: ChordQualityKind = suffix;
+    const remaining = str.slice(idx);
+    return { root: new ChordRoot(degree, accidental, octave, isDegree), remaining };
+  }
+
+  static parseQuality(suffix: string): ChordQualityKind {
     switch (suffix.toLowerCase()) {
-      case "": quality = "major"; break;
-      case "m": quality = "minor"; break;
-      case "7": quality = "dominant7"; break;
-      case "maj7": quality = "major7"; break;
-      case "m7": quality = "minor7"; break;
-      case "dim": quality = "diminished"; break;
+      case "": return "major";
+      case "m": return "minor";
+      case "7": return "dominant7";
+      case "maj7": return "major7";
+      case "m7": return "minor7";
+      case "dim": return "diminished";
       case "m7-5":
-      case "ø": quality = "halfDiminished"; break;
+      case "ø": return "halfDiminished";
       case "aug":
-      case "+": quality = "augmented"; break;
+      case "+": return "augmented";
       case "sus":
-      case "sus4": quality = "suspended"; break;
-      case "5": quality = "power"; break;
-      default: quality = suffix; break;
+      case "sus4": return "suspended";
+      case "5": return "power";
+      default: return suffix;
+    }
+  }
+
+  static parse(value: string): ChordSymbol {
+    const str = value.trim();
+    if (!str.length) {
+      return new ChordSymbol(new ChordRoot(ScaleDegree.C), "");
     }
 
-    return new ChordSymbol(new ChordRoot(degree, accidental, octave, isDegree), quality);
+    if (str.includes("/")) {
+      const parts = str.split("/");
+      const mainPart = parts[0];
+      const bassPart = parts.slice(1).join("/");
+
+      const parsedMain = ChordSymbol.parseRoot(mainPart);
+      if (parsedMain) {
+        const parsedBass = ChordSymbol.parseRoot(bassPart);
+        return new ChordSymbol(
+          parsedMain.root,
+          ChordSymbol.parseQuality(parsedMain.remaining),
+          parsedBass?.root
+        );
+      }
+    }
+
+    const parsed = ChordSymbol.parseRoot(str);
+    if (parsed) {
+      return new ChordSymbol(parsed.root, ChordSymbol.parseQuality(parsed.remaining));
+    }
+
+    return new ChordSymbol(new ChordRoot(ScaleDegree.C), str);
   }
 
   toString(): string {
@@ -225,7 +253,8 @@ export class ChordSymbol {
       case "power": suffix = "5"; break;
       default: suffix = this.quality; break;
     }
-    return `${this.root.toString()}${suffix}`;
+    const bassText = this.bass ? `/${this.bass.toString()}` : "";
+    return `${this.root.toString()}${suffix}${bassText}`;
   }
 }
 

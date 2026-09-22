@@ -17,6 +17,9 @@ import {
   TmdSkill,
   TMD_VERSION,
   Accidental,
+  ChordSymbol,
+  ChordRoot,
+  ScaleDegree,
   SheetInstrumentHelper,
 } from '../src/index.js';
 import { Lexer } from '../src/core/parser.js';
@@ -531,6 +534,34 @@ theme {
 
       const abc = TMDABCGenerator.generateABC(sheet);
       expect(abc).toContain('V:V1 name="Piano"');
+    });
+  });
+
+  describe("ChordSymbol parsing and slash chords", () => {
+    it("correctly parses roots, qualities, and slash chord bass", () => {
+      const cMajor = ChordSymbol.parse("C");
+      expect(cMajor.root).toEqual(new ChordRoot(ScaleDegree.C, Accidental.Natural, 0, false));
+      expect(cMajor.quality).toBe("major");
+      expect(cMajor.bass).toBeUndefined();
+      expect(cMajor.toString()).toBe("C");
+
+      const slashLetter = ChordSymbol.parse("C/E");
+      expect(slashLetter.root).toEqual(new ChordRoot(ScaleDegree.C, Accidental.Natural, 0, false));
+      expect(slashLetter.quality).toBe("major");
+      expect(slashLetter.bass).toEqual(new ChordRoot(ScaleDegree.E, Accidental.Natural, 0, false));
+      expect(slashLetter.toString()).toBe("C/E");
+
+      const slashDegree = ChordSymbol.parse("1/3");
+      expect(slashDegree.root).toEqual(new ChordRoot(ScaleDegree.C, Accidental.Natural, 0, true));
+      expect(slashDegree.quality).toBe("major");
+      expect(slashDegree.bass).toEqual(new ChordRoot(ScaleDegree.E, Accidental.Natural, 0, true));
+      expect(slashDegree.toString()).toBe("1/3");
+
+      const slashMinorSeventh = ChordSymbol.parse("Am7/G");
+      expect(slashMinorSeventh.root).toEqual(new ChordRoot(ScaleDegree.A, Accidental.Natural, 0, false));
+      expect(slashMinorSeventh.quality).toBe("minor7");
+      expect(slashMinorSeventh.bass).toEqual(new ChordRoot(ScaleDegree.G, Accidental.Natural, 0, false));
+      expect(slashMinorSeventh.toString()).toBe("Am7/G");
     });
   });
 });

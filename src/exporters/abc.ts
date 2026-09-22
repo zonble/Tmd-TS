@@ -84,8 +84,10 @@ export class TMDABCGenerator {
         return `M:${k.beat.count}/${k.beat.noteValue} `;
       case "absoluteKey":
         return `K:${TMDABCGenerator.abcKey(k.key)} `;
-      case "relativeKey":
-        return "% TMD relative key modulation ";
+      case "relativeKey": {
+        const key = TMDABCGenerator.keyInfo(directive.state.keyOffset).name;
+        return `K:${key} `;
+      }
     }
   }
 

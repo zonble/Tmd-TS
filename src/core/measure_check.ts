@@ -350,14 +350,16 @@ export class TMDMeasureChecker {
               }
               break;
             }
-            case "number":
+            case "number": {
               advance();
-              paragraphQuarterNotes += unitQuarterNotes;
+              const digitCount = Math.max(1, (item.text.match(/\d/g) || []).length);
+              paragraphQuarterNotes += digitCount * unitQuarterNotes;
               if (insideBar) {
-                currentMeasureUnits += 1;
+                currentMeasureUnits += digitCount;
                 currentMeasureSnippet.push(String(item.token.value));
               }
               break;
+            }
             default:
               advance();
               break;
