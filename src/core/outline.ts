@@ -46,6 +46,7 @@ export class TMDOutlineGenerator {
     interface OrderItem {
       name: string;
       range: TMDOutlineRange;
+      detail?: string;
     }
     const orderItems: OrderItem[] = [];
     let orderStartPos: SourcePosition | undefined;
@@ -105,98 +106,111 @@ export class TMDOutlineGenerator {
         }
       }
 
-      // Paragraph header: identifier:identifier@...{ ... }
-      if (tok.token.type === "identifier" && pos + 1 < tokens.length && tokens[pos + 1].token.type === "colon") {
-        const paraStartTok = tok;
-        const secName = tok.text;
-        advance(); // secName
-        advance(); // :
+      // Paragraph header:
+      // 1. Concrete track: identifier:identifier@...{ ... }
+      // 2. Abstract pattern: identifier { ... }
+      if (tok.token.type === "identifier") {
+        const isConcrete = pos + 1 < tokens.length && tokens[pos + 1].token.type === "colon";
+        const isAbstract = pos + 1 < tokens.length && tokens[pos + 1].token.type === "openBrace";
 
-        let instName = "Track";
-        let instTok = current();
-        if (instTok && instTok.token.type === "identifier") {
-          instName = instTok.text;
-          advance();
-        }
+        if (isConcrete || isAbstract) {
+          const paraStartTok = tok;
+          const secName = tok.text;
+          advance(); // secName
 
-        // Advance until {
-        let startOffsetStr: string | undefined;
-        while (pos < tokens.length && current()?.token.type !== "openBrace") {
-          if (current()?.token.type === "at") {
-            advance();
-            if (current()?.token.type === "pipe") {
+          let instName = "Pattern";
+          let instTok: LexedToken | undefined;
+          let startOffsetStr: string | undefined;
+
+          if (isConcrete) {
+            advance(); // :
+            instTok = current();
+            if (instTok && instTok.token.type === "identifier") {
+              instName = instTok.text;
               advance();
-              let offStr = "";
-              while (pos < tokens.length && current()?.token.type !== "pipe") {
-                const offTok = advance();
-                if (offTok) offStr += offTok.text;
+            } else {
+              instName = "Track";
+            }
+
+            // Advance until {
+            while (pos < tokens.length && current()?.token.type !== "openBrace") {
+              if (current()?.token.type === "at") {
+                advance();
+                if (current()?.token.type === "pipe") {
+                  advance();
+                  let offStr = "";
+                  while (pos < tokens.length && current()?.token.type !== "pipe") {
+                    const offTok = advance();
+                    if (offTok) offStr += offTok.text;
+                  }
+                  if (current()?.token.type === "pipe") advance();
+                  startOffsetStr = offStr;
+                }
+              } else {
+                advance();
               }
-              if (current()?.token.type === "pipe") advance();
-              startOffsetStr = offStr;
             }
-          } else {
+          }
+
+          let braceCount = 0;
+          let paraEndTok = paraStartTok;
+
+          if (current()?.token.type === "openBrace") {
             advance();
-          }
-        }
+            braceCount = 1;
 
-        let braceCount = 0;
-        let paraEndTok = paraStartTok;
+            while (pos < tokens.length && braceCount > 0) {
+              const bodyTok = advance();
+              if (!bodyTok) break;
+              paraEndTok = bodyTok;
 
-        if (current()?.token.type === "openBrace") {
-          advance();
-          braceCount = 1;
-
-          while (pos < tokens.length && braceCount > 0) {
-            const bodyTok = advance();
-            if (!bodyTok) break;
-            paraEndTok = bodyTok;
-
-            if (bodyTok.token.type === "openBrace") {
-              braceCount++;
-            } else if (bodyTok.token.type === "closeBrace") {
-              braceCount--;
-              if (braceCount === 0) break;
+              if (bodyTok.token.type === "openBrace") {
+                braceCount++;
+              } else if (bodyTok.token.type === "closeBrace") {
+                braceCount--;
+                if (braceCount === 0) break;
+              }
             }
           }
+
+          const pStart = paraStartTok.range.start;
+          const pEnd: SourcePosition = {
+            offset: paraEndTok.range.endOffset,
+            line: paraEndTok.range.start.line,
+            column: paraEndTok.range.start.column + paraEndTok.range.length,
+          };
+          const range: TMDOutlineRange = {
+            startLine: pStart.line,
+            startColumn: pStart.column,
+            endLine: pEnd.line,
+            endColumn: pEnd.column,
+          };
+
+          const selStart = instTok?.range.start ?? pStart;
+          const selEnd: SourcePosition = {
+            offset: instTok?.range.endOffset ?? (pStart.offset + paraStartTok.range.length),
+            line: instTok?.range.start.line ?? pStart.line,
+            column: (instTok?.range.start.column ?? pStart.column) + (instTok?.range.length ?? paraStartTok.range.length),
+          };
+          const selectionRange: TMDOutlineRange = {
+            startLine: selStart.line,
+            startColumn: selStart.column,
+            endLine: selEnd.line,
+            endColumn: selEnd.column,
+          };
+
+          const detail = startOffsetStr ? `@|${startOffsetStr}|` : undefined;
+
+          trackOccurrences.push({
+            sectionName: secName,
+            instrument: instName,
+            range,
+            selectionRange,
+            detail,
+          });
+
+          continue;
         }
-
-        const pStart = paraStartTok.range.start;
-        const pEnd: SourcePosition = {
-          offset: paraEndTok.range.endOffset,
-          line: paraEndTok.range.start.line,
-          column: paraEndTok.range.start.column + paraEndTok.range.length,
-        };
-        const range: TMDOutlineRange = {
-          startLine: pStart.line,
-          startColumn: pStart.column,
-          endLine: pEnd.line,
-          endColumn: pEnd.column,
-        };
-
-        const selStart = instTok?.range.start ?? pStart;
-        const selEnd: SourcePosition = {
-          offset: instTok?.range.endOffset ?? pEnd.offset,
-          line: instTok?.range.start.line ?? pEnd.line,
-          column: (instTok?.range.start.column ?? pEnd.column) + (instTok?.range.length ?? 0),
-        };
-        const selectionRange: TMDOutlineRange = {
-          startLine: selStart.line,
-          startColumn: selStart.column,
-          endLine: selEnd.line,
-          endColumn: selEnd.column,
-        };
-
-        const detail = startOffsetStr ? `@|${startOffsetStr}|` : undefined;
-
-        trackOccurrences.push({
-          sectionName: secName,
-          instrument: instName,
-          range,
-          selectionRange,
-          detail,
-        });
-
-        continue;
       }
 
       // Order lines: -> secName -> ...
@@ -212,10 +226,62 @@ export class TMDOutlineGenerator {
           if (next.token.type === "arrowEnd") {
             orderSnippet.push("#");
             const arrowEndTok = advance()!;
+            const oRange: TMDOutlineRange = {
+              startLine: arrowEndTok.range.start.line,
+              startColumn: arrowEndTok.range.start.column,
+              endLine: arrowEndTok.range.start.line,
+              endColumn: arrowEndTok.range.start.column + arrowEndTok.range.length,
+            };
+            orderItems.push({ name: "#", range: oRange });
             orderEndPos = {
               offset: arrowEndTok.range.endOffset,
               line: arrowEndTok.range.start.line,
               column: arrowEndTok.range.start.column + arrowEndTok.range.length,
+            };
+          } else if (next.token.type === "openParen") {
+            // S-Expression Macro in Orders: (canon Theme ...) or (layer ...)
+            const parenStartTok = advance()!;
+            let parenDepth = 1;
+            const macroTokens: LexedToken[] = [];
+            let macroEndTok = parenStartTok;
+
+            while (pos < tokens.length && parenDepth > 0) {
+              const mTok = advance();
+              if (!mTok) break;
+              macroEndTok = mTok;
+              if (mTok.token.type === "openParen") {
+                parenDepth++;
+                macroTokens.push(mTok);
+              } else if (mTok.token.type === "closeParen") {
+                parenDepth--;
+                if (parenDepth === 0) break;
+                macroTokens.push(mTok);
+              } else {
+                macroTokens.push(mTok);
+              }
+            }
+
+            const opName = macroTokens.length > 0 ? macroTokens[0].text : "macro";
+            const detailStr = macroTokens.map(t => t.text).join(" ");
+            orderSnippet.push(`(${opName})`);
+
+            const oRange: TMDOutlineRange = {
+              startLine: parenStartTok.range.start.line,
+              startColumn: parenStartTok.range.start.column,
+              endLine: macroEndTok.range.start.line,
+              endColumn: macroEndTok.range.start.column + macroEndTok.range.length,
+            };
+
+            orderItems.push({
+              name: opName,
+              range: oRange,
+              detail: detailStr,
+            });
+
+            orderEndPos = {
+              offset: macroEndTok.range.endOffset,
+              line: macroEndTok.range.start.line,
+              column: macroEndTok.range.start.column + macroEndTok.range.length,
             };
           } else if (next.token.type === "identifier") {
             const orderSec = next.text;
@@ -263,6 +329,13 @@ export class TMDOutlineGenerator {
         }
         orderSnippet.push("->#");
         const arrowEndTok = advance()!;
+        const oRange: TMDOutlineRange = {
+          startLine: arrowEndTok.range.start.line,
+          startColumn: arrowEndTok.range.start.column,
+          endLine: arrowEndTok.range.start.line,
+          endColumn: arrowEndTok.range.start.column + arrowEndTok.range.length,
+        };
+        orderItems.push({ name: "#", range: oRange });
         orderEndPos = {
           offset: arrowEndTok.range.endOffset,
           line: arrowEndTok.range.start.line,
@@ -382,6 +455,7 @@ export class TMDOutlineGenerator {
 
       const itemNodes: TMDOutlineNode[] = orderItems.map((item) => ({
         name: item.name,
+        detail: item.detail,
         kind: "method",
         range: item.range,
         selectionRange: item.range,

@@ -226,7 +226,21 @@ export function renderInspectorView(
   if (currentSheet.orders && currentSheet.orders.length > 0) {
     inspectorOrders.innerHTML = currentSheet.orders
       .map((ord, idx) => {
-        const orderLabel = ord.type === "name" ? ord.name : `{${ord.value}}`;
+        let orderLabel = "";
+        let opName = "";
+        let macroDetail = "";
+        if (ord.type === "name") {
+          orderLabel = ord.name;
+        } else if (ord.type === "relative" || ord.type === "absolute") {
+          orderLabel = `{${ord.value}}`;
+        } else if (ord.type === "macro") {
+          opName = Array.isArray(ord.expr) && ord.expr.length > 0 && typeof ord.expr[0] === "string"
+            ? ord.expr[0]
+            : "macro";
+          orderLabel = `(${opName})`;
+          macroDetail = ord.expr.map(e => (Array.isArray(e) ? `(${e.join(" ")})` : String(e))).join(" ");
+        }
+
         const playTitle = (t("playOrderTitle") || "Play from here ({order})").replace("{order}", orderLabel);
         const playBtnHtml = `<button type="button" class="order-play-btn" data-play-order-index="${idx}" title="${escapeHtml(playTitle)}">▶</button>`;
 
@@ -243,6 +257,9 @@ export function renderInspectorView(
           return `<span class="order-tag order-tag-directive" ${rangeAttrs} style="color: var(--accent-purple); border-color: rgba(188, 140, 255, 0.3);"><span class="order-tag-text" title="${escapeHtml(jumpTitle)}">{${escapeHtml(ord.value)}}</span>${playBtnHtml}</span>`;
         } else if (ord.type === "absolute") {
           return `<span class="order-tag order-tag-directive" ${rangeAttrs} style="color: var(--accent-yellow); border-color: rgba(210, 153, 34, 0.3);"><span class="order-tag-text" title="${escapeHtml(jumpTitle)}">{${escapeHtml(ord.value)}}</span>${playBtnHtml}</span>`;
+        } else if (ord.type === "macro") {
+          const tooltip = macroDetail ? `${opName}: ${macroDetail}` : jumpTitle;
+          return `<span class="order-tag order-tag-macro" ${rangeAttrs} style="color: var(--accent-blue); border-color: rgba(88, 166, 255, 0.35);"><span class="order-tag-text" title="${escapeHtml(tooltip)}">(${escapeHtml(opName)})</span>${playBtnHtml}</span>`;
         }
         return "";
       })
@@ -272,13 +289,14 @@ export function renderInspectorView(
             const tracksHtml = trackChildren
               .map((trkNode) => {
                 const trkRangeAttrs = `data-start-line="${trkNode.range.startLine}" data-start-col="${trkNode.range.startColumn}" data-end-line="${trkNode.range.endLine}" data-end-col="${trkNode.range.endColumn}"`;
+                const displayTrackName = trkNode.name === "Pattern" ? (t("trackPattern") || "Pattern") : trkNode.name;
                 const trkPlayTitle = (t("playTrackTitle") || "Play track: {section} ({instrument})")
                   .replace("{section}", secNode.name)
-                  .replace("{instrument}", trkNode.name);
+                  .replace("{instrument}", displayTrackName);
 
                 return `
                   <div class="track-item outline-track-item" ${trkRangeAttrs} title="L${trkNode.range.startLine}:C${trkNode.range.startColumn}">
-                    <span class="track-name">${escapeHtml(trkNode.name)}</span>
+                    <span class="track-name">${escapeHtml(displayTrackName)}</span>
                     <span class="outline-item-right">
                       ${trkNode.detail ? `<span class="track-meta">${escapeHtml(trkNode.detail)}</span>` : ""}
                       <button type="button" class="outline-play-btn" data-play-section="${escapeHtml(secNode.name)}" data-play-instrument="${escapeHtml(trkNode.name)}" title="${escapeHtml(trkPlayTitle)}">▶</button>

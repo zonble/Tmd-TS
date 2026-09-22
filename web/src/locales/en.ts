@@ -180,6 +180,7 @@ export const en = {
   playSectionTitle: "Play section: {section}",
   playTrackTitle: "Play track: {section} ({instrument})",
   playOrderTitle: "Play from here ({order})",
+  trackPattern: "Pattern",
   noOrders: "No playback orders defined",
   noTracks: "No tracks defined",
   statusValid: "✓ Syntax Valid",

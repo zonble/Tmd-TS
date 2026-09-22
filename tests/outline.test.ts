@@ -77,9 +77,10 @@ verse:CHORD@|0|{
     const ordersNode = nodes[2];
     expect(ordersNode.name).toBe("Orders");
     expect(ordersNode.kind).toBe("event");
-    expect(ordersNode.children!.length).toBe(2);
+    expect(ordersNode.children!.length).toBe(3);
     expect(ordersNode.children![0].name).toBe("intro");
     expect(ordersNode.children![1].name).toBe("verse");
+    expect(ordersNode.children![2].name).toBe("#");
   });
 
   it("accurately tracks line numbers for scores containing metadata comments and multi-line orders", () => {
@@ -177,5 +178,87 @@ intro:Piano@|0|{
       console.log = originalLog;
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+  });
+
+  it("supports abstract paragraphs (Pattern), co-existing A and A:Violin, and S-Expression macros in Orders", () => {
+    const input = `::SCORE::
+** Canon Outline **
+!= 56
+?= D
+<4/4>
+
+/* 1. Abstract prototype */
+Theme {
+    <4*>
+    1 2 3 4 |
+}
+
+/* 2. Co-existing A (Pattern) and A:Violin (Track) */
+A {
+    <4*>
+    3 4 5 6 |
+}
+
+A:Violin@|0|{
+    <4*>
+    3 4 5 6 |
+}
+
+/* 3. Concrete section */
+intro:Cello@|0|{
+    <4*>
+    1_ 5__ 6__ 3__ |
+}
+
+-> intro -> (canon Theme (Violin1 Violin2) 2) -> (layer (loop A Cello 4)) ->#
+`;
+
+    const nodes = TMDOutlineGenerator.generate(input);
+    expect(nodes.length).toBe(3);
+
+    // 1. Sections Node
+    const sectionsNode = nodes.find(n => n.name === "Sections");
+    expect(sectionsNode).toBeDefined();
+    expect(sectionsNode!.children).toBeDefined();
+
+    // Theme section: only has Pattern
+    const themeSec = sectionsNode!.children!.find(c => c.name === "Theme");
+    expect(themeSec).toBeDefined();
+    expect(themeSec!.children).toBeDefined();
+    expect(themeSec!.children!.length).toBe(1);
+    expect(themeSec!.children![0].name).toBe("Pattern");
+    expect(themeSec!.children![0].kind).toBe("field");
+
+    // A section: has both Pattern and Violin track!
+    const aSec = sectionsNode!.children!.find(c => c.name === "A");
+    expect(aSec).toBeDefined();
+    expect(aSec!.children!.length).toBe(2);
+    expect(aSec!.children![0].name).toBe("Pattern");
+    expect(aSec!.children![1].name).toBe("Violin");
+
+    // intro section: has Cello track
+    const introSec = sectionsNode!.children!.find(c => c.name === "intro");
+    expect(introSec).toBeDefined();
+    expect(introSec!.children!.length).toBe(1);
+    expect(introSec!.children![0].name).toBe("Cello");
+
+    // 2. Orders Node
+    const ordersNode = nodes.find(n => n.name === "Orders");
+    expect(ordersNode).toBeDefined();
+    expect(ordersNode!.children).toBeDefined();
+
+    // In Orders: intro, canon, layer, #
+    const orderItems = ordersNode!.children!;
+    expect(orderItems[0].name).toBe("intro");
+
+    // S-Expression macros: displayed as operator name
+    expect(orderItems[1].name).toBe("canon");
+    expect(orderItems[1].detail).toContain("Theme");
+    expect(orderItems[1].kind).toBe("method");
+
+    expect(orderItems[2].name).toBe("layer");
+    expect(orderItems[2].kind).toBe("method");
+
+    expect(orderItems[3].name).toBe("#");
   });
 });

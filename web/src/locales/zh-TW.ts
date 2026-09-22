@@ -185,6 +185,7 @@ export const zhTW = {
   playSectionTitle: "試聽段落：{section}",
   playTrackTitle: "試聽軌道：{section} ({instrument})",
   playOrderTitle: "從此處開始播放（{order}）",
+  trackPattern: "音型",
   noOrders: "未定義 -> 播放流程",
   noTracks: "無音軌段落",
   statusValid: "✓ 語法解析正確",
