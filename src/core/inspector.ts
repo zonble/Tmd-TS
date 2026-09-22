@@ -18,6 +18,9 @@ export interface TMDNotePitchInfo {
   noteName: string;
   sectionName: string;
   timelinePosition: number;
+  sectionOccurrence: number;
+  measure: number;
+  timeSeconds: number;
 }
 
 export namespace TMDNotePitchInfo {
@@ -45,6 +48,7 @@ export interface TMDPitchRangeProfile {
   lowestNote: TMDNotePitchInfo;
   highestNote: TMDNotePitchInfo;
   spanSemitones: number;
+  spanOctaves: number;
   totalNotes: number;
   averageMidiPitch: number;
   difficulty: PitchRangeDifficulty;
@@ -57,6 +61,8 @@ export interface TMDPitchRangeProfile {
 export interface TMDSectionTimingProfile {
   name: string;
   orderIndex: number;
+  occurrenceIndex: number;
+  startMeasure: number;
   startPositionQuarterNotes: number;
   durationQuarterNotes: number;
   startSeconds: number;
@@ -186,7 +192,9 @@ export class TMDSongInspector {
     const sections: TMDSectionTimingProfile[] = [];
     let currentQuarterPosition = 0.0;
     let currentSeconds = 0.0;
+    let currentMeasure = 1;
     let totalMeasures = 0;
+    const sectionOccurrences: Record<string, number> = {};
 
     for (let idx = 0; idx < orders.length; idx++) {
       const order = orders[idx];
@@ -205,9 +213,14 @@ export class TMDSongInspector {
         const secMeasures = Math.max(1, Math.round(durQuarterNotes / nominalMeasureDur));
         const secDurationSeconds = durQuarterNotes / (state.tempo / 60.0);
 
+        const occurrence = (sectionOccurrences[order.name] || 0) + 1;
+        sectionOccurrences[order.name] = occurrence;
+
         sections.push({
           name: order.name,
           orderIndex: idx,
+          occurrenceIndex: occurrence,
+          startMeasure: currentMeasure,
           startPositionQuarterNotes: currentQuarterPosition,
           durationQuarterNotes: durQuarterNotes,
           startSeconds: currentSeconds,
@@ -219,6 +232,7 @@ export class TMDSongInspector {
 
         currentQuarterPosition += durQuarterNotes;
         currentSeconds += secDurationSeconds;
+        currentMeasure += secMeasures;
         totalMeasures += secMeasures;
       }
     }
@@ -242,6 +256,9 @@ export class TMDSongInspector {
       name: string;
       pos: number;
       sectionName: string;
+      sectionOccurrence: number;
+      measure: number;
+      timeSeconds: number;
     }
 
     const hits: NoteHit[] = [];
@@ -258,18 +275,36 @@ export class TMDSongInspector {
       pitch += note.octave * 12;
 
       const noteName = TMDNotePitchInfo.name(pitch);
-      const secProfile = timingProfile.sections.find(
+      const matchedSection = timingProfile.sections.find(
         (s) =>
           event.position >= s.startPositionQuarterNotes &&
           event.position < s.startPositionQuarterNotes + s.durationQuarterNotes + 0.001
       );
-      const sectionName = secProfile ? secProfile.name : "";
+      const sectionName = matchedSection ? matchedSection.name : "";
+      const sectionOccurrence = matchedSection ? matchedSection.occurrenceIndex : 1;
+      const nominalMeasureDur =
+        (Math.max(1, event.state.timeSignature.count) * 4.0) / Math.max(1, event.state.timeSignature.noteValue);
+      let measure: number;
+      let timeSeconds: number;
+      if (matchedSection) {
+        const offsetInSec = Math.max(0.0, event.position - matchedSection.startPositionQuarterNotes);
+        const measureOffset = Math.floor(offsetInSec / nominalMeasureDur);
+        measure = matchedSection.startMeasure + measureOffset;
+        const secTimeOffset = offsetInSec / (matchedSection.tempo / 60.0);
+        timeSeconds = matchedSection.startSeconds + secTimeOffset;
+      } else {
+        measure = 1 + Math.floor(event.position / nominalMeasureDur);
+        timeSeconds = event.position / (event.state.tempo / 60.0);
+      }
 
       hits.push({
         midi: pitch,
         name: noteName,
         pos: event.position,
         sectionName,
+        sectionOccurrence,
+        measure,
+        timeSeconds,
       });
     }
 
@@ -287,6 +322,7 @@ export class TMDSongInspector {
 
     const avgPitch = sumPitch / hits.length;
     const spanSemitones = highest.midi - lowest.midi;
+    const spanOctaves = spanSemitones / 12.0;
     const difficulty = TMDSongInspector.evaluateDifficulty(spanSemitones);
     const suitableVoiceTypes = TMDSongInspector.evaluateSuitableVoiceTypes(lowest.midi, highest.midi);
 
@@ -297,14 +333,21 @@ export class TMDSongInspector {
         noteName: lowest.name,
         sectionName: lowest.sectionName,
         timelinePosition: lowest.pos,
+        sectionOccurrence: lowest.sectionOccurrence,
+        measure: lowest.measure,
+        timeSeconds: lowest.timeSeconds,
       },
       highestNote: {
         midiPitch: highest.midi,
         noteName: highest.name,
         sectionName: highest.sectionName,
         timelinePosition: highest.pos,
+        sectionOccurrence: highest.sectionOccurrence,
+        measure: highest.measure,
+        timeSeconds: highest.timeSeconds,
       },
       spanSemitones,
+      spanOctaves,
       totalNotes: hits.length,
       averageMidiPitch: avgPitch,
       difficulty,
@@ -439,6 +482,17 @@ export class TMDSongInspector {
     };
   }
 
+  private static formatNoteLocation(note: TMDNotePitchInfo): string {
+    const mins = Math.floor(note.timeSeconds / 60);
+    const secs = Math.floor(note.timeSeconds % 60);
+    const timeStr = `${mins}:${secs.toString().padStart(2, "0")}`;
+    if (note.sectionName && note.sectionName.length > 0) {
+      return `[${note.sectionName} #${note.sectionOccurrence} @ m.${note.measure}, ${timeStr}]`;
+    } else {
+      return `[@ m.${note.measure}, ${timeStr}]`;
+    }
+  }
+
   /**
    * Generates a human-readable plain text / ASCII inspection report.
    */
@@ -458,11 +512,12 @@ export class TMDSongInspector {
 
     if (profile.vocalRange) {
       const vocal = profile.vocalRange;
+      const octaves = vocal.spanOctaves.toFixed(1);
       lines.push(
-        `🎤 Vocal Range:    ${vocal.lowestNote.noteName} (MIDI ${vocal.lowestNote.midiPitch}) – ${vocal.highestNote.noteName} (MIDI ${vocal.highestNote.midiPitch}) [Span: ${vocal.spanSemitones} semitones, Difficulty: ${vocal.difficulty}]`
+        `🎤 Vocal Range:    ${vocal.lowestNote.noteName} (MIDI ${vocal.lowestNote.midiPitch}) – ${vocal.highestNote.noteName} (MIDI ${vocal.highestNote.midiPitch}) [Span: ${vocal.spanSemitones} semitones / ${octaves} octaves, Difficulty: ${vocal.difficulty}]`
       );
-      lines.push(`   - Lowest Note:  ${vocal.lowestNote.noteName} in [${vocal.lowestNote.sectionName}]`);
-      lines.push(`   - Highest Note: ${vocal.highestNote.noteName} in [${vocal.highestNote.sectionName}]`);
+      lines.push(`   - Lowest Note:  ${vocal.lowestNote.noteName} in ${TMDSongInspector.formatNoteLocation(vocal.lowestNote)}`);
+      lines.push(`   - Highest Note: ${vocal.highestNote.noteName} in ${TMDSongInspector.formatNoteLocation(vocal.highestNote)}`);
       if (vocal.suitableVoiceTypes.length > 0) {
         lines.push(`   - Suitable For: ${vocal.suitableVoiceTypes.join(", ")}`);
       }
@@ -484,8 +539,9 @@ export class TMDSongInspector {
     lines.push("Instrument Track Ranges:");
     for (const inst of profile.instrumentRanges) {
       const padded = inst.instrument.padEnd(14, " ");
+      const octaves = inst.spanOctaves.toFixed(1);
       lines.push(
-        `  - ${padded}: ${inst.lowestNote.noteName} – ${inst.highestNote.noteName} (${inst.spanSemitones} semitones, ${inst.totalNotes} notes)`
+        `  - ${padded}: ${inst.lowestNote.noteName} – ${inst.highestNote.noteName} (${inst.spanSemitones} semitones / ${octaves} octaves, ${inst.totalNotes} notes)`
       );
     }
     lines.push("================================================================================");

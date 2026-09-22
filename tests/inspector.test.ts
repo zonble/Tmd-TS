@@ -169,5 +169,56 @@ intro:Piano@|0|{
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it("tracks section occurrence, measure number, timestamp, and spanOctaves in pitch analysis", () => {
+    const tmd = `::SCORE::
+** Modulation & Repeated Verse Song **
+!= 120.0
+?= C
+<4/4>
+
+verse:Vocal@|0|{
+    <4*>
+    1 2 3 4
+    [C] - - -
+}
+
+chorus:Vocal@|0|{
+    <4*>
+    5 1^ 3^ 5^
+    [G] - - -
+}
+
+-> verse -> chorus -> {?+2} -> verse -> chorus ->#
+`;
+
+    const sheet = TmdParser.parse(tmd);
+    expect(sheet).toBeDefined();
+    const profile = TMDSongInspector.inspect(sheet);
+
+    expect(profile.vocalRange).toBeDefined();
+    const vocal = profile.vocalRange!;
+
+    // Lowest note: C4 (60) in verse #1 at m.1, 0:00 (0.0s)
+    expect(vocal.lowestNote.midiPitch).toBe(60);
+    expect(vocal.lowestNote.sectionName).toBe("verse");
+    expect(vocal.lowestNote.sectionOccurrence).toBe(1);
+    expect(vocal.lowestNote.measure).toBe(1);
+    expect(Math.abs(vocal.lowestNote.timeSeconds - 0.0)).toBeLessThan(0.01);
+
+    // Highest note: A5 (81) in chorus #2 at m.7, 0:13 (13.5s)
+    expect(vocal.highestNote.midiPitch).toBe(81);
+    expect(vocal.highestNote.sectionName).toBe("chorus");
+    expect(vocal.highestNote.sectionOccurrence).toBe(2);
+    expect(vocal.highestNote.measure).toBe(7);
+    expect(Math.abs(vocal.highestNote.timeSeconds - 13.5)).toBeLessThan(0.01);
+
+    expect(vocal.spanOctaves).toBeCloseTo(21 / 12.0, 2);
+
+    const report = TMDSongInspector.generateReport(profile);
+    expect(report).toContain("in [verse #1 @ m.1, 0:00]");
+    expect(report).toContain("in [chorus #2 @ m.7, 0:13]");
+    expect(report).toContain("/ 1.8 octaves");
+  });
 });
 
