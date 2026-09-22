@@ -85,7 +85,7 @@ describe("Web Studio Editor Configuration (TDD)", () => {
   });
 
   it("supports syntax highlighting for abstract paragraphs and S-Expression macros", async () => {
-    const { tmdStreamParser } = await import("../web/src/editor.js");
+    const { tmdStreamParser } = await import("../web/src/syntax.js");
 
     const tokenize = (line: string) => {
       const state = tmdStreamParser.startState();

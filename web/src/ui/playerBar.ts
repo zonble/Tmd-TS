@@ -1,6 +1,6 @@
 import { Sheet } from "../../../src/core/types.js";
-import { TmdParser } from "../../../src/core/parser.js";
 import { formatOrder } from "../../../src/core/format.js";
+import { TmdParser } from "../../../src/core/parser.js";
 import { TMDMIDIGenerator } from "../../../src/exporters/midi.js";
 import { t } from "../i18n.js";
 import { tmdPlayer, TMDMidiSynthType } from "../midi-player.js";
