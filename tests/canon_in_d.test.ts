@@ -81,7 +81,7 @@ describe('Canon in D score verification', () => {
   });
 
   it('verifies the complete 13-verse Canon in D macro score (canon_in_d_macro.tmd)', () => {
-    const filePath = path.resolve(__dirname, '../docs/draft/canon_in_d_macro.tmd');
+    const filePath = path.resolve(__dirname, '../web/src/samples/canon_in_d_macro.tmd');
     const content = fs.readFileSync(filePath, 'utf-8');
 
     // 1. Zero measure errors across all 50 bars of variations
