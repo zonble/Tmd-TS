@@ -649,41 +649,6 @@ ThemeB {
       expect(playback.duration).toBe(8);
     });
 
-    it('evaluates (rondo Refrain (Episode1 Episode2)) alternating refrain with episodes', () => {
-      const input = `::SCORE::
-** Rondo Test **
-!= 120
-?= C
-<4/4>
-
-Refrain {
-    <4*>
-    1 1 1 1
-}
-Ep1 {
-    <4*>
-    2 2 2 2
-}
-Ep2 {
-    <4*>
-    3 3 3 3
-}
-
--> (rondo Refrain (Ep1 Ep2) Piano) ->#
-`;
-      const sheet = TmdParser.parse(input);
-      const playback = TMDPlaybackRenderer.render(sheet, 'Piano');
-      // Rondo structure: Refrain -> Ep1 -> Refrain -> Ep2 -> Refrain = 5 sections * 4 beats = 20 beats
-      expect(playback.duration).toBe(20);
-      expect(playback.events.length).toBe(20);
-      // Check notes at each section entrance
-      expect((playback.events[0].content as any).note.degree).toBe(1);  // Refrain (0s)
-      expect((playback.events[4].content as any).note.degree).toBe(2);  // Ep1 (4s)
-      expect((playback.events[8].content as any).note.degree).toBe(1);  // Refrain (8s)
-      expect((playback.events[12].content as any).note.degree).toBe(3); // Ep2 (12s)
-      expect((playback.events[16].content as any).note.degree).toBe(1); // Refrain (16s)
-    });
-
     it('evaluates flat vary multi-transform with modal switch (vary Theme -2 reverse minor)', () => {
       const input = `::SCORE::
 ** Flat Vary Chained Test **

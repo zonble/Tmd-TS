@@ -30,7 +30,6 @@ These functions expand into standard multi-voice polyphony or multi-section musi
 | :--- | :--- | :--- |
 | **`canon`** | `(canon <theme> (<instruments...>) <offset_bars>)` | **Canon (Prototype + Decorator)**: Staggers identical copies of `<theme>` across `<instruments...>`, delayed progressively by `i * offset_bars`. |
 | **`fugue-expo`** | `(fugue-expo <subject> <countersubject> (<instruments...>) <offset_bars>)` | **Fugal Exposition (呈示部)**: Automatically handles Subject (Dux, tonic) and Answer (Comes, dominant +7 semitones) entries with concurrent Countersubject accompaniment. |
-| **`rondo`** | `(rondo <refrain> (<episodes...>))` | **Rondo (Iterator + Interleaver)**: Alternates the refrain with each episode: `Refrain -> Ep1 -> Refrain -> Ep2 -> ... -> Refrain`. |
 
 ---
 

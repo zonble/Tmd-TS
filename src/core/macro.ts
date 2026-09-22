@@ -434,7 +434,7 @@ export class TMDMacroEvaluator {
           const offsetBars = Number(expr[3]) || 0;
 
           // Check if themeTarget is a nested sub-expression like (canon ...), (layer ...), (reverse ...), etc.
-          const nestedOps = ["canon", "layer", "play", "loop", "seq", "rondo", "reverse", "flip", "minor", "major", "vary", "transpose"];
+          const nestedOps = ["canon", "layer", "play", "loop", "seq", "reverse", "flip", "minor", "major", "vary", "transpose"];
           if (
             Array.isArray(themeTarget) &&
             themeTarget.length > 0 &&
@@ -446,7 +446,7 @@ export class TMDMacroEvaluator {
             (function isSubExpr(node: SExpr): boolean {
               if (!Array.isArray(node) || node.length === 0) return false;
               const h = String(node[0]).toLowerCase();
-              if (["canon", "layer", "play", "loop", "seq", "rondo"].includes(h)) return true;
+              if (["canon", "layer", "play", "loop", "seq"].includes(h)) return true;
               if (["reverse", "flip", "minor", "major", "vary", "transpose"].includes(h)) {
                 return isSubExpr(node[1]) || (node.length >= 3 && isSubExpr(node[2]));
               }
@@ -551,34 +551,6 @@ export class TMDMacroEvaluator {
           }
           return { paragraphNames: seqNames };
         }
-
-
-
-        case "rondo": {
-          // (rondo <refrain> (<episodes...>) [<instrument>])
-          // Alternates Refrain with Episodes: Refrain -> Ep1 -> Refrain -> Ep2 -> ... -> Refrain
-          const refrainTarget = expr[1];
-          const episodesRaw = expr[2];
-          const episodes: any[] = Array.isArray(episodesRaw) ? episodesRaw : [episodesRaw];
-          const instrument = expr.length >= 4 ? String(expr[3]) : undefined;
-
-          const rondoSeq: any[] = ["seq"];
-          const makePlay = (item: any) => {
-            if (instrument) {
-              return ["play", item, instrument];
-            }
-            return item;
-          };
-
-          for (const ep of episodes) {
-            rondoSeq.push(makePlay(refrainTarget));
-            rondoSeq.push(makePlay(ep));
-          }
-          rondoSeq.push(makePlay(refrainTarget));
-
-          return evalExpr(rondoSeq);
-        }
-
 
         case "reverse": {
           // (reverse <child>)
