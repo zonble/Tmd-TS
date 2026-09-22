@@ -7,6 +7,7 @@ import {
   TMDMeasureChecker,
   TMDMIDIGenerator,
   TMDWAVRenderer,
+  TMDMacroEvaluator,
 } from '../src/index.js';
 
 describe('TMD Macro S-Expression & Abstract Paragraphs (TDD - Red Phase)', () => {
@@ -724,6 +725,27 @@ ThemeMinor {
       );
       // Converted to C major: 1(60), 2(62), 3(64), 4(65), 5(67), 6(69), 7(71), 1^(72)
       expect(pitches).toEqual([60, 62, 64, 65, 67, 69, 71, 72]);
+    });
+
+    it('validates macro expressions and throws informative human-readable errors', () => {
+      const run = (macroStr: string) => {
+        const input = `::SCORE::
+Theme { <4*> 1 2 3 4 }
+-> ${macroStr} ->#`;
+        const sheet = TmdParser.parse(input);
+        TMDMacroEvaluator.expand(sheet);
+      };
+
+      expect(() => run("(play)")).toThrow(/requires theme and instrument/);
+      expect(() => run("(play Theme)")).toThrow(/requires theme and instrument/);
+      expect(() => run("(loop Theme)")).toThrow(/requires theme and instrument/);
+      expect(() => run("(canon Theme)")).toThrow(/requires theme and instruments/);
+      expect(() => run("(transpose Theme)")).toThrow(/requires theme and semitones offset/);
+      expect(() => run("(reverse)")).toThrow(/requires a target theme/);
+      expect(() => run("(flip)")).toThrow(/requires a target theme/);
+      expect(() => run("(minor)")).toThrow(/requires a target theme/);
+      expect(() => run("(major)")).toThrow(/requires a target theme/);
+      expect(() => run("(vary)")).toThrow(/requires a target theme/);
     });
   });
 });

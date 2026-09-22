@@ -231,6 +231,9 @@ export class TMDMacroEvaluator {
 
         // 1. (transpose <theme> <semitones>) or (transpose <semitones> <theme>)
         if (head === "transpose") {
+          if (themeArg.length < 3 || themeArg[1] === undefined || themeArg[2] === undefined) {
+            throw new Error(`Macro error: 'transpose' requires theme and semitones offset, e.g. (transpose Theme 7)`);
+          }
           let target = themeArg[1];
           let semitones = Number(themeArg[2]) || 0;
           if (typeof target === "number" || (!isNaN(Number(target)) && typeof themeArg[2] === "string")) {
@@ -246,6 +249,9 @@ export class TMDMacroEvaluator {
 
         // 2. (reverse <theme>)
         if (head === "reverse") {
+          if (themeArg.length < 2 || themeArg[1] === undefined) {
+            throw new Error(`Macro error: 'reverse' requires a target theme, e.g. (reverse Theme)`);
+          }
           const target = themeArg[1];
           const sub = getThemeSections(target);
           return {
@@ -254,8 +260,11 @@ export class TMDMacroEvaluator {
           };
         }
 
-        // 4. (flip <theme> [axis])
+        // 3. (flip <theme> [axis])
         if (head === "flip") {
+          if (themeArg.length < 2 || themeArg[1] === undefined) {
+            throw new Error(`Macro error: 'flip' requires a target theme, e.g. (flip Theme)`);
+          }
           const target = themeArg[1];
           const axisArg = themeArg.length >= 3 ? Number(themeArg[2]) : undefined;
           const sub = getThemeSections(target);
@@ -265,8 +274,11 @@ export class TMDMacroEvaluator {
           };
         }
 
-        // 5. (minor <theme>)
+        // 4. (minor <theme>)
         if (head === "minor") {
+          if (themeArg.length < 2 || themeArg[1] === undefined) {
+            throw new Error(`Macro error: 'minor' requires a target theme, e.g. (minor Theme)`);
+          }
           const target = themeArg[1];
           const sub = getThemeSections(target);
           return {
@@ -275,8 +287,11 @@ export class TMDMacroEvaluator {
           };
         }
 
-        // 6. (major <theme>)
+        // 5. (major <theme>)
         if (head === "major") {
+          if (themeArg.length < 2 || themeArg[1] === undefined) {
+            throw new Error(`Macro error: 'major' requires a target theme, e.g. (major Theme)`);
+          }
           const target = themeArg[1];
           const sub = getThemeSections(target);
           return {
@@ -285,10 +300,13 @@ export class TMDMacroEvaluator {
           };
         }
 
-        // 7. (vary <theme> <modifier1> <modifier2> ...)
+        // 6. (vary <theme> <modifier1> <modifier2> ...)
         // Supports flat modifiers: (vary Theme +7 flip reverse minor)
         // as well as sublists: (vary Theme (transpose 7) (flip))
         if (head === "vary") {
+          if (themeArg.length < 2 || themeArg[1] === undefined) {
+            throw new Error(`Macro error: 'vary' requires a target theme, e.g. (vary Theme +7 reverse)`);
+          }
           const target = themeArg[1];
           let current = getThemeSections(target);
           for (let i = 2; i < themeArg.length; i++) {
@@ -392,6 +410,9 @@ export class TMDMacroEvaluator {
       switch (op) {
         case "play": {
           // (play <theme|themes> <instrument> [:at <measure_offset>])
+          if (expr.length < 3 || expr[1] === undefined || expr[2] === undefined) {
+            throw new Error(`Macro error: 'play' requires theme and instrument, e.g. (play Theme Violin)`);
+          }
           const themeTarget = expr[1];
           const instrument = String(expr[2]);
           let atOffset = 0;
@@ -408,6 +429,9 @@ export class TMDMacroEvaluator {
 
         case "loop": {
           // (loop <theme|themes> <instrument> <times>)
+          if (expr.length < 3 || expr[1] === undefined || expr[2] === undefined) {
+            throw new Error(`Macro error: 'loop' requires theme and instrument, e.g. (loop Theme Cello 4)`);
+          }
           const themeTarget = expr[1];
           const instrument = String(expr[2]);
           const times = Number(expr[3]) || 1;
@@ -426,6 +450,9 @@ export class TMDMacroEvaluator {
 
         case "canon": {
           // (canon <theme|themes|canon_expr> (<instruments...>) <offset_bars>)
+          if (expr.length < 3 || expr[1] === undefined || expr[2] === undefined) {
+            throw new Error(`Macro error: 'canon' requires theme and instruments, e.g. (canon Theme (Violin1 Violin2) 2)`);
+          }
           const themeTarget = expr[1];
           const instrumentsRaw = expr[2];
           const instruments: string[] = Array.isArray(instrumentsRaw)
@@ -554,6 +581,9 @@ export class TMDMacroEvaluator {
 
         case "reverse": {
           // (reverse <child>)
+          if (expr.length < 2 || expr[1] === undefined) {
+            throw new Error(`Macro error: 'reverse' requires a target theme or expression, e.g. (reverse Theme)`);
+          }
           const childExpr = expr[1];
           const innerRes = evalExpr(childExpr);
           const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
@@ -565,6 +595,9 @@ export class TMDMacroEvaluator {
 
         case "flip": {
           // (flip <child> [axis])
+          if (expr.length < 2 || expr[1] === undefined) {
+            throw new Error(`Macro error: 'flip' requires a target theme or expression, e.g. (flip Theme)`);
+          }
           const childExpr = expr[1];
           const axisArg = expr.length >= 3 ? Number(expr[2]) : undefined;
           const innerRes = evalExpr(childExpr);
@@ -578,6 +611,9 @@ export class TMDMacroEvaluator {
         case "vary": {
           // (vary <child> <modifier1> <modifier2> ...)
           // Desugars/chains transformations onto child concrete paragraphs
+          if (expr.length < 2 || expr[1] === undefined) {
+            throw new Error(`Macro error: 'vary' requires a target theme or expression, e.g. (vary Theme +7 reverse)`);
+          }
           const childExpr = expr[1];
           const innerRes = evalExpr(childExpr);
           const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
@@ -621,6 +657,9 @@ export class TMDMacroEvaluator {
 
         case "minor": {
           // (minor <child>)
+          if (expr.length < 2 || expr[1] === undefined) {
+            throw new Error(`Macro error: 'minor' requires a target theme or expression, e.g. (minor Theme)`);
+          }
           const childExpr = expr[1];
           const innerRes = evalExpr(childExpr);
           const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
@@ -632,6 +671,9 @@ export class TMDMacroEvaluator {
 
         case "major": {
           // (major <child>)
+          if (expr.length < 2 || expr[1] === undefined) {
+            throw new Error(`Macro error: 'major' requires a target theme or expression, e.g. (major Theme)`);
+          }
           const childExpr = expr[1];
           const innerRes = evalExpr(childExpr);
           const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
@@ -643,6 +685,9 @@ export class TMDMacroEvaluator {
 
         case "transpose": {
           // (transpose <child> <semitones>) or (transpose <semitones> <child>)
+          if (expr.length < 3 || expr[1] === undefined || expr[2] === undefined) {
+            throw new Error(`Macro error: 'transpose' requires theme and semitones offset, e.g. (transpose Theme 7)`);
+          }
           let target = expr[1];
           let semitones = Number(expr[2]) || 0;
           if (typeof target === "number" || (!isNaN(Number(target)) && typeof expr[2] !== "number")) {
