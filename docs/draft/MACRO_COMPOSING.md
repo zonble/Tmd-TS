@@ -96,35 +96,35 @@ Executes multiple expressions concurrently, aligning their start positions to th
 
 Because S-Expressions are referentially transparent, classical contrapuntal transformations can be composed cleanly:
 
-#### 1. `(transpose <semitones> <theme> [<instrument>])`
+#### 1. `(transpose <semitones> <theme>)`
 Transposes a theme by a signed number of semitones.
 ```tmd
-(transpose +7 Theme Oboe)   /* Canon at the fifth / dominant answer */
+(transpose +7 Theme)   /* Transpose up 7 semitones */
 ```
 
-#### 2. `(retrograde <theme> [<instrument>])`
-Reverses the chronological order of notes and durations (crab canon / cancrizans).
+#### 2. `(reverse <theme>)`
+Reverses the chronological order of notes (crab canon / cancrizans / retrograde).
 ```tmd
-(retrograde Theme ViolinSolo)
+(reverse Theme)
 ```
 
-#### 3. `(invert <theme> [<axis_degree>] [<instrument>])`
-Inverts pitch intervals across an axis (defaults to tonic degree 1).
+#### 3. `(flip <theme> [<axis>])`
+Inverts pitch intervals upside-down across an axis (defaults to tonic).
 ```tmd
-(invert Theme 1 Flute)
+(flip Theme)
 ```
 
-#### 4. `(augment <theme> <factor> [<instrument>])`
-Stretches duration by a scalar factor (e.g. 2 = double duration).
+#### 4. `(minor <theme>)` / `(major <theme>)`
+Converts to parallel minor or major.
+
+#### 5. `(vary <theme> <modifiers...>)`
+Chains transformations cleanly in a flat sequence without nested parentheses:
 ```tmd
-(augment Theme 2 Contrabass)
+(vary Theme +7 reverse minor)
+(vary Theme flip reverse)
 ```
 
-#### 5. `(diminish <theme> <factor> [<instrument>])`
-Compresses duration by a scalar factor (e.g. 0.5 = half duration).
-```tmd
-(diminish Theme 0.5 Piccolo)
-```
+> **Design Principle**: Rhythmic time-scaling (such as doubling/halving note durations) is intentionally excluded from individual theme transforms to preserve strict measure invariants. Rhythmic acceleration is handled natively by TMD tempo directives (`{!+10}`) across the conductor timeline.
 
 ---
 

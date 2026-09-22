@@ -22,14 +22,15 @@ These are the fundamental building blocks responsible for time placement and mul
 
 ---
 
-## 2. Classical Form Generators (High-Level Forms)
-
-These functions expand into standard multi-voice polyphony or multi-section musical architectures.
+## 2. Polyphonic Generators
 
 | Function | Signature | Description |
 | :--- | :--- | :--- |
-| **`canon`** | `(canon <theme> (<instruments...>) <offset_bars>)` | **Canon (Prototype + Decorator)**: Staggers identical copies of `<theme>` across `<instruments...>`, delayed progressively by `i * offset_bars`. |
-| **`fugue-expo`** | `(fugue-expo <subject> <countersubject> (<instruments...>) <offset_bars>)` | **Fugal Exposition (呈示部)**: Automatically handles Subject (Dux, tonic) and Answer (Comes, dominant +7 semitones) entries with concurrent Countersubject accompaniment. |
+| **`canon`** | `(canon <theme> (<instruments...>) <offset_bars>)` or `(canon <inst1> <theme1> <inst2> <theme2> <offset_bars>)` | **Canon (Staggered Entry)**: Staggers copies of `<theme>` (or successive themes) across instruments delayed by `<offset_bars>`. |
+
+> **Architectural Note on Fugues and Counterpoint**:
+> High-level forms with tonal answers (Tonal Answer vs. Real Answer) and counterpoint rule constraints (avoiding parallel fifths/octaves, leading-tone resolution) are NOT hardcoded as macro syntax sugars.
+> In TMD's AI-assisted workflow, **AI models directly author the musical counterpoint sections** (e.g., `Subject`, `Answer`, `Countersubject`), while the deterministic TMD S-expression engine handles timeline offsets, measure arithmetic, and playback routing without hallucination.
 
 ---
 
@@ -65,27 +66,6 @@ Supported flat tokens:
 
 ---
 
-## 4. Minimum Viable Product (MVP) vs. Future Roadmap
+## 4. Current Implementation Status
 
-To ensure rapid delivery, high stability, and zero regressions for `Tmd-TS`:
-
-### Phase 1: MVP (Canonical Core)
-Focus strictly on solving the Canon & Ostinato authoring problem:
-1. **Parser**:
-   - Parse abstract paragraphs (`Theme { ... }` without `:instrument@|offset|`).
-   - Parse S-Expressions after `->`: `-> ( ... ) ->`.
-2. **Evaluator**:
-   - `play`: `(play Theme Violin)`
-   - `loop`: `(loop Bass Cello 8)`
-   - `canon`: `(canon Theme (Violin1 Violin2 Violin3) 2)`
-   - `layer`: `(layer (canon ...) (loop ...))`
-
-### Phase 2: Combinatorial & Contrapuntal Extensions
-1. `seq` & `rondo`
-2. `fugue-expo` (巴洛克賦格呈示部)
-3. `mode` / `scale` (五聲/教會調式量化映射)
-
-### Phase 3: Advanced Transformational Operators
-1. `augment` & `diminish` (rhythmic quantization scaling)
-2. `minor` & `major` (modal scales)
-3. `episode` (賦格插段與動機碎片模進)
+All documented operators in Sections 1–3 are fully implemented, verified with strict TDD test suites, and provide source code line/column error tracking.

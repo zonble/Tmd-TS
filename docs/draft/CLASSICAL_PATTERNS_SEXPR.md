@@ -105,81 +105,62 @@ Var2 { <16*> 1^ 7 1^ 1 7_ 5 2 3 1 1^ 7 6 7 3 5 6 | }
 
 ---
 
-## 4. Rondo: Iterator + Recurring Callback (ABACA / ABACABA)
+## 4. Rondo: Recurring Flow (ABACA / ABACABA)
 
 ```
 Refrain (A) ──> Episode 1 (B) ──> Refrain (A) ──> Episode 2 (C) ──> Refrain (A)
 ```
 
 ### Pattern Mapping
-- **Design Pattern**: Recurring Callback / Alternating Interleaver.
-- **S-Expression Signature**:
+- **Design Pattern**: Recurring Interleaving Flow.
+- Expressed naturally in TMD's native linear flow or sequential combinator without fragile syntax sugars:
   ```lisp
-  (rondo <refrain> (<episode1> <episode2> ...))
+  (seq (play ThemeA Piano) (play EpisodeB Piano) (play ThemeA Piano) (play EpisodeC Piano) (play ThemeA Piano))
   ```
-
-### Example:
-```tmd
-ThemeA { <4*> 1 3 5 1^ | 5 - 3 - | }
-EpisodeB { <4*> 6 5 4 3 | 2 - - - | }
-EpisodeC { <4*> 4 3 2 1 | 5_ - - - | }
-
-/* Expands to: ThemeA -> EpisodeB -> ThemeA -> EpisodeC -> ThemeA */
--> (rondo ThemeA (EpisodeB EpisodeC)) ->#
-```
+  Or directly in TMD playback flow:
+  ```tmd
+  -> ThemeA -> EpisodeB -> ThemeA -> EpisodeC -> ThemeA ->#
+  ```
 
 ---
 
-## 5. Fugue: Prototype + Strategy + Polyphonic Interaction
+## 5. Fugue: Independent Polyphonic Counterpoint Sections
 
 ```
-               Subject
+               Subject (AI Generated)
                   │
          ┌────────┼────────┐
          ↓        ↓        ↓
       Voice 1  Voice 2  Voice 3
          │        │        │
-     Original  Answer  Counter-subject
-         │   (at 5th)      │
-         └───────┬─────────┘
-                 │
-            Development (Fragment / Stretto)
+     Original  Answer  Countersubject
+     (Tonic)  (Tonal)      │
+         │        │        │
+         └────────┴────────┘
 ```
 
 ### Pattern Mapping
-- **Design Pattern**: Prototype + Transformation Strategy (`transpose`, `stretto`, `inversion`).
-- **S-Expression Signature**:
-  ```lisp
-  (fugue
-    :subject <theme>
-    :voices ((<inst1> <offset1> <transformation1>)
-             (<inst2> <offset2> <transformation2>)))
-  ```
-  Or expressed using primitive combinators:
-  ```lisp
-  (layer
-    (play Subject Voice1 :at 0)
-    (play (transpose +7 Subject) Voice2 :at 4)
-    (play (invert Subject) Voice3 :at 8))
-  ```
+- **Architectural Division**:
+  - **AI Generation**: Musical counterpoint rules (such as tonal answers where 1–5 answers as 5–1, avoiding parallel fifths/octaves) are written directly by AI models as dedicated section prototypes (`Subject`, `Answer`, `Countersubject`).
+  - **TMD S-Expression Engine**: Handles deterministic timeline scheduling and staggered entry via `canon`, `play`, and `layer` without audio drift or measure corruption.
 
-### Example (Fugal Exposition & Stretto):
+### Example (Fugal Staggered Exposition):
 ```tmd
 Subject {
     <4*>
     1 5_ 1 2 | 3 2 1 7, | 1 - - - |
 }
 
-/* Fugal Exposition */
+Answer {
+    /* Tonal answer authored by AI to conform with modal harmony */
+    <4*>
+    5 1 5 6 | 7 6 5 4' | 5 - - - |
+}
+
+/* Fugal Exposition using atomic primitives */
 -> (layer
-     (play Subject OrganManualI :at 0)
-     (play (transpose +7 Subject) OrganManualII :at 4)
-     (play (transpose -12 Subject) OrganPedal :at 8))
-/* Stretto (voices enter in rapid succession before subject completes) */
--> (layer
-     (play Subject Voice1 :at 0)
-     (play (transpose +7 Subject) Voice2 :at 1)
-     (play Subject Voice3 :at 2))
+     (play Subject Voice1)
+     (canon Voice1 Subject Voice2 Answer 4))
 ->#
 ```
 
@@ -190,22 +171,22 @@ Subject {
 ```
 Theme
   │
-  ├── (ornament Theme "arpeggio")
+  ├── (vary Theme +7)
   ├── (minor Theme)
-  ├── (invert Theme)
-  ├── (retrograde Theme)
-  ├── (augment Theme 2)
-  └── (diminish Theme 0.5)
+  ├── (flip Theme)
+  ├── (reverse Theme)
+  └── (vary Theme +7 reverse minor)
 ```
 
 ### Pattern Mapping
 - **Design Pattern**: Strategy Pattern as Pure Transformation Functions.
 - **S-Expression Combinators**:
   - `(minor <theme>)`: Flattens degrees 3, 6, 7 to tonic parallel minor.
-  - `(invert <theme> [<axis>])`: Melodic inversion.
-  - `(retrograde <theme>)`: Reverses note order chronologically.
-  - `(augment <theme> <factor>)`: Stretches rhythmic durations.
-  - `(diminish <theme> <factor>)`: Compresses rhythmic durations.
+  - `(major <theme>)`: Restores flattened degrees to parallel major.
+  - `(flip <theme> [<axis>])`: Melodic inversion.
+  - `(reverse <theme>)`: Reverses note order chronologically within bars.
+  - `(transpose <semitones> <theme>)`: Pitch transposition in semitones.
+  - `(vary <theme> <modifiers...>)`: Flat composition without nested parentheses.
 
 ### Example:
 ```tmd
@@ -216,10 +197,9 @@ Theme {
 
 -> (play Theme Piano)
 -> (play (minor Theme) Piano)
--> (play (invert Theme 1) Flute)
--> (play (retrograde Theme) Violin)
--> (play (diminish Theme 0.5) Piccolo)
--> (play (augment Theme 2) Cello)
+-> (play (flip Theme) Flute)
+-> (play (reverse Theme) Violin)
+-> (play (vary Theme +7 reverse minor) Cello)
 ->#
 ```
 
