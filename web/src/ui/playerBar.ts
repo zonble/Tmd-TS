@@ -1,5 +1,6 @@
 import { Sheet } from "../../../src/core/types.js";
 import { TmdParser } from "../../../src/core/parser.js";
+import { formatOrder } from "../../../src/core/format.js";
 import { TMDMIDIGenerator } from "../../../src/exporters/midi.js";
 import { t } from "../i18n.js";
 import { tmdPlayer, TMDMidiSynthType } from "../midi-player.js";
@@ -172,9 +173,7 @@ export class TMDPlayerController {
     }
 
     const targetOrder = sheet.orders[orderIndex];
-    const orderLabel = targetOrder
-      ? (targetOrder.type === "name" ? targetOrder.name : `{${targetOrder.value}}`)
-      : `#${orderIndex + 1}`;
+    const orderLabel = targetOrder ? formatOrder(targetOrder) : `#${orderIndex + 1}`;
     const title = `${sheet.name || "score"} [➔ ${orderLabel}]`;
 
     let midiBytes: Uint8Array;
