@@ -8,6 +8,7 @@ import {
   TMDReaperGenerator,
   TMDVSQGenerator,
   TMDVSQXGenerator,
+  TMDChordProGenerator,
 } from "../../../src/exporters/index.js";
 import { TMDWAVRenderer } from "../../../src/audio.js";
 import { TmdSkill } from "../../../src/skill.js";
@@ -25,6 +26,7 @@ export interface ExportMenuElements {
   btnExportMusicXML: HTMLButtonElement;
   btnExportLilyPond: HTMLButtonElement;
   btnExportABC: HTMLButtonElement;
+  btnExportChordPro?: HTMLButtonElement | null;
   btnExportVsq?: HTMLButtonElement | null;
   btnExportVsqx?: HTMLButtonElement | null;
   btnExportWAV: HTMLButtonElement;
@@ -100,6 +102,7 @@ export function setupExportMenu(
     btnExportMusicXML,
     btnExportLilyPond,
     btnExportABC,
+    btnExportChordPro,
     btnExportVsq,
     btnExportVsqx,
     btnExportWAV,
@@ -180,6 +183,16 @@ export function setupExportMenu(
     if (!sheet) return alert(t("alertCannotExport"));
     const abc = TMDABCGenerator.generateABC(sheet);
     downloadBlob(getSafeFilename(sheet.name, "abc"), new Blob([abc], { type: "text/vnd.abc;charset=utf-8" }));
+  });
+
+  btnExportChordPro?.addEventListener("click", () => {
+    exportDropdown.classList.remove("open");
+    const editor = getEditor();
+    const text = editor.getContent();
+    const sheet = TmdParser.parse(text);
+    if (!sheet) return alert(t("alertCannotExport"));
+    const cho = TMDChordProGenerator.generateChordPro(sheet);
+    downloadBlob(getSafeFilename(sheet.name, "cho"), new Blob([cho], { type: "text/plain;charset=utf-8" }));
   });
 
   btnExportVsq?.addEventListener("click", () => {

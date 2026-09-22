@@ -7,6 +7,7 @@ import {
   TMDLilyPondGenerator,
   TMDABCGenerator,
   TMDReaperGenerator,
+  TMDChordProGenerator,
 } from "../../../src/exporters/index.js";
 import { TmdSkill } from "../../../src/skill.js";
 
@@ -169,7 +170,7 @@ export const buildTmdWebMcpTools = (ctx: TmdWebMcpContext): WebMcpTool[] => [
   {
     name: "convertTmd",
     description:
-      "Convert TMD score text to target music formats: midi (base64 encoded), reaper (.rpp), musicxml, lilypond, or abc.",
+      "Convert TMD score text to target music formats: midi (base64 encoded), reaper (.rpp), musicxml, lilypond, abc, or chordpro (.cho).",
     inputSchema: {
       type: "object",
       properties: {
@@ -179,8 +180,8 @@ export const buildTmdWebMcpTools = (ctx: TmdWebMcpContext): WebMcpTool[] => [
         },
         format: {
           type: "string",
-          enum: ["midi", "musicxml", "lilypond", "abc", "reaper", "rpp"],
-          description: "Target export format: midi (base64), reaper (rpp), musicxml, lilypond, abc",
+          enum: ["midi", "musicxml", "lilypond", "abc", "reaper", "rpp", "chordpro", "cho"],
+          description: "Target export format: midi (base64), reaper (rpp), musicxml, lilypond, abc, chordpro (cho)",
         },
       },
       required: ["text", "format"],
@@ -215,6 +216,10 @@ export const buildTmdWebMcpTools = (ctx: TmdWebMcpContext): WebMcpTool[] => [
         }
         case "abc": {
           return textContent(TMDABCGenerator.generateABC(sheet));
+        }
+        case "chordpro":
+        case "cho": {
+          return textContent(TMDChordProGenerator.generateChordPro(sheet));
         }
         default:
           throw new Error(`Unsupported format: ${format}`);

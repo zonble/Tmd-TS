@@ -148,6 +148,10 @@ verse:Piano@|0|{
     expect(rppRes.content[0].text).toContain('<REAPER_PROJECT');
     expect(rppRes.content[0].text).toContain('NAME "Piano"');
     expect(rppRes.content[0].text).toContain('<TEMPOENVEX');
+
+    // Convert to ChordPro (.cho)
+    const choRes = await convertTool!.handler({ text: sampleTmd, format: 'chordpro' });
+    expect(choRes.content[0].text).toContain('{title: MCP Test}');
   });
 
   it('loadScoreToEditor pushes score to editor and can trigger playback', async () => {

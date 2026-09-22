@@ -62,6 +62,32 @@ describe('Web UI Exporters & REAPER support (TDD)', () => {
     expect(fullContent).toContain('TMDVSQXGenerator');
   });
 
+  it('defines ChordPro export i18n labels in zh-TW and en locales', () => {
+    expect((zhTW as any).exportChordPro).toBe('ChordPro 和弦簡譜 (.cho)');
+    expect((en as any).exportChordPro).toBe('ChordPro Lead Sheet (.cho)');
+  });
+
+  it('includes ChordPro export button in web/index.html with i18n attributes', () => {
+    const htmlPath = path.join(__dirname, '../web/index.html');
+    const html = fs.readFileSync(htmlPath, 'utf-8');
+    expect(html).toContain('id="export-chordpro"');
+    expect(html).toContain('data-i18n="exportChordPro"');
+  });
+
+  it('binds export-chordpro button in web/src/main.ts and handles .cho download', () => {
+    const mainPath = path.join(__dirname, '../web/src/main.ts');
+    const mainContent = fs.readFileSync(mainPath, 'utf-8');
+    const domPath = path.join(__dirname, '../web/src/ui/dom.ts');
+    const domContent = fs.existsSync(domPath) ? fs.readFileSync(domPath, 'utf-8') : '';
+    const exportPath = path.join(__dirname, '../web/src/ui/exportMenu.ts');
+    const exportContent = fs.existsSync(exportPath) ? fs.readFileSync(exportPath, 'utf-8') : '';
+    const fullContent = [mainContent, domContent, exportContent].join('\n');
+
+    expect(fullContent).toContain('export-chordpro');
+    expect(fullContent).toContain('TMDChordProGenerator');
+    expect(fullContent).toContain('.generateChordPro(');
+  });
+
   it('removes top toolbar sample-select dropdown and relies on drawer samples list', () => {
     const htmlPath = path.join(__dirname, '../web/index.html');
     const html = fs.readFileSync(htmlPath, 'utf-8');

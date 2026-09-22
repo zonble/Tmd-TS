@@ -48,6 +48,7 @@ export interface AppDOMElements {
   btnExportMusicXML: HTMLButtonElement;
   btnExportLilyPond: HTMLButtonElement;
   btnExportABC: HTMLButtonElement;
+  btnExportChordPro: HTMLButtonElement;
   btnExportVsq: HTMLButtonElement;
   btnExportVsqx: HTMLButtonElement;
   btnExportWAV: HTMLButtonElement;
@@ -288,6 +289,7 @@ export function initAppDOMElements(): AppDOMElements {
     btnExportMusicXML: getElement("export-musicxml"),
     btnExportLilyPond: getElement("export-lilypond"),
     btnExportABC: getElement("export-abc"),
+    btnExportChordPro: getElement("export-chordpro"),
     btnExportVsq: getElement("export-vsq"),
     btnExportVsqx: getElement("export-vsqx"),
     btnExportWAV: getElement("export-wav"),

@@ -83,6 +83,9 @@ verse:Piano@|0|{
 
     const abcRes = await TmdMcpServer.handleConvertTmd({ text: sampleTmd, format: "abc" });
     expect(abcRes.content[0].text).toContain("X:1");
+
+    const choRes = await TmdMcpServer.handleConvertTmd({ text: sampleTmd, format: "chordpro" });
+    expect(choRes.content[0].text).toContain("{title: MCP Test Song}");
   });
 
   it("TmdMcpServer getSkill returns TMD specification", async () => {

@@ -118,6 +118,7 @@ export const zhTW = {
   exportMusicXML: "MusicXML 4.0 (.musicxml)",
   exportLilyPond: "LilyPond (.ly)",
   exportABC: "ABC 樂譜 (.abc)",
+  exportChordPro: "ChordPro 和弦簡譜 (.cho)",
   exportVsq: "VOCALOID2 專案檔 (.vsq)",
   exportVsqx: "VOCALOID3/4 專案檔 (.vsqx)",
   exportWAV: "Sine Wave WAV (.wav)",
