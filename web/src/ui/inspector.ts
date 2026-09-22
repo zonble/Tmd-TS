@@ -92,26 +92,29 @@ export function renderInspectorView(
 
   // Song Inspector Analysis
   try {
-    // Track list for pitch analysis
-    const distinctInsts = Array.from(new Set(currentSheet.paragraphs.map((p) => p.instrument))).sort();
     let currentInst = elements.selectedPitchInstrument;
+    const profile = TMDSongInspector.inspect(currentSheet, currentInst);
+
+    // Track list for pitch analysis from expanded instrument ranges
+    const distinctInsts = profile.instrumentRanges.map((r) => r.instrument);
     if (!currentInst || !distinctInsts.includes(currentInst)) {
-      currentInst = distinctInsts.find((inst) => /^(main_?vocal|lead_?vocal|vocal|voice|主唱|人聲|歌|vo)$/i.test(inst))
+      currentInst = profile.vocalRange?.instrument
+        || distinctInsts.find((inst) => /^(main_?vocal|lead_?vocal|vocal|voice|主唱|人聲|歌|vo)$/i.test(inst))
         || distinctInsts.find((inst) => /vocal|voice|miku|utau|teto|sing|melody|lead|主旋律/i.test(inst) && !/backing|harm|choir|guitar|synth|pad|bass|drum|beat/i.test(inst))
         || distinctInsts[0];
     }
 
     if (inspectorPitchInstSelect) {
-      const prevVal = inspectorPitchInstSelect.value;
       inspectorPitchInstSelect.innerHTML = distinctInsts
-        .map((inst) => `<option value="${escapeHtml(inst)}"${inst === currentInst ? " selected" : ""}>${escapeHtml(inst)}</option>`)
+        .map((inst) => {
+          const displayLabel = inst === "Pattern" ? (t("trackPattern") || "Pattern") : inst;
+          return `<option value="${escapeHtml(inst)}"${inst === currentInst ? " selected" : ""}>${escapeHtml(displayLabel)}</option>`;
+        })
         .join("");
       if (currentInst) {
         inspectorPitchInstSelect.value = currentInst;
       }
     }
-
-    const profile = TMDSongInspector.inspect(currentSheet, currentInst);
 
     if (statDuration) {
       const totalSec = profile.timing.totalDurationSeconds;
@@ -354,7 +357,11 @@ export function renderInspectorView(
   }
 
   // Status bar summary
-  const trackCount = new Set(currentSheet.paragraphs.map((p) => p.instrument)).size;
+  const trackCount = new Set(
+    currentSheet.paragraphs
+      .map((p) => p.instrument)
+      .filter((inst) => Boolean(inst && inst.trim()))
+  ).size;
   sbStatus.textContent = "Valid TMD";
   sbSummary.textContent = `${currentSheet.paragraphs.length} paragraphs · ${trackCount} instruments · BPM ${currentSheet.speed || 120}`;
 

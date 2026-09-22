@@ -10,7 +10,13 @@ export class SheetInstrumentHelper {
    * If the sheet has no instruments, falls back to `["Piano"]` if fallback is enabled.
    */
   public static distinctInstruments(sheet: Sheet, fallbackToDefault = true): string[] {
-    const distinct = Array.from(new Set(sheet.paragraphs.map((p) => p.instrument))).sort();
+    const distinct = Array.from(
+      new Set(
+        sheet.paragraphs
+          .map((p) => p.instrument)
+          .filter((inst) => Boolean(inst && inst.trim()))
+      )
+    ).sort();
     if (distinct.length === 0 && fallbackToDefault) {
       return ['Piano'];
     }

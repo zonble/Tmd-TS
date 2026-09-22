@@ -9,6 +9,7 @@ import {
 } from "./types.js";
 import { SheetInstrumentHelper } from "./instruments.js";
 import { TMDPlaybackRenderer, PlaybackState, PlaybackEvent } from "./playback.js";
+import { TMDMacroEvaluator } from "./macro.js";
 
 /**
  * Pitch descriptor with MIDI note number, canonical note name (e.g. "C4", "A5"), and source section context.
@@ -125,19 +126,20 @@ export class TMDSongInspector {
    * Inspects a parsed TMD Sheet and produces an in-depth TMDSongProfile.
    */
   public static inspect(sheet: Sheet, targetInstrument?: string): TMDSongProfile {
-    const title = sheet.name || "Untitled";
-    const initialTempo = sheet.speed && sheet.speed > 0 ? sheet.speed : 120.0;
-    const initialKey = sheet.keySignature ? sheet.keySignature.toString() : "C";
-    const initialMeter = sheet.beat ? `${sheet.beat.count}/${sheet.beat.noteValue}` : "4/4";
+    const effectiveSheet = TMDMacroEvaluator.expand(sheet);
+    const title = effectiveSheet.name || "Untitled";
+    const initialTempo = effectiveSheet.speed && effectiveSheet.speed > 0 ? effectiveSheet.speed : 120.0;
+    const initialKey = effectiveSheet.keySignature ? effectiveSheet.keySignature.toString() : "C";
+    const initialMeter = effectiveSheet.beat ? `${effectiveSheet.beat.count}/${effectiveSheet.beat.noteValue}` : "4/4";
 
     // 1. Timing Profile
-    const timingProfile = this.buildTimingProfile(sheet);
+    const timingProfile = this.buildTimingProfile(effectiveSheet);
 
     // 2. Instrument Ranges
-    const distinctInsts = SheetInstrumentHelper.distinctInstruments(sheet, false);
+    const distinctInsts = SheetInstrumentHelper.distinctInstruments(effectiveSheet, false);
     const instrumentRanges: TMDPitchRangeProfile[] = [];
     for (const inst of distinctInsts) {
-      const profile = this.buildPitchProfile(inst, sheet, timingProfile);
+      const profile = this.buildPitchProfile(inst, effectiveSheet, timingProfile);
       if (profile) {
         instrumentRanges.push(profile);
       }
@@ -146,14 +148,14 @@ export class TMDSongInspector {
     // 3. Target Range (picks target instrument or auto resolves)
     const targetInst = targetInstrument && distinctInsts.includes(targetInstrument)
       ? targetInstrument
-      : SheetInstrumentHelper.resolveVocalInstrument(sheet);
+      : SheetInstrumentHelper.resolveVocalInstrument(effectiveSheet);
     const vocalRange = instrumentRanges.find((r) => r.instrument === targetInst);
 
     // 4. Harmony & Chord Profile
-    const harmonyProfile = this.buildHarmonyProfile(sheet);
+    const harmonyProfile = this.buildHarmonyProfile(effectiveSheet);
 
     // 5. Arrangement & Density Profile
-    const densityProfile = this.buildDensityProfile(sheet);
+    const densityProfile = this.buildDensityProfile(effectiveSheet);
 
     return {
       title,

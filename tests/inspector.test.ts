@@ -118,6 +118,54 @@ chorus:Bass@|0|{
     expect(report).toContain("Harmony:");
   });
 
+  it("expands macro orders into concrete instruments and avoids empty instruments in pitch analysis", () => {
+    const tmd = `::SCORE::
+** Canon Macro Pitch Test **
+!= 60
+?= D
+<4/4>
+
+/* Abstract pattern: no instrument */
+Theme {
+    <4*>
+    1 2 3 4 |
+}
+
+Bass {
+    <4*>
+    1_ 5__ 6__ 3__ |
+}
+
+-> (canon Theme (V1 V2) 2) -> (loop Bass Cello 2) ->#
+`;
+
+    const sheet = TmdParser.parse(tmd);
+    expect(sheet).toBeDefined();
+
+    const profile = TMDSongInspector.inspect(sheet!);
+
+    // Should not contain empty string instrument
+    const instruments = profile.instrumentRanges.map(r => r.instrument);
+    expect(instruments).not.toContain("");
+
+    // Should contain expanded instruments V1, V2, Cello
+    expect(instruments).toContain("V1");
+    expect(instruments).toContain("V2");
+    expect(instruments).toContain("Cello");
+
+    // V1 range should be calculated
+    const v1Range = profile.instrumentRanges.find(r => r.instrument === "V1");
+    expect(v1Range).toBeDefined();
+    expect(v1Range!.totalNotes).toBeGreaterThan(0);
+    expect(v1Range!.lowestNote.noteName).toBe("D4");
+    expect(v1Range!.highestNote.noteName).toBe("G4");
+
+    // Cello range should be calculated
+    const celloRange = profile.instrumentRanges.find(r => r.instrument === "Cello");
+    expect(celloRange).toBeDefined();
+    expect(celloRange!.totalNotes).toBeGreaterThan(0);
+  });
+
   it("supports CLI inspect subcommand with human-readable and --json output", async () => {
     const fs = await import("node:fs");
     const os = await import("node:os");
