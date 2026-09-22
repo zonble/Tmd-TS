@@ -158,4 +158,26 @@ A:Piano@|0|{
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('supports S-Expression macros and exports all generated instrument tracks', () => {
+    const tmd = `::SCORE::
+** REAPER Macro Demo **
+!= 120
+?= C
+<4/4>
+
+Theme {
+    <4*>
+    1 2 3 4
+}
+
+-> (canon Theme (Violin1 Violin2) 2) ->#
+`;
+    const sheet = TmdParser.parse(tmd)!;
+    const rpp = TMDReaperGenerator.generateRPP(sheet);
+
+    expect(rpp).toContain('NAME "Violin1"');
+    expect(rpp).toContain('NAME "Violin2"');
+  });
 });
+

@@ -159,6 +159,43 @@ Theme {
       expect(v3.events.length).toBe(8);
     });
 
+    it('evaluates nested canon (canon (canon Theme (Violin1 Violin2) 1) (Flute1 Flute2) 4)', () => {
+      const input = `::SCORE::
+** Nested Canon Test **
+!= 120
+?= D
+<4/4>
+
+Theme {
+    <4*>
+    1' - 7 - | 6 - 5 -
+}
+
+-> (canon
+     (canon Theme (Violin1 Violin2) 1)
+     (Flute1 Flute2)
+     4
+   ) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const v1 = TMDPlaybackRenderer.render(sheet, 'Violin1');
+      const v2 = TMDPlaybackRenderer.render(sheet, 'Violin2');
+      const f1 = TMDPlaybackRenderer.render(sheet, 'Flute1');
+      const f2 = TMDPlaybackRenderer.render(sheet, 'Flute2');
+
+      // Inner canon: Violin1 enters at 0, Violin2 enters at 1 bar (4 beats)
+      expect(v1.events.length).toBe(4);
+      expect(v1.events[0].position).toBe(0);
+      expect(v2.events.length).toBe(4);
+      expect(v2.events[0].position).toBe(4);
+
+      // Outer canon: Flute1 enters at 4 bars (16 beats), Flute2 enters at 4 + 1 = 5 bars (20 beats)
+      expect(f1.events.length).toBe(4);
+      expect(f1.events[0].position).toBe(16);
+      expect(f2.events.length).toBe(4);
+      expect(f2.events[0].position).toBe(20);
+    });
+
     it('evaluates (layer (canon ...) (loop ...)) combining polyphonic canon with ground bass', () => {
       const input = `::SCORE::
 ** Pachelbel Canon Macro Demo **
@@ -513,6 +550,83 @@ Theme {
         e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
       );
       expect(celloPitches).toEqual([72, 77, 80, 84]);
+    });
+
+    it('evaluates (canon (reverse (canon Theme (Violin1 Violin2) 1)) (Flute1 Flute2) 4)', () => {
+      const input = `::SCORE::
+** Retrograde Canon in Canon **
+!= 120
+?= C
+<4/4>
+
+Theme {
+    <4*>
+    1 2 3 4 |
+}
+
+-> (canon
+     (reverse (canon Theme (Violin1 Violin2) 1))
+     (Flute1 Flute2)
+     4
+   ) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const v1 = TMDPlaybackRenderer.render(sheet, 'Violin1');
+      const v2 = TMDPlaybackRenderer.render(sheet, 'Violin2');
+      const f1 = TMDPlaybackRenderer.render(sheet, 'Flute1');
+      const f2 = TMDPlaybackRenderer.render(sheet, 'Flute2');
+
+      // Theme: 1 2 3 4 (60, 62, 64, 65)
+      // Inner canon:
+      // Violin1 starts at 0, plays 1 bar (4 beats). In reversed form, it plays 4 3 2 1:
+      const v1Pitches = v1.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      expect(v1Pitches).toEqual([65, 64, 62, 60]);
+
+      // Flute1 is outer counterpart of Violin1, offset by 4 bars (16 beats)
+      expect(f1.events[0].position).toBe(16);
+      const f1Pitches = f1.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      expect(f1Pitches).toEqual([65, 64, 62, 60]);
+    });
+
+    it('evaluates (canon (invert (canon Theme (Violin1 Violin2) 1)) (Flute1 Flute2) 4)', () => {
+      const input = `::SCORE::
+** Inverted Canon in Canon **
+!= 120
+?= C
+<4/4>
+
+Theme {
+    <4*>
+    1 3 5 1^ |
+}
+
+-> (canon
+     (invert (canon Theme (Violin1 Violin2) 1))
+     (Flute1 Flute2)
+     4
+   ) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const v1 = TMDPlaybackRenderer.render(sheet, 'Violin1');
+      const f1 = TMDPlaybackRenderer.render(sheet, 'Flute1');
+
+      // Theme: 1(60), 3(64), 5(67), 1^(72)
+      // Inverted around 60: 60, 56, 53, 48
+      const v1Pitches = v1.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      expect(v1Pitches).toEqual([60, 56, 53, 48]);
+
+      // Flute1 starts at 16 beats with inverted pitches
+      expect(f1.events[0].position).toBe(16);
+      const f1Pitches = f1.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      expect(f1Pitches).toEqual([60, 56, 53, 48]);
     });
   });
 });

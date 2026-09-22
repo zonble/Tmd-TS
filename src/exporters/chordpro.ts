@@ -3,6 +3,7 @@ import {
   Order,
   TMDMeasureRenderer,
   SheetInstrumentHelper,
+  TMDMacroEvaluator,
 } from '../core/index.js';
 
 export interface ChordProOptions {
@@ -11,9 +12,10 @@ export interface ChordProOptions {
 
 export class TMDChordProGenerator {
   public static generateChordPro(
-    sheet: Sheet,
+    rawSheet: Sheet,
     options: ChordProOptions = {}
   ): string {
+    const sheet = TMDMacroEvaluator.expand(rawSheet);
     const lines: string[] = [];
 
     // Title and Metadata directives

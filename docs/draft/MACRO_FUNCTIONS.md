@@ -29,8 +29,9 @@ These functions expand into standard multi-voice polyphony or multi-section musi
 | Function | Signature | Description |
 | :--- | :--- | :--- |
 | **`canon`** | `(canon <theme> (<instruments...>) <offset_bars>)` | **Canon (Prototype + Decorator)**: Staggers identical copies of `<theme>` across `<instruments...>`, delayed progressively by `i * offset_bars`. |
+| **`fugue-expo`** | `(fugue-expo <subject> <countersubject> (<instruments...>) <offset_bars>)` | **Fugal Exposition (呈示部)**: Automatically handles Subject (Dux, tonic) and Answer (Comes, dominant +7 semitones) entries with concurrent Countersubject accompaniment. |
 | **`rondo`** | `(rondo <refrain> (<episodes...>))` | **Rondo (Iterator + Interleaver)**: Alternates the refrain with each episode: `Refrain -> Ep1 -> Refrain -> Ep2 -> ... -> Refrain`. |
-| **`stretto`** | `(stretto <subject> (<instruments...>) <offset_bars>)` | **Fugal Stretto**: Overlaps subject statements with tight, rapid voice entries before previous statements finish. |
+| **`stretto`** | `(stretto <subject> (<instruments...>) <offset_bars>)` | **Fugal Stretto (密接和應)**: Overlaps subject statements with tight, rapid voice entries before previous statements finish. |
 
 ---
 
@@ -66,11 +67,12 @@ Focus strictly on solving the Canon & Ostinato authoring problem:
    - `canon`: `(canon Theme (Violin1 Violin2 Violin3) 2)`
    - `layer`: `(layer (canon ...) (loop ...))`
 
-### Phase 2: Combinatorial Extensions
+### Phase 2: Combinatorial & Contrapuntal Extensions
 1. `seq` & `rondo`
-2. `transpose` (pitch arithmetic)
-3. `retrograde` & `invert` (contrapuntal transformations)
+2. `fugue-expo` & `stretto` (巴洛克賦格呈示部與密接和應)
+3. `mode` / `scale` (五聲/教會調式量化映射)
 
 ### Phase 3: Advanced Transformational Operators
 1. `augment` & `diminish` (rhythmic quantization scaling)
 2. `minor` & `major` (modal scales)
+3. `episode` (賦格插段與動機碎片模進)

@@ -1,4 +1,5 @@
 import { Sheet } from './types.js';
+import { TMDMacroEvaluator } from './macro.js';
 
 /**
  * Common helper functions for querying and resolving instruments from a TMD Sheet.
@@ -8,8 +9,10 @@ export class SheetInstrumentHelper {
   /**
    * Returns a sorted array of distinct instrument names present in the sheet.
    * If the sheet has no instruments, falls back to `["Piano"]` if fallback is enabled.
+   * Automatically expands S-Expression macros so dynamically generated instruments are discovered.
    */
-  public static distinctInstruments(sheet: Sheet, fallbackToDefault = true): string[] {
+  public static distinctInstruments(rawSheet: Sheet, fallbackToDefault = true): string[] {
+    const sheet = TMDMacroEvaluator.expand(rawSheet);
     const distinct = Array.from(
       new Set(
         sheet.paragraphs

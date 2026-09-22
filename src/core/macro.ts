@@ -367,13 +367,74 @@ export class TMDMacroEvaluator {
         }
 
         case "canon": {
-          // (canon <theme|themes> (<instruments...>) <offset_bars>)
+          // (canon <theme|themes|canon_expr> (<instruments...>) <offset_bars>)
           const themeTarget = expr[1];
           const instrumentsRaw = expr[2];
           const instruments: string[] = Array.isArray(instrumentsRaw)
             ? instrumentsRaw.map((x) => String(x))
             : [String(instrumentsRaw)];
           const offsetBars = Number(expr[3]) || 0;
+
+          // Check if themeTarget is a nested sub-expression like (canon ...), (layer ...), (reverse ...), etc.
+          const nestedOps = ["canon", "layer", "play", "loop", "reverse", "retrograde", "invert", "ri", "transpose", "octave"];
+          if (
+            Array.isArray(themeTarget) &&
+            themeTarget.length > 0 &&
+            typeof themeTarget[0] === "string" &&
+            nestedOps.includes(String(themeTarget[0]).toLowerCase()) &&
+            // Note: if it's (reverse Theme) without instruments/canon inside, it might be a theme variation.
+            // But if it contains an inner canon/layer/play/loop or explicit instrument, it's a full sub-expression!
+            // Let's check if the target has an inner nestedOp or if evaluating it as an expression produces concrete paragraphs
+            (function isSubExpr(node: SExpr): boolean {
+              if (!Array.isArray(node) || node.length === 0) return false;
+              const h = String(node[0]).toLowerCase();
+              if (["canon", "layer", "play", "loop"].includes(h)) return true;
+              if (["reverse", "retrograde", "invert", "ri", "transpose", "octave"].includes(h)) {
+                return isSubExpr(node[1]) || (node.length >= 3 && isSubExpr(node[2]));
+              }
+              return false;
+            })(themeTarget)
+          ) {
+            const innerResult = evalExpr(themeTarget);
+            const innerParagraphs = concreteParagraphs.filter((cp) => innerResult.paragraphNames.includes(cp.name));
+
+            // Extract the distinct instruments used in the inner expression in appearance order
+            const innerDistinctInsts: string[] = [];
+            for (const ip of innerParagraphs) {
+              if (!innerDistinctInsts.includes(ip.instrument)) {
+                innerDistinctInsts.push(ip.instrument);
+              }
+            }
+
+            genCounter++;
+            const outerCanonSectionName = `__nested_canon_${genCounter}`;
+
+            // If instruments were provided for the outer voice, clone and remap
+            if (instruments.length > 0) {
+              for (let i = 0; i < innerParagraphs.length; i++) {
+                const p = innerParagraphs[i];
+                const instIdx = innerDistinctInsts.indexOf(p.instrument);
+                const mappedInst = (instIdx >= 0 && instIdx < instruments.length) ? instruments[instIdx] : p.instrument;
+
+                // Clone outer voice with shifted start offset
+                const outerP = createSyntheticParagraph(
+                  p.name,
+                  mappedInst,
+                  p.start + offsetBars,
+                  p.sections
+                );
+                outerP.name = outerCanonSectionName;
+              }
+            }
+
+            // Merge inner voice paragraphs under the same unified playback section
+            for (const ip of innerParagraphs) {
+              ip.name = outerCanonSectionName;
+            }
+
+            return { paragraphNames: [outerCanonSectionName] };
+          }
+
           const { name: themeName, sections } = getThemeSections(themeTarget);
 
           const createdNames: string[] = [];
@@ -420,6 +481,74 @@ export class TMDMacroEvaluator {
           }
 
           return { paragraphNames: [layerSectionName] };
+        }
+
+        case "reverse":
+        case "retrograde": {
+          // (reverse <child>)
+          const childExpr = expr[1];
+          const innerRes = evalExpr(childExpr);
+          const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
+          for (const ip of innerParagraphs) {
+            ip.sections = reverseSections(ip.sections);
+          }
+          return innerRes;
+        }
+
+        case "invert": {
+          // (invert <child> [axis])
+          const childExpr = expr[1];
+          const axisArg = expr.length >= 3 ? Number(expr[2]) : undefined;
+          const innerRes = evalExpr(childExpr);
+          const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
+          for (const ip of innerParagraphs) {
+            ip.sections = invertSections(ip.sections, axisArg);
+          }
+          return innerRes;
+        }
+
+        case "ri": {
+          // (ri <child> [axis])
+          const childExpr = expr[1];
+          const axisArg = expr.length >= 3 ? Number(expr[2]) : undefined;
+          const innerRes = evalExpr(childExpr);
+          const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
+          for (const ip of innerParagraphs) {
+            ip.sections = invertSections(reverseSections(ip.sections), axisArg);
+          }
+          return innerRes;
+        }
+
+        case "transpose": {
+          // (transpose <child> <semitones>) or (transpose <semitones> <child>)
+          let target = expr[1];
+          let semitones = Number(expr[2]) || 0;
+          if (typeof target === "number" || (!isNaN(Number(target)) && typeof expr[2] !== "number")) {
+            semitones = Number(target) || 0;
+            target = expr[2];
+          }
+          const innerRes = evalExpr(target);
+          const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
+          for (const ip of innerParagraphs) {
+            ip.sections = transposeSections(ip.sections, semitones);
+          }
+          return innerRes;
+        }
+
+        case "octave": {
+          // (octave <child> <delta>) or (octave <delta> <child>)
+          let target = expr[1];
+          let delta = Number(expr[2]) || 0;
+          if (typeof target === "number" || (!isNaN(Number(target)) && typeof expr[2] !== "number")) {
+            delta = Number(target) || 0;
+            target = expr[2];
+          }
+          const innerRes = evalExpr(target);
+          const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
+          for (const ip of innerParagraphs) {
+            ip.sections = octaveShiftSections(ip.sections, delta);
+          }
+          return innerRes;
         }
 
         default:
