@@ -243,6 +243,46 @@ Theme {
       expect(v3.events.length).toBe(16);
     });
 
+    it('evaluates (layer A (loop B 10)) with concrete paragraphs without requiring explicit instrument arguments', () => {
+      const input = `::SCORE::
+** Layer Bare Concrete Paragraph & 2-arg Loop **
+!= 120
+?= C
+<4/4>
+
+A:Piano@|0|{
+    <4*>
+    1 2 3 4
+}
+
+B:Bass@|0|{
+    <4*>
+    1_ - 5_ -
+}
+
+-> (layer
+     A
+     (loop B 10)) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const expanded = TMDMacroEvaluator.expand(sheet);
+
+      expect(expanded.orders).toHaveLength(1);
+      const orderName = (expanded.orders[0] as any).name;
+      expect(orderName).toMatch(/^__layer_/);
+
+      const piano = TMDPlaybackRenderer.render(expanded, 'Piano');
+      const bass = TMDPlaybackRenderer.render(expanded, 'Bass');
+
+      // In TMD, all concurrent tracks in a layer block span the duration of the longest track (40 beats)
+      expect(piano.duration).toBe(40);
+      expect(piano.events.length).toBe(4);
+
+      // Bass loops 10 times * 4 beats = 40 beats
+      expect(bass.duration).toBe(40);
+      expect(bass.events.length).toBe(20);
+    });
+
     it('passes TMDMeasureChecker and exports MIDI / WAV seamlessly', () => {
       const input = `::SCORE::
 ** Macro Export & Check **

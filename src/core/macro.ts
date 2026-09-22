@@ -419,7 +419,23 @@ export class TMDMacroEvaluator {
     };
 
     const evalExpr = (expr: SExpr): { paragraphNames: string[] } => {
-      if (!Array.isArray(expr) || expr.length === 0) {
+      // 1. Support bare string / atom referring to an existing concrete paragraph
+      if (!Array.isArray(expr)) {
+        const targetName = String(expr);
+        const matching = concreteParagraphs.filter((p) => p.name === targetName);
+        if (matching.length > 0) {
+          // Clone the concrete paragraph(s) to a synthetic instance so layer can rename it without mutating original
+          const clonedNames: string[] = [];
+          for (const p of matching) {
+            const synthetic = createSyntheticParagraph(p.name, p.instrument, p.start, p.sections);
+            clonedNames.push(synthetic.name);
+          }
+          return { paragraphNames: clonedNames };
+        }
+        throw macroError(`Target '${targetName}' is not a valid section or macro expression`);
+      }
+
+      if (expr.length === 0) {
         return { paragraphNames: [] };
       }
 
@@ -446,13 +462,31 @@ export class TMDMacroEvaluator {
         }
 
         case "loop": {
-          // (loop <theme|themes> <instrument> <times>)
+          // (loop <theme> <times>) when target is already a concrete paragraph with an instrument!
+          // Or (loop <theme|themes> <instrument> <times>)
           if (expr.length < 3 || expr[1] === undefined || expr[2] === undefined) {
-            throw macroError(`'loop' requires theme and instrument, e.g. (loop Theme Cello 4)`);
+            throw macroError(`'loop' requires theme and instrument (or theme and times), e.g. (loop B 10) or (loop Theme Cello 4)`);
           }
+
           const themeTarget = expr[1];
-          const instrument = String(expr[2]);
-          const times = Number(expr[3]) || 1;
+          let instrument = "";
+          let times = 1;
+
+          // Check if expr[2] is a number (e.g. (loop B 10))
+          if (expr.length === 3 && (typeof expr[2] === "number" || (!isNaN(Number(expr[2])) && typeof expr[2] === "string" && /^\d+$/.test(expr[2])))) {
+            times = Number(expr[2]);
+            const targetName = String(themeTarget);
+            const concreteMatch = sheet.paragraphs.find((p) => p.name === targetName && Boolean(p.instrument));
+            if (concreteMatch) {
+              instrument = concreteMatch.instrument;
+            } else {
+              throw macroError(`'loop' with 2 arguments requires a concrete section with an instrument, but '${targetName}' has no instrument`);
+            }
+          } else {
+            instrument = String(expr[2]);
+            times = Number(expr[3]) || 1;
+          }
+
           const { name: themeName, sections: baseSections } = getThemeSections(themeTarget);
 
           const loopedSections: Section[] = [];

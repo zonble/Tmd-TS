@@ -16,9 +16,9 @@ These are the fundamental building blocks responsible for time placement and mul
 | Function | Signature | Description |
 | :--- | :--- | :--- |
 | **`play`** | `(play <material> <instrument> [:at <measure_offset>])` | Instantiates abstract musical material onto a specific instrument track at a given measure offset (default `:at 0`). |
-| **`layer`** | `(layer <expr1> <expr2> ...)` | **Parallel Concurrency**: Evaluates all child expressions starting at the exact same measure timestamp. Total duration equals `max(child_durations)`. |
-| **`seq`** | `(seq <expr1> <expr2> ...)` | **Sequential Composition**: Evaluates child expressions one after another in chronological order. Total duration equals `sum(child_durations)`. |
-| **`loop`** | `(loop <material> <instrument> <times>)` | Repeats `<material>` consecutively `<times>` times on `<instrument>`. Equivalent to `(seq (play material inst) ... [times])`. |
+| **`layer`** | `(layer <expr1|section1> <expr2|section2> ...)` | **Parallel Concurrency**: Evaluates child expressions or bare concrete section names starting at the exact same measure timestamp. Total duration equals `max(child_durations)`. |
+| **`seq`** | `(seq <expr1|section1> <expr2|section2> ...)` | **Sequential Composition**: Evaluates child expressions or bare concrete section names one after another in chronological order. Total duration equals `sum(child_durations)`. |
+| **`loop`** | `(loop <section> <times>)` or `(loop <material> <instrument> <times>)` | Repeats musical material consecutively `<times>` times. If `<section>` already has a bound instrument, the instrument argument can be omitted. |
 
 ---
 
