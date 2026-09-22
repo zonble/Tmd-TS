@@ -653,9 +653,10 @@ export class TmdParser {
             this.match("closeBrace");
             orders.push({ type: "absolute", value: val });
           } else if (currType === "openParen") {
+            const tok = this.currentToken();
             const sexpr = this.parseSExpr();
             if (sexpr && Array.isArray(sexpr)) {
-              orders.push({ type: "macro", expr: sexpr as SExpr[] });
+              orders.push({ type: "macro", expr: sexpr as SExpr[], line: tok.line, column: tok.column });
             }
           } else if (currType === "identifier") {
             orders.push({ type: "name", name: this.advance().value });

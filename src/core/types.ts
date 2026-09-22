@@ -282,10 +282,10 @@ export type SExprAtom = string | number;
 export type SExpr = SExprAtom | SExpr[];
 
 export type Order =
-  | { type: "name"; name: string }
-  | { type: "relative"; value: string }
-  | { type: "absolute"; value: string }
-  | { type: "macro"; expr: SExpr[] };
+  | { type: "name"; name: string; line?: number; column?: number }
+  | { type: "relative"; value: string; line?: number; column?: number }
+  | { type: "absolute"; value: string; line?: number; column?: number }
+  | { type: "macro"; expr: SExpr[]; line?: number; column?: number };
 
 export interface Sheet {
   name: string;

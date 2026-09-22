@@ -8,6 +8,7 @@ import {
   TMDMIDIGenerator,
   TMDWAVRenderer,
   TMDMacroEvaluator,
+  TMDMacroError,
 } from '../src/index.js';
 
 describe('TMD Macro S-Expression & Abstract Paragraphs (TDD - Red Phase)', () => {
@@ -737,54 +738,71 @@ Theme { <4*> 1 2 3 4 }
       };
 
       it('validates play arguments', () => {
-        expect(() => expandMacro("(play)")).toThrow(/Macro error: 'play' requires theme and instrument/);
-        expect(() => expandMacro("(play Theme)")).toThrow(/Macro error: 'play' requires theme and instrument/);
+        expect(() => expandMacro("(play)")).toThrow(/Macro error.*: 'play' requires theme and instrument/);
+        expect(() => expandMacro("(play Theme)")).toThrow(/Macro error.*: 'play' requires theme and instrument/);
       });
 
       it('validates loop arguments', () => {
-        expect(() => expandMacro("(loop)")).toThrow(/Macro error: 'loop' requires theme and instrument/);
-        expect(() => expandMacro("(loop Theme)")).toThrow(/Macro error: 'loop' requires theme and instrument/);
+        expect(() => expandMacro("(loop)")).toThrow(/Macro error.*: 'loop' requires theme and instrument/);
+        expect(() => expandMacro("(loop Theme)")).toThrow(/Macro error.*: 'loop' requires theme and instrument/);
       });
 
       it('validates canon arguments', () => {
-        expect(() => expandMacro("(canon)")).toThrow(/Macro error: 'canon' requires theme and instruments/);
-        expect(() => expandMacro("(canon Theme)")).toThrow(/Macro error: 'canon' requires theme and instruments/);
+        expect(() => expandMacro("(canon)")).toThrow(/Macro error.*: 'canon' requires theme and instruments/);
+        expect(() => expandMacro("(canon Theme)")).toThrow(/Macro error.*: 'canon' requires theme and instruments/);
       });
 
       it('validates transpose arguments (top-level and nested theme)', () => {
-        expect(() => expandMacro("(transpose)")).toThrow(/Macro error: 'transpose' requires theme and semitones offset/);
-        expect(() => expandMacro("(transpose Theme)")).toThrow(/Macro error: 'transpose' requires theme and semitones offset/);
-        expect(() => expandMacro("(play (transpose) Violin)")).toThrow(/Macro error: 'transpose' requires theme and semitones offset/);
-        expect(() => expandMacro("(play (transpose Theme) Violin)")).toThrow(/Macro error: 'transpose' requires theme and semitones offset/);
+        expect(() => expandMacro("(transpose)")).toThrow(/Macro error.*: 'transpose' requires theme and semitones offset/);
+        expect(() => expandMacro("(transpose Theme)")).toThrow(/Macro error.*: 'transpose' requires theme and semitones offset/);
+        expect(() => expandMacro("(play (transpose) Violin)")).toThrow(/Macro error.*: 'transpose' requires theme and semitones offset/);
+        expect(() => expandMacro("(play (transpose Theme) Violin)")).toThrow(/Macro error.*: 'transpose' requires theme and semitones offset/);
       });
 
       it('validates reverse arguments (top-level and nested theme)', () => {
-        expect(() => expandMacro("(reverse)")).toThrow(/Macro error: 'reverse' requires a target theme/);
-        expect(() => expandMacro("(play (reverse) Violin)")).toThrow(/Macro error: 'reverse' requires a target theme/);
+        expect(() => expandMacro("(reverse)")).toThrow(/Macro error.*: 'reverse' requires a target theme/);
+        expect(() => expandMacro("(play (reverse) Violin)")).toThrow(/Macro error.*: 'reverse' requires a target theme/);
       });
 
       it('validates flip arguments (top-level and nested theme)', () => {
-        expect(() => expandMacro("(flip)")).toThrow(/Macro error: 'flip' requires a target theme/);
-        expect(() => expandMacro("(play (flip) Violin)")).toThrow(/Macro error: 'flip' requires a target theme/);
+        expect(() => expandMacro("(flip)")).toThrow(/Macro error.*: 'flip' requires a target theme/);
+        expect(() => expandMacro("(play (flip) Violin)")).toThrow(/Macro error.*: 'flip' requires a target theme/);
       });
 
       it('validates minor arguments (top-level and nested theme)', () => {
-        expect(() => expandMacro("(minor)")).toThrow(/Macro error: 'minor' requires a target theme/);
-        expect(() => expandMacro("(play (minor) Violin)")).toThrow(/Macro error: 'minor' requires a target theme/);
+        expect(() => expandMacro("(minor)")).toThrow(/Macro error.*: 'minor' requires a target theme/);
+        expect(() => expandMacro("(play (minor) Violin)")).toThrow(/Macro error.*: 'minor' requires a target theme/);
       });
 
       it('validates major arguments (top-level and nested theme)', () => {
-        expect(() => expandMacro("(major)")).toThrow(/Macro error: 'major' requires a target theme/);
-        expect(() => expandMacro("(play (major) Violin)")).toThrow(/Macro error: 'major' requires a target theme/);
+        expect(() => expandMacro("(major)")).toThrow(/Macro error.*: 'major' requires a target theme/);
+        expect(() => expandMacro("(play (major) Violin)")).toThrow(/Macro error.*: 'major' requires a target theme/);
       });
 
       it('validates vary arguments (top-level and nested theme)', () => {
-        expect(() => expandMacro("(vary)")).toThrow(/Macro error: 'vary' requires a target theme/);
-        expect(() => expandMacro("(play (vary) Violin)")).toThrow(/Macro error: 'vary' requires a target theme/);
+        expect(() => expandMacro("(vary)")).toThrow(/Macro error.*: 'vary' requires a target theme/);
+        expect(() => expandMacro("(play (vary) Violin)")).toThrow(/Macro error.*: 'vary' requires a target theme/);
       });
 
       it('validates unknown theme reference', () => {
-        expect(() => expandMacro("(play NonExistent Violin)")).toThrow(/Macro error: Theme 'NonExistent' not found/);
+        expect(() => expandMacro("(play NonExistent Violin)")).toThrow(/Macro error.*: Theme 'NonExistent' not found/);
+      });
+
+      it('attaches exact line and column to TMDMacroError', () => {
+        const input = `::SCORE::
+Theme { <4*> 1 2 3 4 }
+
+-> (play Theme) ->#`;
+        const sheet = TmdParser.parse(input);
+        try {
+          TMDMacroEvaluator.expand(sheet);
+          expect.unreachable('Should have thrown TMDMacroError');
+        } catch (err: any) {
+          expect(err).toBeInstanceOf(TMDMacroError);
+          expect(err.line).toBe(4);
+          expect(err.column).toBe(4);
+          expect(err.message).toMatch(/Macro error at line 4, col 4: 'play' requires theme and instrument/);
+        }
       });
     });
   });
