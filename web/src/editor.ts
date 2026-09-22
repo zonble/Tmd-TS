@@ -6,18 +6,20 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { keymap, gutter, GutterMarker, BlockInfo, Decoration, DecorationSet, hoverTooltip, Tooltip } from "@codemirror/view";
 import type { TMDMeasureIssue } from "../../src/core/measure_check.js";
 
-interface TMDParserState {
+export interface TMDParserState {
   inComment: boolean;
+  inOrder: boolean;
+  parenDepth: number;
 }
 
-export const tmdLanguage = StreamLanguage.define<TMDParserState>({
+export const tmdStreamParser = {
   languageData: {
     commentTokens: {
       block: { open: "/*", close: "*/" },
     },
   },
   startState(): TMDParserState {
-    return { inComment: false };
+    return { inComment: false, inOrder: false, parenDepth: 0 };
   },
   token(stream: StringStream, state: TMDParserState): string | null {
     if (state.inComment) {
@@ -77,12 +79,44 @@ export const tmdLanguage = StreamLanguage.define<TMDParserState>({
       return "meta";
     }
 
-    // Paragraph Header: section:Instrument@|offset|{
-    if (stream.match(/^[a-zA-Z0-9_\u4e00-\u9fa5-]+:[a-zA-Z0-9_\u4e00-\u9fa5-]+(@\|?[+-]?\d+\|?)?\s*\{/)) {
+    // Paragraph Header: concrete `section:Instrument@|offset|{` or abstract `Theme {`
+    if (stream.match(/^[a-zA-Z0-9_\u4e00-\u9fa5-]+(:[a-zA-Z0-9_\u4e00-\u9fa5-]+(@\|?[+-]?\d+\|?)?)?\s*\{/)) {
       return "def";
     }
     if (stream.match(/^\}/)) {
       return "bracket";
+    }
+
+    // S-Expression macro forms: (canon Theme (V1 V2) 2)
+    // Distinguish from Jianpu tuplet like (1 2 3)%(--)
+    if (stream.match(/^\(/)) {
+      // Check if this paren is followed eventually by )% (which is tuplet)
+      const rest = stream.string.slice(stream.pos);
+      if (/^[^\)]*\)%/.test(rest)) {
+        // Tuplet prefix, fall through to tuplet matcher
+        stream.backUp(1);
+      } else {
+        state.parenDepth++;
+        return "bracket";
+      }
+    }
+    if (state.parenDepth > 0) {
+      if (stream.match(/^\)/)) {
+        state.parenDepth = Math.max(0, state.parenDepth - 1);
+        return "bracket";
+      }
+      // S-expression operators / macro combinators
+      if (stream.match(/^(canon|layer|loop|play|transpose|retrograde|invert|augment|diminish)\b/)) {
+        return "keyword";
+      }
+      // Numbers inside macro
+      if (stream.match(/^[+-]?\d+(\.\d+)?/)) {
+        return "number";
+      }
+      // Identifiers / Symbols inside macro
+      if (stream.match(/^[a-zA-Z0-9_\u4e00-\u9fa5-]+/)) {
+        return "variableName";
+      }
     }
 
     // Chords: [1], [6m], [Cmaj7], [Am7], [2m7-5]
@@ -118,8 +152,10 @@ export const tmdLanguage = StreamLanguage.define<TMDParserState>({
 
     stream.next();
     return null;
-  }
-});
+  },
+};
+
+export const tmdLanguage = StreamLanguage.define<TMDParserState>(tmdStreamParser);
 
 export interface CursorContext {
   section?: string;
