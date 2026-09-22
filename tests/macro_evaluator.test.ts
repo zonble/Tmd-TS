@@ -240,5 +240,64 @@ Theme {
       const header = String.fromCharCode(...wavBytes.slice(0, 4));
       expect(header).toBe('RIFF');
     });
+
+    it('supports multiple sequential themes in canon and loop: (canon (Theme1 Theme2) ...) and (loop (Bass1 Bass2) ...)', () => {
+      const input = `::SCORE::
+** Multi-Theme Sequential Canon & Loop **
+!= 120
+?= C
+<4/4>
+
+ThemeA {
+    <4*>
+    1 2 3 4 |
+}
+
+ThemeB {
+    <4*>
+    5 6 7 1^ |
+}
+
+BassA {
+    <4*>
+    1_ 5_ 6_ 3_ |
+}
+
+BassB {
+    <4*>
+    4_ 1_ 4_ 5_ |
+}
+
+-> (layer
+     (canon (ThemeA ThemeB) (Violin1 Violin2) 2)
+     (loop (BassA BassB) Cello 2)) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      expect(sheet).not.toBeNull();
+
+      // TMDPlaybackRenderer verifies the concatenated sections
+      const v1 = TMDPlaybackRenderer.render(sheet, 'Violin1');
+      const v2 = TMDPlaybackRenderer.render(sheet, 'Violin2');
+      const cello = TMDPlaybackRenderer.render(sheet, 'Cello');
+
+      // Each theme is 1 measure = 4 beats. ThemeA + ThemeB = 8 beats total per voice.
+      // Violin1 starts at 0, has 8 note events
+      expect(v1.events.length).toBe(8);
+      expect(v1.events[0].position).toBe(0);
+      expect(v1.events[4].position).toBe(4); // ThemeB starts at beat 4
+
+      // Violin2 starts at 2 bars (8 beats), has 8 note events, ends at beat 16
+      expect(v2.events[0].position).toBe(8);
+      expect(v2.events[4].position).toBe(12);
+
+      // The layer block duration spans the entire layer timeline (16 beats)
+      expect(v1.duration).toBe(16);
+      expect(v2.duration).toBe(16);
+
+      // Cello loops (BassA + BassB) 2 times: (4 + 4) * 2 = 16 beats
+      expect(cello.duration).toBe(16);
+      expect(cello.events.length).toBe(16);
+    });
   });
 });
+

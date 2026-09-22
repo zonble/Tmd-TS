@@ -55,12 +55,26 @@ export class TMDMacroEvaluator {
       return p;
     };
 
-    const getThemeSections = (themeName: string): Section[] => {
+    const getThemeSections = (themeArg: SExpr): { name: string; sections: Section[] } => {
+      if (Array.isArray(themeArg)) {
+        const combinedSections: Section[] = [];
+        const names: string[] = [];
+        for (const item of themeArg) {
+          const sub = getThemeSections(item);
+          names.push(sub.name);
+          for (const s of sub.sections) {
+            combinedSections.push(JSON.parse(JSON.stringify(s)));
+          }
+        }
+        return { name: names.join("_"), sections: combinedSections };
+      }
+
+      const themeName = String(themeArg);
       const p = abstractMap.get(themeName) || sheet.paragraphs.find((p) => p.name === themeName);
       if (!p) {
         throw new Error(`Macro error: Theme '${themeName}' not found`);
       }
-      return p.sections;
+      return { name: themeName, sections: p.sections };
     };
 
     const evalExpr = (expr: SExpr): { paragraphNames: string[] } => {
@@ -72,8 +86,8 @@ export class TMDMacroEvaluator {
 
       switch (op) {
         case "play": {
-          // (play <theme> <instrument> [:at <measure_offset>])
-          const themeName = String(expr[1]);
+          // (play <theme|themes> <instrument> [:at <measure_offset>])
+          const themeTarget = expr[1];
           const instrument = String(expr[2]);
           let atOffset = 0;
           if (expr.length >= 5 && String(expr[3]).toLowerCase() === ":at") {
@@ -82,17 +96,17 @@ export class TMDMacroEvaluator {
             atOffset = Number(expr[3]) || 0;
           }
 
-          const sections = getThemeSections(themeName);
+          const { name: themeName, sections } = getThemeSections(themeTarget);
           const p = createSyntheticParagraph(themeName, instrument, atOffset, sections);
           return { paragraphNames: [p.name] };
         }
 
         case "loop": {
-          // (loop <theme> <instrument> <times>)
-          const themeName = String(expr[1]);
+          // (loop <theme|themes> <instrument> <times>)
+          const themeTarget = expr[1];
           const instrument = String(expr[2]);
           const times = Number(expr[3]) || 1;
-          const baseSections = getThemeSections(themeName);
+          const { name: themeName, sections: baseSections } = getThemeSections(themeTarget);
 
           const loopedSections: Section[] = [];
           for (let t = 0; t < times; t++) {
@@ -106,14 +120,14 @@ export class TMDMacroEvaluator {
         }
 
         case "canon": {
-          // (canon <theme> (<instruments...>) <offset_bars>)
-          const themeName = String(expr[1]);
+          // (canon <theme|themes> (<instruments...>) <offset_bars>)
+          const themeTarget = expr[1];
           const instrumentsRaw = expr[2];
           const instruments: string[] = Array.isArray(instrumentsRaw)
             ? instrumentsRaw.map((x) => String(x))
             : [String(instrumentsRaw)];
           const offsetBars = Number(expr[3]) || 0;
-          const sections = getThemeSections(themeName);
+          const { name: themeName, sections } = getThemeSections(themeTarget);
 
           const createdNames: string[] = [];
           for (let i = 0; i < instruments.length; i++) {
