@@ -1,9 +1,8 @@
 import starter from "./samples/starter.tmd?raw";
 import sandiansanye from "./samples/sandiansanye.tmd?raw";
+import canon from "./samples/canon_in_d_macro.tmd?raw";
 import landingAtTaoyuan from "./samples/landing-at-taoyuan.tmd?raw";
-import tchaikovsky54 from "./samples/tchaikovsky-5-4.tmd?raw";
 import legacy from "./samples/legacy.tmd?raw";
-import aiMoon from "./samples/ai-moon.tmd?raw";
 
 export interface TMDSample {
   id: string;
@@ -15,38 +14,32 @@ export interface TMDSample {
 export const SAMPLES: TMDSample[] = [
   {
     id: "starter_template",
-    name: "《小星星》(入門示範 / Twinkle Twinkle)",
+    name: "《小星星》(入門示範)",
     category: "Template",
     content: starter,
   },
   {
     id: "sandiansanye",
-    name: "《三天三夜》(阿怪 / 張惠妹)",
+    name: "《三天三夜》",
     category: "Classic Pop / Dance",
     content: sandiansanye,
   },
   {
+    id: "canon",
+    name: "《D 大調卡農》",
+    category: "Classical",
+    content: canon,
+  },
+  {
     id: "landing_at_taoyuan",
-    name: "《降落桃園：管弦狂想曲》(Antigravity & zonble)",
+    name: "《降落桃園狂想曲》",
     category: "Orchestral / Rhapsody",
     content: landingAtTaoyuan,
   },
   {
-    id: "tchaikovsky_5_4",
-    name: "《悲愴交響曲第二樂章》(5/4 拍古典名曲 / 柴可夫斯基)",
-    category: "Classical / Odd Meter (5/4)",
-    content: tchaikovsky54,
-  },
-  {
     id: "legacy",
-    name: "《Legacy》(Post-Rock Epics Version)",
+    name: "《Legacy》",
     category: "Post-Rock / Ambient",
     content: legacy,
-  },
-  {
-    id: "ai_moon",
-    name: "《月映寒江》(抒情五聲調式)",
-    category: "Chamber / Classical",
-    content: aiMoon,
   },
 ];
