@@ -280,5 +280,31 @@ Theme {
     expect(abc).toContain('name="Violin1"');
     expect(abc).toContain('name="Violin2"');
   });
+
+  it('renders extreme octaves and accidentals across ABC and LilyPond', () => {
+    const extremeTmd = `
+::SCORE::
+** Extreme Range & Accidentals **
+!= 100
+?= C
+<4/4>
+
+A:Piano@|0|{
+    <4*>
+    1__ 1_ 1 1^ 1^^ 4' 7,
+}
+-> A ->#
+`;
+    const sheet = TmdParser.parse(extremeTmd)!;
+    const abc = TMDABCGenerator.generateABC(sheet);
+    expect(abc).toContain("C,");
+    expect(abc).toContain("c'");
+    expect(abc).toContain("^f");
+    expect(abc).toContain("_b");
+
+    const ly = TMDLilyPondGenerator.generateLilyPond(sheet);
+    expect(ly).toContain("c,4");
+    expect(ly).toContain("c'''4");
+  });
 });
 
