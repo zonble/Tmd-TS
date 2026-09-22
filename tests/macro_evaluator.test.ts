@@ -804,6 +804,22 @@ Theme { <4*> 1 2 3 4 }
           expect(err.message).toMatch(/Macro error at line 4, col 4: 'play' requires theme and instrument/);
         }
       });
+
+      it('throws syntax error when opening parenthesis is not closed before ->', () => {
+        const input = `::SCORE::
+Theme { <4*> 1 2 3 4 }
+
+-> (play Theme Violin ->#`;
+        expect(() => TmdParser.parse(input)).toThrow(/expected \)/);
+      });
+
+      it('throws syntax error when nested opening parenthesis is not closed', () => {
+        const input = `::SCORE::
+Theme { <4*> 1 2 3 4 }
+
+-> (layer (canon Theme (Violin1 Violin2) 2) ->#`;
+        expect(() => TmdParser.parse(input)).toThrow(/expected \)/);
+      });
     });
   });
 });

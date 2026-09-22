@@ -655,9 +655,10 @@ export class TmdParser {
           } else if (currType === "openParen") {
             const tok = this.currentToken();
             const sexpr = this.parseSExpr();
-            if (sexpr && Array.isArray(sexpr)) {
-              orders.push({ type: "macro", expr: sexpr as SExpr[], line: tok.line, column: tok.column });
+            if (!sexpr || !Array.isArray(sexpr)) {
+              return null;
             }
+            orders.push({ type: "macro", expr: sexpr as SExpr[], line: tok.line, column: tok.column });
           } else if (currType === "identifier") {
             orders.push({ type: "name", name: this.advance().value });
           } else {
@@ -965,12 +966,17 @@ export class TmdParser {
   }
 
   private parseSExpr(): SExpr | null {
-    if (!this.match("openParen")) return null;
+    if (!this.require("openParen")) return null;
     const items: SExpr[] = [];
     while (this.current.type !== "closeParen" && this.current.type !== "eof") {
+      if (this.current.type === "arrow" || this.current.type === "arrowEnd") {
+        this.recordFailure(this.pos, [tokenExpectedDescription("closeParen")]);
+        return null;
+      }
       if (this.current.type === "openParen") {
         const sub = this.parseSExpr();
-        if (sub !== null) items.push(sub);
+        if (sub === null) return null;
+        items.push(sub);
       } else {
         const tok = this.advance();
         if (tok.type === "number" || tok.type === "positiveNumber") {
@@ -998,7 +1004,7 @@ export class TmdParser {
         }
       }
     }
-    this.match("closeParen");
+    if (!this.require("closeParen")) return null;
     return items;
   }
 }
