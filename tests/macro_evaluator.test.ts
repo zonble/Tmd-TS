@@ -628,8 +628,110 @@ Theme {
       );
       expect(f1Pitches).toEqual([60, 56, 53, 48]);
     });
+
+    it('evaluates (seq ...) chronologically chaining expressions', () => {
+      const input = `::SCORE::
+** Seq Combinator Test **
+!= 120
+?= C
+<4/4>
+
+ThemeA {
+    <4*>
+    1 2 3 4
+}
+ThemeB {
+    <4*>
+    5 6 7 1^
+}
+
+-> (seq (play ThemeA Piano) (play ThemeB Piano)) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const playback = TMDPlaybackRenderer.render(sheet, 'Piano');
+      expect(playback.events.length).toBe(8);
+      expect(playback.events[0].position).toBe(0);
+      expect(playback.events[4].position).toBe(4);
+      expect(playback.duration).toBe(8);
+    });
+
+    it('evaluates (rondo Refrain (Episode1 Episode2)) alternating refrain with episodes', () => {
+      const input = `::SCORE::
+** Rondo Test **
+!= 120
+?= C
+<4/4>
+
+Refrain {
+    <4*>
+    1 1 1 1
+}
+Ep1 {
+    <4*>
+    2 2 2 2
+}
+Ep2 {
+    <4*>
+    3 3 3 3
+}
+
+-> (rondo Refrain (Ep1 Ep2) Piano) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const playback = TMDPlaybackRenderer.render(sheet, 'Piano');
+      // Rondo structure: Refrain -> Ep1 -> Refrain -> Ep2 -> Refrain = 5 sections * 4 beats = 20 beats
+      expect(playback.duration).toBe(20);
+      expect(playback.events.length).toBe(20);
+      // Check notes at each section entrance
+      expect((playback.events[0].content as any).note.degree).toBe(1);  // Refrain (0s)
+      expect((playback.events[4].content as any).note.degree).toBe(2);  // Ep1 (4s)
+      expect((playback.events[8].content as any).note.degree).toBe(1);  // Refrain (8s)
+      expect((playback.events[12].content as any).note.degree).toBe(3); // Ep2 (12s)
+      expect((playback.events[16].content as any).note.degree).toBe(1); // Refrain (16s)
+    });
+
+    it('supports plain-English aliases (flip, mirror, mirror-rev) without Italian jargon', () => {
+      const input = `::SCORE::
+** Modern Aliases Test **
+!= 120
+?= C
+<4/4>
+
+Theme {
+    <4*>
+    1 3 5 1^
+}
+
+-> (layer
+     (play (flip Theme) Violin)
+     (play (mirror Theme) Viola)
+     (play (mirror-rev Theme) Cello)) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const v = TMDPlaybackRenderer.render(sheet, 'Violin');
+      const va = TMDPlaybackRenderer.render(sheet, 'Viola');
+      const cello = TMDPlaybackRenderer.render(sheet, 'Cello');
+
+      const vPitches = v.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      const vaPitches = va.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      const celloPitches = cello.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+
+      // Inverted around 60: 60, 56, 53, 48
+      expect(vPitches).toEqual([60, 56, 53, 48]);
+      expect(vaPitches).toEqual([60, 56, 53, 48]);
+
+      // mirror-rev: 72, 77, 80, 84
+      expect(celloPitches).toEqual([72, 77, 80, 84]);
+    });
   });
 });
+
 
 
 

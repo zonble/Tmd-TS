@@ -239,8 +239,8 @@ export class TMDMacroEvaluator {
           };
         }
 
-        // 4. (invert <theme> [axis])
-        if (head === "invert") {
+        // 4. (invert <theme> [axis]) / (flip <theme>) / (mirror <theme>)
+        if (head === "invert" || head === "flip" || head === "mirror") {
           const target = themeArg[1];
           const axisArg = themeArg.length >= 3 ? Number(themeArg[2]) : undefined;
           const sub = getThemeSections(target);
@@ -251,7 +251,7 @@ export class TMDMacroEvaluator {
         }
 
         // 5. (ri <theme> [axis]) - Retrograde Inversion
-        if (head === "ri") {
+        if (head === "ri" || head === "flip-rev" || head === "mirror-rev") {
           const target = themeArg[1];
           const axisArg = themeArg.length >= 3 ? Number(themeArg[2]) : undefined;
           const sub = getThemeSections(target);
@@ -286,13 +286,13 @@ export class TMDMacroEvaluator {
                 name: `${current.name}_rev`,
                 sections: reverseSections(current.sections),
               };
-            } else if (tOp === "invert") {
+            } else if (tOp === "invert" || tOp === "flip" || tOp === "mirror") {
               const axisArg = transform.length >= 2 ? Number(transform[1]) : undefined;
               current = {
                 name: `${current.name}_inv`,
                 sections: invertSections(current.sections, axisArg),
               };
-            } else if (tOp === "ri") {
+            } else if (tOp === "ri" || tOp === "flip-rev" || tOp === "mirror-rev") {
               const axisArg = transform.length >= 2 ? Number(transform[1]) : undefined;
               current = {
                 name: `${current.name}_ri`,
@@ -483,6 +483,45 @@ export class TMDMacroEvaluator {
           return { paragraphNames: [layerSectionName] };
         }
 
+        case "seq": {
+          // (seq <child1> <child2> ...)
+          // Evaluates all child expressions sequentially, preserving chronological execution order.
+          const seqNames: string[] = [];
+          for (let i = 1; i < expr.length; i++) {
+            const res = evalExpr(expr[i]);
+            seqNames.push(...res.paragraphNames);
+          }
+          return { paragraphNames: seqNames };
+        }
+
+
+
+        case "rondo": {
+          // (rondo <refrain> (<episodes...>) [<instrument>])
+          // Alternates Refrain with Episodes: Refrain -> Ep1 -> Refrain -> Ep2 -> ... -> Refrain
+          const refrainTarget = expr[1];
+          const episodesRaw = expr[2];
+          const episodes: any[] = Array.isArray(episodesRaw) ? episodesRaw : [episodesRaw];
+          const instrument = expr.length >= 4 ? String(expr[3]) : undefined;
+
+          const rondoSeq: any[] = ["seq"];
+          const makePlay = (item: any) => {
+            if (instrument) {
+              return ["play", item, instrument];
+            }
+            return item;
+          };
+
+          for (const ep of episodes) {
+            rondoSeq.push(makePlay(refrainTarget));
+            rondoSeq.push(makePlay(ep));
+          }
+          rondoSeq.push(makePlay(refrainTarget));
+
+          return evalExpr(rondoSeq);
+        }
+
+
         case "reverse":
         case "retrograde": {
           // (reverse <child>)
@@ -495,8 +534,10 @@ export class TMDMacroEvaluator {
           return innerRes;
         }
 
-        case "invert": {
-          // (invert <child> [axis])
+        case "invert":
+        case "flip":
+        case "mirror": {
+          // (invert <child> [axis]) / (flip <child> [axis]) / (mirror <child> [axis])
           const childExpr = expr[1];
           const axisArg = expr.length >= 3 ? Number(expr[2]) : undefined;
           const innerRes = evalExpr(childExpr);
@@ -507,7 +548,9 @@ export class TMDMacroEvaluator {
           return innerRes;
         }
 
-        case "ri": {
+        case "ri":
+        case "flip-rev":
+        case "mirror-rev": {
           // (ri <child> [axis])
           const childExpr = expr[1];
           const axisArg = expr.length >= 3 ? Number(expr[2]) : undefined;
