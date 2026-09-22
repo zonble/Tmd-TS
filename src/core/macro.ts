@@ -1,10 +1,16 @@
 import {
+  Accidental,
+  accidentalToSemitone,
   Beat,
+  Note,
   Order,
   Paragraph,
+  ScaleDegree,
+  scaleDegreeSemitoneOffset,
   Section,
   SExpr,
   Sheet,
+  Unit,
   UnitGroup,
 } from "./types.js";
 import { TMDPlaybackRenderer } from "./playback.js";
@@ -12,6 +18,136 @@ import { TMDPlaybackRenderer } from "./playback.js";
 export interface MacroExpansionResult {
   paragraphs: Paragraph[];
   orders: Order[];
+}
+
+/**
+ * Maps pitch in semitones (0-11) to ScaleDegree and Accidental.
+ */
+function semitoneToDegreeAccidental(semi: number): { degree: ScaleDegree; accidental: Accidental } {
+  // semi: 0 to 11
+  switch (semi) {
+    case 0: return { degree: ScaleDegree.C, accidental: Accidental.Natural };
+    case 1: return { degree: ScaleDegree.C, accidental: Accidental.Sharp };
+    case 2: return { degree: ScaleDegree.D, accidental: Accidental.Natural };
+    case 3: return { degree: ScaleDegree.D, accidental: Accidental.Sharp };
+    case 4: return { degree: ScaleDegree.E, accidental: Accidental.Natural };
+    case 5: return { degree: ScaleDegree.F, accidental: Accidental.Natural };
+    case 6: return { degree: ScaleDegree.F, accidental: Accidental.Sharp };
+    case 7: return { degree: ScaleDegree.G, accidental: Accidental.Natural };
+    case 8: return { degree: ScaleDegree.G, accidental: Accidental.Sharp };
+    case 9: return { degree: ScaleDegree.A, accidental: Accidental.Natural };
+    case 10: return { degree: ScaleDegree.A, accidental: Accidental.Sharp };
+    case 11: return { degree: ScaleDegree.B, accidental: Accidental.Natural };
+    default: return { degree: ScaleDegree.C, accidental: Accidental.Natural };
+  }
+}
+
+function noteToTotalSemitones(note: Note): number {
+  return scaleDegreeSemitoneOffset(note.degree) + accidentalToSemitone(note.accidental) + note.octave * 12;
+}
+
+function totalSemitonesToNote(totalSemitones: number): Note {
+  let octave = Math.floor(totalSemitones / 12);
+  let semiInOctave = totalSemitones % 12;
+  if (semiInOctave < 0) {
+    semiInOctave += 12;
+  }
+  const { degree, accidental } = semitoneToDegreeAccidental(semiInOctave);
+  return {
+    degree,
+    accidental,
+    octave,
+  };
+}
+
+function transposeSections(sections: Section[], semitones: number): Section[] {
+  if (semitones === 0) return JSON.parse(JSON.stringify(sections));
+  const cloned: Section[] = JSON.parse(JSON.stringify(sections));
+  for (const s of cloned) {
+    for (const g of s.unitGroups) {
+      for (const u of g.units) {
+        if (u.type === "note") {
+          const currentTotal = noteToTotalSemitones(u.note);
+          u.note = totalSemitonesToNote(currentTotal + semitones);
+        }
+      }
+    }
+  }
+  return cloned;
+}
+
+function octaveShiftSections(sections: Section[], octaveDelta: number): Section[] {
+  if (octaveDelta === 0) return JSON.parse(JSON.stringify(sections));
+  const cloned: Section[] = JSON.parse(JSON.stringify(sections));
+  for (const s of cloned) {
+    for (const g of s.unitGroups) {
+      for (const u of g.units) {
+        if (u.type === "note") {
+          u.note.octave += octaveDelta;
+        }
+      }
+    }
+  }
+  return cloned;
+}
+
+function reverseSections(sections: Section[]): Section[] {
+  const cloned: Section[] = JSON.parse(JSON.stringify(sections));
+  // Collect all unit groups across all sections
+  const allGroups: UnitGroup[] = [];
+  for (const s of cloned) {
+    for (const g of s.unitGroups) {
+      allGroups.push(g);
+    }
+  }
+  allGroups.reverse();
+
+  // Distribute back matching the original section group counts
+  let idx = 0;
+  for (const s of cloned) {
+    const count = s.unitGroups.length;
+    s.unitGroups = allGroups.slice(idx, idx + count);
+    idx += count;
+  }
+  return cloned;
+}
+
+function invertSections(sections: Section[], axisPitchSemitones?: number): Section[] {
+  const cloned: Section[] = JSON.parse(JSON.stringify(sections));
+  let axis = axisPitchSemitones;
+  if (axis === undefined) {
+    // Find the first note as axis
+    for (const s of cloned) {
+      for (const g of s.unitGroups) {
+        for (const u of g.units) {
+          if (u.type === "note") {
+            axis = noteToTotalSemitones(u.note);
+            break;
+          }
+        }
+        if (axis !== undefined) break;
+      }
+      if (axis !== undefined) break;
+    }
+  }
+
+  if (axis === undefined) {
+    return cloned;
+  }
+
+  for (const s of cloned) {
+    for (const g of s.unitGroups) {
+      for (const u of g.units) {
+        if (u.type === "note") {
+          const origSemitones = noteToTotalSemitones(u.note);
+          const diff = origSemitones - axis;
+          const invertedSemitones = axis - diff;
+          u.note = totalSemitonesToNote(invertedSemitones);
+        }
+      }
+    }
+  }
+  return cloned;
 }
 
 export class TMDMacroEvaluator {
@@ -57,6 +193,117 @@ export class TMDMacroEvaluator {
 
     const getThemeSections = (themeArg: SExpr): { name: string; sections: Section[] } => {
       if (Array.isArray(themeArg)) {
+        if (themeArg.length === 0) {
+          return { name: "empty", sections: [] };
+        }
+
+        const head = String(themeArg[0]).toLowerCase();
+
+        // 1. (transpose <theme> <semitones>) or (transpose <semitones> <theme>)
+        if (head === "transpose") {
+          let target = themeArg[1];
+          let semitones = Number(themeArg[2]) || 0;
+          if (typeof target === "number" || (!isNaN(Number(target)) && typeof themeArg[2] === "string")) {
+            semitones = Number(target) || 0;
+            target = themeArg[2];
+          }
+          const sub = getThemeSections(target);
+          return {
+            name: `${sub.name}_tr${semitones >= 0 ? "+" + semitones : semitones}`,
+            sections: transposeSections(sub.sections, semitones),
+          };
+        }
+
+        // 2. (octave <theme> <octaveDelta>) or (octave <octaveDelta> <theme>)
+        if (head === "octave") {
+          let target = themeArg[1];
+          let delta = Number(themeArg[2]) || 0;
+          if (typeof target === "number" || (!isNaN(Number(target)) && typeof themeArg[2] === "string")) {
+            delta = Number(target) || 0;
+            target = themeArg[2];
+          }
+          const sub = getThemeSections(target);
+          return {
+            name: `${sub.name}_oct${delta >= 0 ? "+" + delta : delta}`,
+            sections: octaveShiftSections(sub.sections, delta),
+          };
+        }
+
+        // 3. (reverse <theme>) / (retrograde <theme>)
+        if (head === "reverse" || head === "retrograde") {
+          const target = themeArg[1];
+          const sub = getThemeSections(target);
+          return {
+            name: `${sub.name}_rev`,
+            sections: reverseSections(sub.sections),
+          };
+        }
+
+        // 4. (invert <theme> [axis])
+        if (head === "invert") {
+          const target = themeArg[1];
+          const axisArg = themeArg.length >= 3 ? Number(themeArg[2]) : undefined;
+          const sub = getThemeSections(target);
+          return {
+            name: `${sub.name}_inv`,
+            sections: invertSections(sub.sections, axisArg),
+          };
+        }
+
+        // 5. (ri <theme> [axis]) - Retrograde Inversion
+        if (head === "ri") {
+          const target = themeArg[1];
+          const axisArg = themeArg.length >= 3 ? Number(themeArg[2]) : undefined;
+          const sub = getThemeSections(target);
+          return {
+            name: `${sub.name}_ri`,
+            sections: invertSections(reverseSections(sub.sections), axisArg),
+          };
+        }
+
+        // 6. (vary <theme> <transform1> <transform2> ...)
+        if (head === "vary") {
+          const target = themeArg[1];
+          let current = getThemeSections(target);
+          for (let i = 2; i < themeArg.length; i++) {
+            const transform = themeArg[i];
+            if (!Array.isArray(transform) || transform.length === 0) continue;
+            const tOp = String(transform[0]).toLowerCase();
+            if (tOp === "transpose") {
+              const semitones = Number(transform[1]) || 0;
+              current = {
+                name: `${current.name}_tr${semitones >= 0 ? "+" + semitones : semitones}`,
+                sections: transposeSections(current.sections, semitones),
+              };
+            } else if (tOp === "octave") {
+              const delta = Number(transform[1]) || 0;
+              current = {
+                name: `${current.name}_oct${delta >= 0 ? "+" + delta : delta}`,
+                sections: octaveShiftSections(current.sections, delta),
+              };
+            } else if (tOp === "reverse" || tOp === "retrograde") {
+              current = {
+                name: `${current.name}_rev`,
+                sections: reverseSections(current.sections),
+              };
+            } else if (tOp === "invert") {
+              const axisArg = transform.length >= 2 ? Number(transform[1]) : undefined;
+              current = {
+                name: `${current.name}_inv`,
+                sections: invertSections(current.sections, axisArg),
+              };
+            } else if (tOp === "ri") {
+              const axisArg = transform.length >= 2 ? Number(transform[1]) : undefined;
+              current = {
+                name: `${current.name}_ri`,
+                sections: invertSections(reverseSections(current.sections), axisArg),
+              };
+            }
+          }
+          return current;
+        }
+
+        // Sequential multi-theme: (ThemeA ThemeB)
         const combinedSections: Section[] = [];
         const names: string[] = [];
         for (const item of themeArg) {

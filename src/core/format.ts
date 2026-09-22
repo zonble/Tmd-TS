@@ -119,10 +119,15 @@ export function formatParagraph(p: Paragraph, beat?: Beat): string {
     return `${p.name}:${p.instrument}@${time}{\n"""${p.showProgram}"""\n}\n\n`;
   }
 
-  let result = `${p.name}:${p.instrument}@|`;
-  if (p.start > 0) result += `+${p.start}`;
-  else result += `${p.start}`;
-  result += "|{\n";
+  let result = "";
+  if (!p.instrument) {
+    result = `${p.name} {\n`;
+  } else {
+    result = `${p.name}:${p.instrument}@|`;
+    if (p.start > 0) result += `+${p.start}`;
+    else result += `${p.start}`;
+    result += "|{\n";
+  }
 
   for (const sec of p.sections) {
     result += formatSection(sec, beat);

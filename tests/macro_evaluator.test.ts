@@ -298,6 +298,224 @@ BassB {
       expect(cello.duration).toBe(16);
       expect(cello.events.length).toBe(16);
     });
+
+    it('evaluates (transpose Theme semitones) shifting pitch chromatically', () => {
+      const input = `::SCORE::
+** Transpose Variation **
+!= 120
+?= C
+<4/4>
+
+Theme {
+    <4*>
+    1 2 3 4
+}
+
+-> (play (transpose Theme 2) Violin) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const v = TMDPlaybackRenderer.render(sheet, 'Violin');
+      expect(v.events.length).toBe(4);
+      // In C major: 1 is C (MIDI 60), +2 semitones is D (MIDI 62).
+      // 2 is D (MIDI 62), +2 is E (MIDI 64).
+      // 3 is E (MIDI 64), +2 is F# (MIDI 66).
+      // 4 is F (MIDI 65), +2 is G (MIDI 67).
+      const pitches = v.events.map((e) => {
+        if (e.content.type === 'note') {
+          return TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset);
+        }
+        return -1;
+      });
+      expect(pitches).toEqual([62, 64, 66, 67]);
+    });
+
+    it('evaluates (octave Theme delta) shifting octave up or down', () => {
+      const input = `::SCORE::
+** Octave Variation **
+!= 120
+?= C
+<4/4>
+
+Theme {
+    <4*>
+    1 3 5 1^
+}
+
+-> (play (octave Theme 1) Flute)
+-> (play (octave Theme -1) Cello) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const flute = TMDPlaybackRenderer.render(sheet, 'Flute');
+      const cello = TMDPlaybackRenderer.render(sheet, 'Cello');
+
+      const flutePitches = flute.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      const celloPitches = cello.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+
+      // C major: 1 3 5 1^ = 60, 64, 67, 72.
+      // Flute (+1 octave): 72, 76, 79, 84
+      expect(flutePitches).toEqual([72, 76, 79, 84]);
+      // Cello (-1 octave): 48, 52, 55, 60
+      expect(celloPitches).toEqual([48, 52, 55, 60]);
+    });
+
+    it('evaluates (reverse Theme) and (retrograde Theme) reversing note sequence within bars', () => {
+      const input = `::SCORE::
+** Retrograde / Reverse Variation **
+!= 120
+?= C
+<4/4>
+
+Theme {
+    <4*>
+    1 2 3 4 | 5 6 7 1^
+}
+
+-> (play (reverse Theme) Violin)
+-> (play (retrograde Theme) Viola) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const v = TMDPlaybackRenderer.render(sheet, 'Violin');
+      const va = TMDPlaybackRenderer.render(sheet, 'Viola');
+
+      const vPitches = v.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      const vaPitches = va.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+
+      // Original: 1 2 3 4 (60, 62, 64, 65) | 5 6 7 1^ (67, 69, 71, 72)
+      // Reversed: 1^ 7 6 5 (72, 71, 69, 67) | 4 3 2 1 (65, 64, 62, 60)
+      expect(vPitches).toEqual([72, 71, 69, 67, 65, 64, 62, 60]);
+      expect(vaPitches).toEqual([72, 71, 69, 67, 65, 64, 62, 60]);
+    });
+
+    it('evaluates (invert Theme) inverting melodic contours around the first note or axis', () => {
+      const input = `::SCORE::
+** Inversion Variation **
+!= 120
+?= C
+<4/4>
+
+Theme {
+    <4*>
+    1 3 5 1^
+}
+
+-> (play (invert Theme) Violin) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const v = TMDPlaybackRenderer.render(sheet, 'Violin');
+      const vPitches = v.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+
+      // Original: 1(60), 3(64, +4), 5(67, +7), 1^(72, +12)
+      // Inverted around first note 60:
+      // 60 -> 60 (diff 0 -> 60)
+      // 64 -> 60 - 4 = 56 (G#3 / Ab3)
+      // 67 -> 60 - 7 = 53 (F3)
+      // 72 -> 60 - 12 = 48 (C3)
+      expect(vPitches).toEqual([60, 56, 53, 48]);
+    });
+
+    it('evaluates (vary Theme ...) composing multiple variations seamlessly into canon & layer', () => {
+      const input = `::SCORE::
+** Variation Suite Demo **
+!= 120
+?= C
+<4/4>
+
+Subject {
+    <4*>
+    1 2 3 5 |
+}
+
+-> (layer
+     (play Subject SoloViolin)
+     (play (vary Subject (transpose 7) (octave 1)) Flute)
+     (canon (vary Subject (reverse) (octave -1)) (Cello Bass) 2)) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      expect(sheet).not.toBeNull();
+
+      const violin = TMDPlaybackRenderer.render(sheet, 'SoloViolin');
+      const flute = TMDPlaybackRenderer.render(sheet, 'Flute');
+      const cello = TMDPlaybackRenderer.render(sheet, 'Cello');
+      const bass = TMDPlaybackRenderer.render(sheet, 'Bass');
+
+      // Subject: 1(60), 2(62), 3(64), 5(67)
+      const violinPitches = violin.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      expect(violinPitches).toEqual([60, 62, 64, 67]);
+
+      // Flute: transpose +7, octave +1 -> +19 semitones
+      // 60+19=79, 62+19=81, 64+19=83, 67+19=86
+      const flutePitches = flute.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      expect(flutePitches).toEqual([79, 81, 83, 86]);
+
+      // Cello & Bass: reverse (5 3 2 1: 67, 64, 62, 60), octave -1 (-12 semitones: 55, 52, 50, 48)
+      // Cello at 0, Bass at 2 bars (8 beats)
+      const celloPitches = cello.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      expect(celloPitches).toEqual([55, 52, 50, 48]);
+      expect(cello.events[0].position).toBe(0);
+
+      const bassPitches = bass.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      expect(bassPitches).toEqual([55, 52, 50, 48]);
+      expect(bass.events[0].position).toBe(8);
+    });
+
+    it('evaluates (ri Theme) retrograde-inversion and flexible argument order (transpose 7 Theme)', () => {
+      const input = `::SCORE::
+** Retrograde Inversion & Flex Order **
+!= 120
+?= C
+<4/4>
+
+Theme {
+    <4*>
+    1 3 5 1^
+}
+
+-> (play (transpose 2 Theme) Violin)
+-> (play (ri Theme) Cello) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const v = TMDPlaybackRenderer.render(sheet, 'Violin');
+      const cello = TMDPlaybackRenderer.render(sheet, 'Cello');
+
+      // Theme: 1(60), 3(64), 5(67), 1^(72)
+      // Violin (transpose 2 Theme): 62, 66, 69, 74
+      const vPitches = v.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      expect(vPitches).toEqual([62, 66, 69, 74]);
+
+      // Cello (ri Theme):
+      // Reversed: 1^(72), 5(67), 3(64), 1(60)
+      // Inverted around first note of reversed (72):
+      // 72 -> 72 (diff 0)
+      // 67 -> 72 - (67 - 72) = 72 - (-5) = 77
+      // 64 -> 72 - (-8) = 80
+      // 60 -> 72 - (-12) = 84
+      const celloPitches = cello.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      expect(celloPitches).toEqual([72, 77, 80, 84]);
+    });
   });
 });
+
+
 
