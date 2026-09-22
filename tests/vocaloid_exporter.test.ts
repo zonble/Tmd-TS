@@ -212,6 +212,7 @@ Intro:Vocal@|0|{
     <4*>
     1 2 3 4
 }
+-> Intro ->#
 `;
     fs.writeFileSync(tmdFile, score, 'utf-8');
 

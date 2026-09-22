@@ -41,6 +41,7 @@ SUBCOMMANDS:
 
 OPTIONS:
   -p, --parse-only        Parse and display the score summary.
+  -f, --force             Ignore measure consistency errors during export.
   -m, --midi-output PATH  Export Standard MIDI.
   -x, --musicxml-output PATH  Export MusicXML 4.0.
   -l, --lilypond-output PATH  Export LilyPond source.
@@ -964,6 +965,7 @@ export function main(argv = process.argv.slice(2)): number {
 
   let input: string | undefined,
     parseOnly = false,
+    force = false,
     play = false,
     installSkills = false,
     installMcp = false,
@@ -983,6 +985,10 @@ export function main(argv = process.argv.slice(2)): number {
     }
     if (arg === "-p" || arg === "--parse-only") {
       parseOnly = true;
+      continue;
+    }
+    if (arg === "-f" || arg === "--force") {
+      force = true;
       continue;
     }
     if (arg === "--play") {
@@ -1072,9 +1078,18 @@ export function main(argv = process.argv.slice(2)): number {
     console.error("Error: Missing expected argument '<input-path>'");
     return 2;
   }
+  let fileContent: string;
+  try {
+    fileContent = fs.readFileSync(input, "utf-8");
+  } catch (error) {
+    console.error(
+      `Error reading ${input}: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return 1;
+  }
   let sheet;
   try {
-    sheet = TmdParser.parseFile(input);
+    sheet = TmdParser.parse(fileContent);
   } catch (error) {
     console.error(
       `Error: Could not parse TMD file at ${input}: ${
@@ -1083,6 +1098,29 @@ export function main(argv = process.argv.slice(2)): number {
     );
     return 1;
   }
+
+  const isExporting = Object.values(outputs).some((v) => v !== undefined) || play;
+  if (isExporting && !force) {
+    const issues = TMDMeasureChecker.check(fileContent);
+    if (issues.length > 0) {
+      console.error(
+        `❌ Export aborted: Found ${issues.length} measure discrepancy issue${
+          issues.length === 1 ? "" : "s"
+        } in ${input}:`
+      );
+      for (const issue of issues.slice(0, 10)) {
+        console.error(`  - ${issue.description}`);
+      }
+      if (issues.length > 10) {
+        console.error(
+          `  ... and ${issues.length - 10} more issues. Run \`tmd check ${input}\` to see all.`
+        );
+      }
+      console.error("\nUse --force (-f) to ignore measure errors and force export.");
+      return 1;
+    }
+  }
+
   console.log(`tmd-ts ${TMD_VERSION} - In memory of Chen, Chih-Han / aguai (阿怪, 1974–2019).`);
   console.log(
     `Successfully parsed TMD file: ${input}\n----------------------------------------\n${formatSummary(

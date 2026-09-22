@@ -117,11 +117,27 @@ export class TMDMeasureChecker {
       const tok = current();
       if (!tok) break;
 
+      // Score title block: ** Title **
+      if (tok.token.type === "doubleAsterisk") {
+        advance();
+        while (pos < tokensWithRanges.length && current()?.token.type !== "doubleAsterisk") {
+          advance();
+        }
+        if (current()?.token.type === "doubleAsterisk") {
+          advance();
+        }
+        continue;
+      }
+
       // Paragraph header: identifier:identifier@...{ OR abstract paragraph: identifier{
       if (
         tok.token.type === "identifier" &&
         pos + 1 < tokensWithRanges.length &&
-        (tokensWithRanges[pos + 1].token.type === "colon" || tokensWithRanges[pos + 1].token.type === "openBrace")
+        ((tokensWithRanges[pos + 1].token.type === "colon" &&
+          pos + 3 < tokensWithRanges.length &&
+          tokensWithRanges[pos + 2].token.type === "identifier" &&
+          tokensWithRanges[pos + 3].token.type === "at") ||
+         tokensWithRanges[pos + 1].token.type === "openBrace")
       ) {
         const pName = tok.token.value as string;
         const paraStartLine = tok.range.start.line;

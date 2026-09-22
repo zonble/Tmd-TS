@@ -81,4 +81,11 @@ describe('Expected tokens on TMD parse syntax errors', () => {
       /Unexpected token at 3:1: `4` \(expected <\)/
     );
   });
+
+  it('rejects invalid token in paragraph body with expected unit tokens', () => {
+    expect(() =>
+      TmdParser.parse('::SCORE::\nintro:Piano@|0|{\n<4*>\n1 2 Foo 4\n}')
+    ).toThrowError(/expected note, chord, tie, rest, percussion, tuplet, directive, }/);
+  });
 });
+
