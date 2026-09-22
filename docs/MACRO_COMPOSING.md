@@ -1,4 +1,4 @@
-# Macro Composing in TMD: S-Expression Architecture & Specification (RFC)
+# Macro Composing in TMD: S-Expression Architecture & Specification
 
 ## 1. Abstract & Motivation
 

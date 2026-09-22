@@ -1,6 +1,6 @@
 # Classical Music Design Patterns in TMD S-Expressions
 
-This draft specification maps classical musical forms and software design patterns (originally conceptualized in [Swift by zonble](https://gist.github.com/zonble/1f8df143f7bc69dfce5df324b618461a)) into **Timebase Mark Down (TMD) S-Expressions**.
+This specification maps classical musical forms and software design patterns (originally conceptualized in [Swift by zonble](https://gist.github.com/zonble/1f8df143f7bc69dfce5df324b618461a)) into **Timebase Mark Down (TMD) S-Expressions**.
 
 Because TMD uses S-Expressions `(...)` exclusively within the playback flow (`-> (...) ->`), these musical design patterns can be expressed without conflicting with TMD's existing tokens (chords `[...]`, paragraphs `{...}`, beat grids `<...>`, and track bindings).
 
