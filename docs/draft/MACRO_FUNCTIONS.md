@@ -58,7 +58,6 @@ Supported flat tokens:
 | Operator | Signature | Description |
 | :--- | :--- | :--- |
 | **`transpose`** | `(transpose <semitones> <material>)` | Shifts pitches by signed semitones. |
-| **`octave`** | `(octave <material> <delta>)` | Shifts octave up or down. |
 | **`reverse`** | `(reverse <material>)` | Reverses chronological note order. |
 | **`flip`** | `(flip <material> [<axis>])` | Inverts melodic contour upside-down. |
 | **`minor`** | `(minor <material>)` | Flattens 3, 6, 7 to parallel minor. |

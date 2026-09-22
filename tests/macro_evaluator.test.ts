@@ -366,9 +366,9 @@ Theme {
       expect(pitches).toEqual([62, 64, 66, 67]);
     });
 
-    it('evaluates (octave Theme delta) shifting octave up or down', () => {
+    it('evaluates pitch transposition with +12 / -12 shifting octave up or down', () => {
       const input = `::SCORE::
-** Octave Variation **
+** Octave Transpose Variation **
 != 120
 ?= C
 <4/4>
@@ -378,8 +378,8 @@ Theme {
     1 3 5 1^
 }
 
--> (play (octave Theme 1) Flute)
--> (play (octave Theme -1) Cello) ->#
+-> (play (transpose Theme 12) Flute)
+-> (play (transpose Theme -12) Cello) ->#
 `;
       const sheet = TmdParser.parse(input);
       const flute = TMDPlaybackRenderer.render(sheet, 'Flute');
@@ -393,9 +393,9 @@ Theme {
       );
 
       // C major: 1 3 5 1^ = 60, 64, 67, 72.
-      // Flute (+1 octave): 72, 76, 79, 84
+      // Flute (+12 semitones): 72, 76, 79, 84
       expect(flutePitches).toEqual([72, 76, 79, 84]);
-      // Cello (-1 octave): 48, 52, 55, 60
+      // Cello (-12 semitones): 48, 52, 55, 60
       expect(celloPitches).toEqual([48, 52, 55, 60]);
     });
 
@@ -468,8 +468,8 @@ Subject {
 
 -> (layer
      (play Subject SoloViolin)
-     (play (vary Subject (transpose 7) (octave 1)) Flute)
-     (canon (vary Subject (reverse) (octave -1)) (Cello Bass) 2)) ->#
+     (play (vary Subject +19) Flute)
+     (canon (vary Subject reverse -12) (Cello Bass) 2)) ->#
 `;
       const sheet = TmdParser.parse(input);
       expect(sheet).not.toBeNull();

@@ -76,21 +76,6 @@ function transposeSections(sections: Section[], semitones: number): Section[] {
   return cloned;
 }
 
-function octaveShiftSections(sections: Section[], octaveDelta: number): Section[] {
-  if (octaveDelta === 0) return JSON.parse(JSON.stringify(sections));
-  const cloned: Section[] = JSON.parse(JSON.stringify(sections));
-  for (const s of cloned) {
-    for (const g of s.unitGroups) {
-      for (const u of g.units) {
-        if (u.type === "note") {
-          u.note.octave += octaveDelta;
-        }
-      }
-    }
-  }
-  return cloned;
-}
-
 function reverseSections(sections: Section[]): Section[] {
   const cloned: Section[] = JSON.parse(JSON.stringify(sections));
   // Collect all unit groups across all sections
@@ -259,22 +244,7 @@ export class TMDMacroEvaluator {
           };
         }
 
-        // 2. (octave <theme> <octaveDelta>) or (octave <octaveDelta> <theme>)
-        if (head === "octave") {
-          let target = themeArg[1];
-          let delta = Number(themeArg[2]) || 0;
-          if (typeof target === "number" || (!isNaN(Number(target)) && typeof themeArg[2] === "string")) {
-            delta = Number(target) || 0;
-            target = themeArg[2];
-          }
-          const sub = getThemeSections(target);
-          return {
-            name: `${sub.name}_oct${delta >= 0 ? "+" + delta : delta}`,
-            sections: octaveShiftSections(sub.sections, delta),
-          };
-        }
-
-        // 3. (reverse <theme>)
+        // 2. (reverse <theme>)
         if (head === "reverse") {
           const target = themeArg[1];
           const sub = getThemeSections(target);
@@ -331,12 +301,6 @@ export class TMDMacroEvaluator {
                 current = {
                   name: `${current.name}_tr${semitones >= 0 ? "+" + semitones : semitones}`,
                   sections: transposeSections(current.sections, semitones),
-                };
-              } else if (tOp === "octave") {
-                const delta = Number(transform[1]) || 0;
-                current = {
-                  name: `${current.name}_oct${delta >= 0 ? "+" + delta : delta}`,
-                  sections: octaveShiftSections(current.sections, delta),
                 };
               } else if (tOp === "reverse") {
                 current = {
@@ -470,7 +434,7 @@ export class TMDMacroEvaluator {
           const offsetBars = Number(expr[3]) || 0;
 
           // Check if themeTarget is a nested sub-expression like (canon ...), (layer ...), (reverse ...), etc.
-          const nestedOps = ["canon", "layer", "play", "loop", "seq", "rondo", "reverse", "flip", "minor", "major", "vary", "transpose", "octave"];
+          const nestedOps = ["canon", "layer", "play", "loop", "seq", "rondo", "reverse", "flip", "minor", "major", "vary", "transpose"];
           if (
             Array.isArray(themeTarget) &&
             themeTarget.length > 0 &&
@@ -483,7 +447,7 @@ export class TMDMacroEvaluator {
               if (!Array.isArray(node) || node.length === 0) return false;
               const h = String(node[0]).toLowerCase();
               if (["canon", "layer", "play", "loop", "seq", "rondo"].includes(h)) return true;
-              if (["reverse", "flip", "minor", "major", "vary", "transpose", "octave"].includes(h)) {
+              if (["reverse", "flip", "minor", "major", "vary", "transpose"].includes(h)) {
                 return isSubExpr(node[1]) || (node.length >= 3 && isSubExpr(node[2]));
               }
               return false;
@@ -653,9 +617,6 @@ export class TMDMacroEvaluator {
               if (tOp === "transpose") {
                 const semitones = Number(transform[1]) || 0;
                 for (const ip of innerParagraphs) ip.sections = transposeSections(ip.sections, semitones);
-              } else if (tOp === "octave") {
-                const delta = Number(transform[1]) || 0;
-                for (const ip of innerParagraphs) ip.sections = octaveShiftSections(ip.sections, delta);
               } else if (tOp === "reverse") {
                 for (const ip of innerParagraphs) ip.sections = reverseSections(ip.sections);
               } else if (tOp === "flip") {
@@ -720,22 +681,6 @@ export class TMDMacroEvaluator {
           const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
           for (const ip of innerParagraphs) {
             ip.sections = transposeSections(ip.sections, semitones);
-          }
-          return innerRes;
-        }
-
-        case "octave": {
-          // (octave <child> <delta>) or (octave <delta> <child>)
-          let target = expr[1];
-          let delta = Number(expr[2]) || 0;
-          if (typeof target === "number" || (!isNaN(Number(target)) && typeof expr[2] !== "number")) {
-            delta = Number(target) || 0;
-            target = expr[2];
-          }
-          const innerRes = evalExpr(target);
-          const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
-          for (const ip of innerParagraphs) {
-            ip.sections = octaveShiftSections(ip.sections, delta);
           }
           return innerRes;
         }
