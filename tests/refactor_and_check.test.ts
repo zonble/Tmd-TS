@@ -1113,6 +1113,29 @@ describe("TMD CLI subcommands check, format, and refactor (TDD)", () => {
     }
   });
 
+  it("aborts export when measure discrepancies exist unless --force is passed", async () => {
+    const { main } = await import("../src/cli.js");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+
+    const tempDir = mkdtempSync(join(tmpdir(), "tmd-cli-force-test-"));
+    try {
+      const badFile = join(tempDir, "bad.tmd");
+      const outMidi = join(tempDir, "out.mid");
+      writeFileSync(badFile, `::SCORE::\n** Bad **\n!= 120\n?= C\n<4/4>\nverse:Piano@|0|{\n<4*>\n| 1 2 3 |\n}\n-> verse ->#\n`);
+
+      // Without --force: export aborts with exit code 1
+      expect(main([badFile, "-m", outMidi])).toBe(1);
+
+      // With --force: export succeeds with exit code 0
+      expect(main([badFile, "-m", outMidi, "--force"])).toBe(0);
+      expect(main([badFile, "-m", outMidi, "-f"])).toBe(0);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("runs format subcommand with output option and in-place flag", async () => {
     const { main } = await import("../src/cli.js");
     const { tmpdir } = await import("node:os");
@@ -1316,5 +1339,22 @@ intro:Guitar@{
     const issues = TMDMeasureChecker.check(code);
     expect(issues).toHaveLength(0);
   });
-});
 
+  it("does not mistake title with colon for paragraph header", () => {
+    const code = `::SCORE::
+** Movement II: The Snow **
+!= 120
+?= C
+<4/4>
+
+intro:Piano@|0|{
+<4*>
+1 2 3 4
+}
+
+-> intro ->#
+`;
+    const issues = TMDMeasureChecker.check(code);
+    expect(issues).toHaveLength(0);
+  });
+});

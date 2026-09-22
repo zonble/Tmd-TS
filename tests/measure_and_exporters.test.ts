@@ -65,8 +65,8 @@ A:Piano@|0|{
 
 A:Piano@|0|{
     <4*>
-    - - - 1~
-    ~1 - - -
+    - - - 1
+    - 0 0 0
 }
 -> A ->#
 `;
@@ -96,8 +96,8 @@ describe('MusicXML Exporter Invariants', () => {
 
 A:Piano@|0|{
     <4*>
-    1 2 3 4~
-    ~4 - - -
+    1 2 3 4
+    - 0 0 0
 }
 -> A ->#
 `;
@@ -111,13 +111,37 @@ A:Piano@|0|{
     expect(xml).toContain('<tie type="stop"/>');
     expect(xml).toContain('<tied type="start"/>');
     expect(xml).toContain('<tied type="stop"/>');
+    expect(xml).toContain('<type>quarter</type>');
 
-    // Divisions = 16 -> 4 beats * 16 = 64 divisions per measure
+    // Divisions = 48 -> 4 beats * 48 = 192 divisions per measure
     const measure1Match = xml.match(/<measure number="1">([\s\S]*?)<\/measure>/);
     expect(measure1Match).not.toBeNull();
     const durations = Array.from(measure1Match![1].matchAll(/<duration>(\d+)<\/duration>/g)).map((m) => parseInt(m[1], 10));
     const totalDivs = durations.reduce((a, b) => a + b, 0);
-    expect(totalDivs).toBe(64);
+    expect(totalDivs).toBe(192);
+  });
+
+  it('generates time-modification and type for tuplets in MusicXML', () => {
+    const tmd = `
+::SCORE::
+** Triplet Test **
+!= 120
+?= C
+<4/4>
+
+A:Drums@|0|{
+    <4*>
+    (x-- x-- x--) 0 0 0
+}
+-> A ->#
+`;
+    const sheet = TmdParser.parse(tmd)!;
+    const xml = TMDMusicXMLGenerator.generateMusicXML(sheet);
+
+    expect(xml).toContain('<time-modification>');
+    expect(xml).toContain('<actual-notes>3</actual-notes>');
+    expect(xml).toContain('<normal-notes>2</normal-notes>');
+    expect(xml).toContain('</time-modification>');
   });
 });
 

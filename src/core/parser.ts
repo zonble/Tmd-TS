@@ -280,6 +280,7 @@ export class Lexer {
         const rawText = this.input.slice(metaStartPos, this.pos);
         return { type: "metadata", value: { key, value }, text: rawText, line, column: col };
       }
+      this.pos = metaStartPos;
     }
 
     // -># or ->
@@ -660,7 +661,11 @@ export class TmdParser {
             }
             orders.push({ type: "macro", expr: sexpr as SExpr[], line: tok.line, column: tok.column });
           } else if (currType === "identifier") {
-            orders.push({ type: "name", name: this.advance().value });
+            const idVal = this.advance().value;
+            if (idVal === "#") {
+              break;
+            }
+            orders.push({ type: "name", name: idVal });
           } else {
             this.advance();
           }
@@ -669,7 +674,7 @@ export class TmdParser {
 
         case "arrowEnd":
           this.advance();
-          return { name, speed, keySignature, beat, paragraphs, orders, metadata };
+          break;
 
         default: {
           const para = this.parseParagraph();
@@ -793,8 +798,12 @@ export class TmdParser {
               this.skipPipes();
               if (this.current.type === "closeParen") break;
               const units = this.parseUnits();
-              if (units.length > 0) groupUnits.push(...units);
-              else this.advance();
+              if (units.length > 0) {
+                groupUnits.push(...units);
+              } else {
+                this.recordFailure(this.pos, ["note", "chord", "tie", "rest", "percussion", ")"]);
+                return null;
+              }
             }
             this.match("closeParen");
             let length = 1;
@@ -814,7 +823,8 @@ export class TmdParser {
                 unitGroups.push({ units: [u], length: 1 });
               }
             } else {
-              this.advance();
+              this.recordFailure(this.pos, ["note", "chord", "tie", "rest", "percussion", "tuplet", "directive", "}"]);
+              return null;
             }
           }
         }
@@ -854,6 +864,33 @@ export class TmdParser {
         return units;
       }
     }
+    if (this.current.type === "identifier") {
+      const val = this.current.value as string;
+      if (val && /^[XxTtSsDdBbOoCc-]+$/.test(val) && val.includes("-") && !val.startsWith("-")) {
+        this.advance();
+        const units: Unit[] = [];
+        let percBuf = "";
+        for (const ch of val) {
+          if (ch === "-") {
+            if (percBuf.length > 0) {
+              units.push({ type: "percussion", pattern: percBuf });
+              percBuf = "";
+            }
+            units.push({ type: "tie" });
+          } else {
+            percBuf += ch;
+          }
+        }
+        if (percBuf.length > 0) {
+          units.push({ type: "percussion", pattern: percBuf });
+        }
+        return units;
+      }
+      if (val && /^\.+$/.test(val)) {
+        this.advance();
+        return Array.from({ length: val.length }, () => ({ type: "tie" as const }));
+      }
+    }
     const single = this.parseUnit();
     return single ? [single] : [];
   }
@@ -881,6 +918,10 @@ export class TmdParser {
         if (val.length > 0 && /^[XxTtSsDdBbOoCc]+$/.test(val)) {
           this.advance();
           return { type: "percussion", pattern: val };
+        }
+        if (val.length > 0 && /^\.+$/.test(val)) {
+          this.advance();
+          return { type: "tie" };
         }
         return null;
       }
