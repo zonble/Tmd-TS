@@ -1,0 +1,81 @@
+::SCORE::
+** Paganini Theme Transformation Demo **
+~ "composer: Niccolo Paganini / Sergei Rachmaninoff"
+~ "arranger: TMD macro demo"
+!= 120
+?= Am
+<2/4>
+
+/* Authentic Caprice 24 theme, A minor.
+   The original score repeats bars 1-4, then continues through bars 5-12;
+   grace notes are omitted while the written rhythm is retained. */
+theme:Violin@|0|{
+    <16*>
+    1- 0 1 1 3 2 1 |
+    5- 0 5 5 7' 6 5 |
+    1- 0 1 1 3 2 1 |
+    5--- 5- 0- |
+
+    1- 0 1 1 3 2 1 |
+    5- 0 5 5 7' 6 5 |
+    1- 0 1 1 3 2 1 |
+    5--- 5- 0- |
+
+    1- 0 1 1 2, 1 7 |
+    6- 0 4 4 6 5 4 |
+    7- 0 7 7 1 7 6 |
+    5- 0 3 3 5 4 3 |
+    6- 0 2 2 4 3 2 |
+    5- 0 1 1 3 2 1 |
+    6- 0 4' 5 5 4 2 |
+    1--- 1- 0- |
+}
+
+theme:Piano@|0|{
+    <4*>
+    [Am] - | [E7] - | [Am] - | [E7] - |
+    [Am] - | [E7] - | [Am] - | [E7] - |
+    [Am] - | [Dm] - | [G] - | [C] - |
+    [F] [Bdim] | [E] [Am] | [F7] [E7] | [Am] - |
+}
+
+/* Materialized inversion demo. */
+invert:Flute@|0|{
+    <16*>
+    1- 0 1 1 6 7 1 |
+    4- 0 4 4 2 3 4 |
+    1- 0 1 1 6 7 1 |
+    4--- 4- 0- |
+}
+
+/* Materialized retrograde demo. */
+retrograde:Violin@|0|{
+    <16*>
+    0- 5- 5--- |
+    1 2 3 1 1 0 1- |
+    5 6 7' 5 5 0 5- |
+    1 2 3 1 1 0 1- |
+}
+
+/* Materialized retrograde-inversion demo. */
+ri:Cello@|0|{
+    <16*>
+    0- 4- 4--- |
+    1 7 6 1 1 0 1- |
+    4 3 2 4 4 0 4- |
+    1 7 6 1 1 0 1- |
+}
+
+var18:Piano@|0|{
+    <8*>
+    {!=64}
+    1_ 5_ 3 5_ | 1_ 5_ 3 5_ |
+    1_ 6_ 4 6_ | 5_ 2 7 2 |
+}
+
+cadence:Piano@|0|{
+    <4*>
+    [1_3_5_1351^] - |
+}
+
+-> theme -> invert -> retrograde -> ri -> var18 -> cadence ->#

@@ -265,6 +265,8 @@ export interface Section {
   directives: SectionDirective[];
 }
 
+export const DEFAULT_INSTRUMENT = "Piano";
+
 export interface Paragraph {
   name: string;
   instrument: string;

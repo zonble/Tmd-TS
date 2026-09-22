@@ -151,4 +151,16 @@ describe("Web Studio Editor Configuration (TDD)", () => {
     expect(mTokens.some(t => t.text === "Theme" && t.type === "variableName")).toBe(true);
     expect(mTokens.some(t => t.text === "2" && t.type === "number")).toBe(true);
   });
+
+  it("supports gutter play button and cursor context for default track without instrument", () => {
+    const editorPath = path.join(__dirname, "../web/src/editor.ts");
+    const editorContent = fs.readFileSync(editorPath, "utf-8");
+
+    // Gutter marker should support abstract/default paragraphs
+    expect(editorContent).toContain("abstractMatch");
+    expect(editorContent).toContain("DEFAULT_INSTRUMENT");
+
+    // Cursor context should resolve default track to DEFAULT_INSTRUMENT
+    expect(editorContent).toMatch(/instrument\s*=\s*DEFAULT_INSTRUMENT/);
+  });
 });

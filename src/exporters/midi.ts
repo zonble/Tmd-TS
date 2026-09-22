@@ -8,6 +8,8 @@ import {
   PlaybackTimeline,
   TMDPlaybackRenderer,
   TMDMacroEvaluator,
+  SheetInstrumentHelper,
+  DEFAULT_INSTRUMENT,
 } from '../core/index.js';
 import { TMDMIDIEncoder, type MIDIEvent, type MIDIMessage } from './midi_encoder.js';
 
@@ -858,19 +860,21 @@ export class TMDMIDIGenerator {
       };
     }
 
-    let distinctInstruments = Array.from(
-      new Set(effectiveSheet.paragraphs.map(p => p.instrument))
-    ).sort();
+    let distinctInstruments = SheetInstrumentHelper.distinctInstruments(effectiveSheet);
 
     if (options?.targetInstrument) {
-      distinctInstruments = distinctInstruments.filter(inst => inst === options.targetInstrument);
+      const target = options.targetInstrument === "" ? DEFAULT_INSTRUMENT : options.targetInstrument;
+      distinctInstruments = distinctInstruments.filter(inst => inst === target);
+      if (distinctInstruments.length === 0 && (options.targetInstrument === DEFAULT_INSTRUMENT || options.targetInstrument === "")) {
+        distinctInstruments = [DEFAULT_INSTRUMENT];
+      }
     }
 
     const timelineInstrument =
       effectiveSheet.paragraphs.find(p => p.sections.some(s => s.directives.length > 0))
-        ?.instrument ??
-      distinctInstruments[0] ??
-      'Piano';
+        ?.instrument ||
+      distinctInstruments[0] ||
+      DEFAULT_INSTRUMENT;
 
     const renderOpts = { startOrderIndex: options?.startOrderIndex };
     const timeline = TMDPlaybackRenderer.render(effectiveSheet, timelineInstrument, renderOpts);

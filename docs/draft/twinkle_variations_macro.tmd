@@ -1,0 +1,90 @@
+::SCORE::
+** Twinkle Variations (Macro Edition) **
+~ "composer: Traditional / W. A. Mozart"
+~ "arranger: TMD S-Expression Macro Demo"
+!= 108
+?= C
+<4/4>
+
+/* ==========================================================================
+   Abstract Themes (小星星原型段落)
+   ========================================================================== */
+
+/* A 段: 1 1 5 5 | 6 6 5 - | 4 4 3 3 | 2 2 1 - */
+ThemeA {
+    <4*>
+    1 1 5 5 | 6 6 5 - | 4 4 3 3 | 2 2 1 - |
+}
+
+/* B 段: 5 5 4 4 | 3 3 2 - | 5 5 4 4 | 3 3 2 - */
+ThemeB {
+    <4*>
+    5 5 4 4 | 3 3 2 - | 5 5 4 4 | 3 3 2 - |
+}
+
+/* 完整小星星主題 (ABA 結構: 12 小節) */
+Twinkle {
+    <4*>
+    1 1 5 5 | 6 6 5 - | 4 4 3 3 | 2 2 1 - |
+    5 5 4 4 | 3 3 2 - | 5 5 4 4 | 3 3 2 - |
+    1 1 5 5 | 6 6 5 - | 4 4 3 3 | 2 2 1 - |
+}
+
+/* 伴奏原型 (Alberti Bass / 簡易分解和弦) */
+Accomp {
+    <4*>
+    1_ 5_ 3_ 5_ | 4_ 6_ 1 6_ | 4_ 6_ 1 6_ | 5_ 7_ 2 5_ |
+    1_ 5_ 3_ 5_ | 1_ 5_ 3_ 5_ | 1_ 5_ 3_ 5_ | 5_ 7_ 2 5_ |
+    1_ 5_ 3_ 5_ | 4_ 6_ 1 6_ | 4_ 6_ 1 6_ | 1_--- |
+}
+
+/* 終止式和弦 (Outro) */
+Cadence:Piano@|0|{
+    <1*>
+    [1351^]--- |
+}
+
+/* ==========================================================================
+   Playback Flow (變奏曲巨集展開流程)
+   
+   架構說明：
+   1. Theme: 主題原樣陳述 (原調 C 大調, Piano)
+   2. Var 1: 移調變奏 (transpose +7 到屬調 G 大調, 高八度笛聲主奏)
+   3. Var 2: 倒影變奏 (invert, 鏡像音程反轉, 木琴主奏)
+   4. Var 3: 逆行變奏 (reverse / retrograde, 倒退演奏, 大提琴主奏)
+   5. Var 4: 逆行倒影雙重變奏 (ri, 低八度 Bass 主奏)
+   6. Var 5: 複調變奏 (layer: 主題鋼琴主奏 + 上五度卡農弦樂交織)
+   7. Cadence: 終止式
+   ========================================================================== */
+
+/* 主題原樣陳述 (Theme) */
+-> (play Twinkle Piano)
+
+/* 變奏 1: 移調五度 (G大調) + 高八度 (Flute 主奏) */
+-> (layer
+     (play (vary Twinkle (transpose 7) (octave 1)) Flute)
+     (play (transpose 7 Accomp) Piano))
+
+/* 變奏 2: 旋律倒影 (Inversion, 首音為軸心) */
+-> (layer
+     (play (invert Twinkle) Marimba)
+     (play Accomp Piano))
+
+/* 變奏 3: 逆行變奏 (Retrograde / Reverse) */
+-> (layer
+     (play (reverse Twinkle) Cello)
+     (play Accomp Piano))
+
+/* 變奏 4: 逆行倒影 (Retrograde Inversion) + 低八度 */
+-> (layer
+     (play (vary Twinkle (ri) (octave -1)) Bass)
+     (play Accomp Piano))
+
+/* 變奏 5: 變奏卡農織體 (2 部卡農 + 鋼琴原調伴奏) */
+-> (layer
+     (canon (vary Twinkle (octave 1)) (Violin1 Violin2) 2)
+     (play Accomp Piano))
+
+/* 終止式 */
+-> Cadence
+->#

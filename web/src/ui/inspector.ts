@@ -1,4 +1,5 @@
-import { Sheet, scaleDegreeLetter, accidentalToSemitone } from "../../../src/core/types.js";
+import { Sheet, scaleDegreeLetter, accidentalToSemitone, DEFAULT_INSTRUMENT } from "../../../src/core/types.js";
+import { SheetInstrumentHelper } from "../../../src/core/instruments.js";
 import { TMDOutlineGenerator } from "../../../src/core/outline.js";
 import { TMDSongInspector } from "../../../src/core/inspector.js";
 import { t } from "../i18n.js";
@@ -337,16 +338,17 @@ export function renderInspectorView(
         const offset = p.start ? (p.start > 0 ? `+${p.start}` : `${p.start}`) : "0";
         const totalUnits = p.sections.reduce((acc, s) => acc + s.unitGroups.reduce((uAcc, g) => uAcc + g.units.length, 0), 0);
         const lineAttr = p.line ? `data-start-line="${p.line}" data-start-col="1" data-end-line="${p.line}" data-end-col="1"` : "";
+        const instLabel = p.instrument || DEFAULT_INSTRUMENT;
         const trkPlayTitle = (t("playTrackTitle") || "Play track: {section} ({instrument})")
           .replace("{section}", p.name)
-          .replace("{instrument}", p.instrument);
+          .replace("{instrument}", instLabel);
 
         return `
           <div class="track-item" ${lineAttr}>
-            <span class="track-name">${escapeHtml(p.name)}:${escapeHtml(p.instrument)}</span>
+            <span class="track-name">${escapeHtml(p.name)}:${escapeHtml(instLabel)}</span>
             <span class="outline-item-right">
               <span class="track-meta">@|${offset}| · ${totalUnits} notes</span>
-              <button type="button" class="outline-play-btn" data-play-section="${escapeHtml(p.name)}" data-play-instrument="${escapeHtml(p.instrument)}" title="${escapeHtml(trkPlayTitle)}">▶</button>
+              <button type="button" class="outline-play-btn" data-play-section="${escapeHtml(p.name)}" data-play-instrument="${escapeHtml(p.instrument || DEFAULT_INSTRUMENT)}" title="${escapeHtml(trkPlayTitle)}">▶</button>
             </span>
           </div>
         `;
@@ -357,11 +359,8 @@ export function renderInspectorView(
   }
 
   // Status bar summary
-  const trackCount = new Set(
-    currentSheet.paragraphs
-      .map((p) => p.instrument)
-      .filter((inst) => Boolean(inst && inst.trim()))
-  ).size;
+  const distinctInstruments = SheetInstrumentHelper.distinctInstruments(currentSheet);
+  const trackCount = distinctInstruments.length;
   sbStatus.textContent = "Valid TMD";
   sbSummary.textContent = `${currentSheet.paragraphs.length} paragraphs · ${trackCount} instruments · BPM ${currentSheet.speed || 120}`;
 
@@ -467,7 +466,10 @@ export function setupInspectorPanelEvents(
       e.stopPropagation();
       e.preventDefault();
       const sec = playBtn.dataset.playSection;
-      const inst = playBtn.dataset.playInstrument;
+      let inst = playBtn.dataset.playInstrument;
+      if (inst === "Pattern" || !inst) {
+        inst = DEFAULT_INSTRUMENT;
+      }
       if (sec) {
         playSectionOrTrack(sec, inst);
       }

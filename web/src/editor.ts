@@ -5,6 +5,7 @@ import { toggleComment, indentWithTab } from "@codemirror/commands";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { keymap, gutter, GutterMarker, BlockInfo, Decoration, DecorationSet, hoverTooltip, Tooltip } from "@codemirror/view";
 import type { TMDMeasureIssue } from "../../src/core/measure_check.js";
+import { DEFAULT_INSTRUMENT } from "../../src/core/types.js";
 
 export interface TMDParserState {
   inComment: boolean;
@@ -292,9 +293,16 @@ export function createTmdEditor(
     class: "cm-section-play-gutter",
     lineMarker(view: EditorView, line: BlockInfo) {
       const lineText = view.state.doc.lineAt(line.from).text.trim();
-      const match = lineText.match(/^([a-zA-Z0-9_\u4e00-\u9fa5-]+):([a-zA-Z0-9_\u4e00-\u9fa5-]+)(?:@\|?[+-]?\d+\|?)?\s*\{/);
-      if (match) {
-        return new SectionPlayGutterMarker(match[1], match[2], onPlaySection);
+      const concreteMatch = lineText.match(/^([a-zA-Z0-9_\u4e00-\u9fa5-]+):([a-zA-Z0-9_\u4e00-\u9fa5-]+)(?:@\|?[+-]?\d+\|?)?\s*\{/);
+      if (concreteMatch) {
+        return new SectionPlayGutterMarker(concreteMatch[1], concreteMatch[2], onPlaySection);
+      }
+      const abstractMatch = lineText.match(/^([a-zA-Z0-9_\u4e00-\u9fa5-]+)\s*\{/);
+      if (abstractMatch) {
+        const secName = abstractMatch[1];
+        if (secName !== "instruments") {
+          return new SectionPlayGutterMarker(secName, DEFAULT_INSTRUMENT, onPlaySection);
+        }
       }
       return null;
     },
@@ -503,12 +511,22 @@ export function createTmdEditor(
 
       for (let l = currentLineNum; l >= 1; l--) {
         const lineText = doc.line(l).text.trim();
-        // Match paragraph header like `verse:Guitar@|0|{` or `verse:Guitar{`
-        const match = lineText.match(/^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/);
-        if (match) {
-          section = match[1];
-          instrument = match[2];
+        // Match concrete paragraph header like `verse:Guitar@|0|{` or `verse:Guitar{`
+        const concreteMatch = lineText.match(/^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/);
+        if (concreteMatch) {
+          section = concreteMatch[1];
+          instrument = concreteMatch[2];
           break;
+        }
+        // Match abstract / default paragraph header like `theme {` or `theme{`
+        const abstractMatch = lineText.match(/^([a-zA-Z0-9_-]+)\s*\{/);
+        if (abstractMatch) {
+          const sec = abstractMatch[1];
+          if (sec !== "instruments") {
+            section = sec;
+            instrument = DEFAULT_INSTRUMENT;
+            break;
+          }
         }
         // If we hit another block closing before opening, we stop or continue scanning
       }

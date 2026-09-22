@@ -1,6 +1,7 @@
 import {
   Beat,
   ChordSymbol,
+  DEFAULT_INSTRUMENT,
   KeySignature,
   Note,
   Order,
@@ -54,7 +55,11 @@ export class TMDPlaybackRenderer {
     options?: TMDPlaybackRendererOptions
   ): PlaybackTimeline {
     const sheet = TMDMacroEvaluator.expand(inputSheet);
-    const paragraphs = sheet.paragraphs.filter((p) => p.instrument === instrument);
+    const targetInst = instrument || DEFAULT_INSTRUMENT;
+    const paragraphs = sheet.paragraphs.filter((p) => {
+      const pInst = p.instrument || DEFAULT_INSTRUMENT;
+      return pInst === targetInst || p.instrument === instrument;
+    });
     const orders: Order[] = sheet.orders.length > 0
       ? sheet.orders
       : Array.from(new Set(sheet.paragraphs.map((p) => p.name))).map((n) => ({ type: "name", name: n }));
