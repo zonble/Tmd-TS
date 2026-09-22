@@ -150,6 +150,51 @@ function invertSections(sections: Section[], axisPitchSemitones?: number): Secti
   return cloned;
 }
 
+function toMinorSections(sections: Section[]): Section[] {
+  const cloned: Section[] = JSON.parse(JSON.stringify(sections));
+  for (const s of cloned) {
+    for (const g of s.unitGroups) {
+      for (const u of g.units) {
+        if (u.type === "note") {
+          // Flatten 3, 6, 7 degrees:
+          // E (degree 3) -> Eb (degree 3, flat)
+          // A (degree 6) -> Ab (degree 6, flat)
+          // B (degree 7) -> Bb (degree 7, flat)
+          if (u.note.degree === ScaleDegree.E && u.note.accidental === Accidental.Natural) {
+            u.note.accidental = Accidental.Flat;
+          } else if (u.note.degree === ScaleDegree.A && u.note.accidental === Accidental.Natural) {
+            u.note.accidental = Accidental.Flat;
+          } else if (u.note.degree === ScaleDegree.B && u.note.accidental === Accidental.Natural) {
+            u.note.accidental = Accidental.Flat;
+          }
+        }
+      }
+    }
+  }
+  return cloned;
+}
+
+function toMajorSections(sections: Section[]): Section[] {
+  const cloned: Section[] = JSON.parse(JSON.stringify(sections));
+  for (const s of cloned) {
+    for (const g of s.unitGroups) {
+      for (const u of g.units) {
+        if (u.type === "note") {
+          // Raise flat 3, 6, 7 degrees back to natural:
+          if (u.note.degree === ScaleDegree.E && u.note.accidental === Accidental.Flat) {
+            u.note.accidental = Accidental.Natural;
+          } else if (u.note.degree === ScaleDegree.A && u.note.accidental === Accidental.Flat) {
+            u.note.accidental = Accidental.Natural;
+          } else if (u.note.degree === ScaleDegree.B && u.note.accidental === Accidental.Flat) {
+            u.note.accidental = Accidental.Natural;
+          }
+        }
+      }
+    }
+  }
+  return cloned;
+}
+
 export class TMDMacroEvaluator {
   /**
    * Expands any S-expression macro orders (`Order.macro`) in a Sheet into concrete
@@ -261,7 +306,27 @@ export class TMDMacroEvaluator {
           };
         }
 
-        // 6. (vary <theme> <transform1> <transform2> ...)
+        // 6. (minor <theme>)
+        if (head === "minor") {
+          const target = themeArg[1];
+          const sub = getThemeSections(target);
+          return {
+            name: `${sub.name}_minor`,
+            sections: toMinorSections(sub.sections),
+          };
+        }
+
+        // 7. (major <theme>)
+        if (head === "major") {
+          const target = themeArg[1];
+          const sub = getThemeSections(target);
+          return {
+            name: `${sub.name}_major`,
+            sections: toMajorSections(sub.sections),
+          };
+        }
+
+        // 8. (vary <theme> <transform1> <transform2> ...)
         if (head === "vary") {
           const target = themeArg[1];
           let current = getThemeSections(target);
@@ -297,6 +362,16 @@ export class TMDMacroEvaluator {
               current = {
                 name: `${current.name}_ri`,
                 sections: invertSections(reverseSections(current.sections), axisArg),
+              };
+            } else if (tOp === "minor") {
+              current = {
+                name: `${current.name}_minor`,
+                sections: toMinorSections(current.sections),
+              };
+            } else if (tOp === "major") {
+              current = {
+                name: `${current.name}_major`,
+                sections: toMajorSections(current.sections),
               };
             }
           }
@@ -558,6 +633,28 @@ export class TMDMacroEvaluator {
           const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
           for (const ip of innerParagraphs) {
             ip.sections = invertSections(reverseSections(ip.sections), axisArg);
+          }
+          return innerRes;
+        }
+
+        case "minor": {
+          // (minor <child>)
+          const childExpr = expr[1];
+          const innerRes = evalExpr(childExpr);
+          const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
+          for (const ip of innerParagraphs) {
+            ip.sections = toMinorSections(ip.sections);
+          }
+          return innerRes;
+        }
+
+        case "major": {
+          // (major <child>)
+          const childExpr = expr[1];
+          const innerRes = evalExpr(childExpr);
+          const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
+          for (const ip of innerParagraphs) {
+            ip.sections = toMajorSections(ip.sections);
           }
           return innerRes;
         }

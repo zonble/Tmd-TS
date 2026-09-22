@@ -729,6 +729,53 @@ Theme {
       // mirror-rev: 72, 77, 80, 84
       expect(celloPitches).toEqual([72, 77, 80, 84]);
     });
+
+    it('evaluates (minor Theme) converting natural major 3, 6, 7 to minor degrees', () => {
+      const input = `::SCORE::
+** Parallel Minor Test **
+!= 120
+?= C
+<4/4>
+
+Theme {
+    <4*>
+    1 2 3 4 | 5 6 7 1^
+}
+
+-> (play (minor Theme) Piano) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const playback = TMDPlaybackRenderer.render(sheet, 'Piano');
+      const pitches = playback.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      // Original C major: 1(60), 2(62), 3(64), 4(65), 5(67), 6(69), 7(71), 1^(72)
+      // Parallel C minor: 1(60), 2(62), 3,(63, Eb), 4(65), 5(67), 6,(68, Ab), 7,(70, Bb), 1^(72)
+      expect(pitches).toEqual([60, 62, 63, 65, 67, 68, 70, 72]);
+    });
+
+    it('evaluates (major Theme) converting minor 3, 6, 7 to natural major degrees', () => {
+      const input = `::SCORE::
+** Parallel Major Test **
+!= 120
+?= C
+<4/4>
+
+ThemeMinor {
+    <4*>
+    1 2 3, 4 | 5 6, 7, 1^
+}
+
+-> (play (major ThemeMinor) Piano) ->#
+`;
+      const sheet = TmdParser.parse(input);
+      const playback = TMDPlaybackRenderer.render(sheet, 'Piano');
+      const pitches = playback.events.map((e) =>
+        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
+      );
+      // Converted to C major: 1(60), 2(62), 3(64), 4(65), 5(67), 6(69), 7(71), 1^(72)
+      expect(pitches).toEqual([60, 62, 64, 65, 67, 69, 71, 72]);
+    });
   });
 });
 
