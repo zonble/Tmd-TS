@@ -117,21 +117,23 @@ export class TMDMeasureChecker {
       const tok = current();
       if (!tok) break;
 
-      // Paragraph header: identifier:identifier@...{
+      // Paragraph header: identifier:identifier@...{ OR abstract paragraph: identifier{
       if (
         tok.token.type === "identifier" &&
         pos + 1 < tokensWithRanges.length &&
-        tokensWithRanges[pos + 1].token.type === "colon"
+        (tokensWithRanges[pos + 1].token.type === "colon" || tokensWithRanges[pos + 1].token.type === "openBrace")
       ) {
         const pName = tok.token.value as string;
         const paraStartLine = tok.range.start.line;
         advance(); // pName
-        advance(); // :
 
         let instName = "";
-        const instTok = advance();
-        if (instTok && instTok.token.type === "identifier") {
-          instName = instTok.token.value as string;
+        if (current()?.token.type === "colon") {
+          advance(); // :
+          const instTok = advance();
+          if (instTok && instTok.token.type === "identifier") {
+            instName = instTok.token.value as string;
+          }
         }
 
         // Extract start offset from @|start| if present
@@ -403,6 +405,25 @@ export class TMDMeasureChecker {
           if (nextTok.token.type === "arrowEnd") {
             terminatedWithHash = true;
             advance();
+          } else if (nextTok.token.type === "openParen") {
+            // S-expression in playback order: -> ( ... )
+            let parenDepth = 0;
+            while (pos < tokensWithRanges.length) {
+              const cur = current();
+              if (!cur) break;
+              if (cur.token.type === "openParen") {
+                parenDepth++;
+                advance();
+              } else if (cur.token.type === "closeParen") {
+                parenDepth--;
+                advance();
+                if (parenDepth === 0) break;
+              } else if (cur.token.type === "arrow" || cur.token.type === "arrowEnd") {
+                break;
+              } else {
+                advance();
+              }
+            }
           } else if (nextTok.token.type === "identifier") {
             const orderSecName = nextTok.token.value as string;
             if (orderSecName === "#") {

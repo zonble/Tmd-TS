@@ -7,6 +7,9 @@ import {
   Beat,
   PlaybackTimeline,
   TMDPlaybackRenderer,
+  TMDMacroEvaluator,
+  SheetInstrumentHelper,
+  DEFAULT_INSTRUMENT,
 } from '../core/index.js';
 import { TMDMIDIEncoder, type MIDIEvent, type MIDIMessage } from './midi_encoder.js';
 
@@ -843,33 +846,35 @@ export class TMDMIDIGenerator {
   public static readonly defaultTicksPerQuarterNote = 480;
 
   public static generateMIDI(
-    sheet: Sheet,
+    rawSheet: Sheet,
     ticksPerQuarter: number = TMDMIDIGenerator.defaultTicksPerQuarterNote,
     options?: TMDMIDIGeneratorOptions
   ): Uint8Array {
-    let effectiveSheet = sheet;
+    let effectiveSheet = TMDMacroEvaluator.expand(rawSheet);
     if (options?.targetParagraph) {
-      const filteredParagraphs = sheet.paragraphs.filter(p => p.name === options.targetParagraph);
+      const filteredParagraphs = rawSheet.paragraphs.filter(p => p.name === options.targetParagraph);
       effectiveSheet = {
-        ...sheet,
+        ...rawSheet,
         paragraphs: filteredParagraphs,
         orders: [{ type: 'name', name: options.targetParagraph }],
       };
     }
 
-    let distinctInstruments = Array.from(
-      new Set(effectiveSheet.paragraphs.map(p => p.instrument))
-    ).sort();
+    let distinctInstruments = SheetInstrumentHelper.distinctInstruments(effectiveSheet);
 
     if (options?.targetInstrument) {
-      distinctInstruments = distinctInstruments.filter(inst => inst === options.targetInstrument);
+      const target = options.targetInstrument === "" ? DEFAULT_INSTRUMENT : options.targetInstrument;
+      distinctInstruments = distinctInstruments.filter(inst => inst === target);
+      if (distinctInstruments.length === 0 && (options.targetInstrument === DEFAULT_INSTRUMENT || options.targetInstrument === "")) {
+        distinctInstruments = [DEFAULT_INSTRUMENT];
+      }
     }
 
     const timelineInstrument =
       effectiveSheet.paragraphs.find(p => p.sections.some(s => s.directives.length > 0))
-        ?.instrument ??
-      distinctInstruments[0] ??
-      'Piano';
+        ?.instrument ||
+      distinctInstruments[0] ||
+      DEFAULT_INSTRUMENT;
 
     const renderOpts = { startOrderIndex: options?.startOrderIndex };
     const timeline = TMDPlaybackRenderer.render(effectiveSheet, timelineInstrument, renderOpts);

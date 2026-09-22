@@ -471,5 +471,67 @@ intro:Bass@|0|{
       expect(SheetInstrumentHelper.resolveVocalInstrument(sheet, "Piano")).toBe("Piano");
     });
   });
+
+  describe("Default Track / Instrument Handling (TDD)", () => {
+    const defaultTrackTMD = `::SCORE::
+** Default Track Score **
+!= 120
+?= C
+<4/4>
+
+theme {
+    <4*>
+    1 2 3 4
+}
+
+-> theme ->#
+`;
+
+    it("defaults paragraph without instrument to Piano in TMDPlaybackRenderer", () => {
+      const sheet = TmdParser.parse(defaultTrackTMD)!;
+      expect(sheet).not.toBeNull();
+      expect(sheet.paragraphs[0].instrument).toBe("");
+
+      // Rendering with "Piano" should play the theme notes
+      const pianoTimeline = TMDPlaybackRenderer.render(sheet, "Piano");
+      expect(pianoTimeline.events).toHaveLength(4);
+      expect(pianoTimeline.events[0].position).toBe(0);
+      expect(pianoTimeline.duration).toBe(4);
+
+      // Rendering with "" should also play the theme notes
+      const emptyTimeline = TMDPlaybackRenderer.render(sheet, "");
+      expect(emptyTimeline.events).toHaveLength(4);
+    });
+
+    it("generates playable MIDI with Piano track and program 0 for default track", () => {
+      const sheet = TmdParser.parse(defaultTrackTMD)!;
+      const midi = TMDMIDIGenerator.generateMIDI(sheet);
+      expect(midi.length).toBeGreaterThan(0);
+
+      // Track count: 1 conductor + 1 Piano track = 2 tracks
+      const tracks = (midi[10] << 8) | midi[11];
+      expect(tracks).toBe(2);
+
+      // Single section preview targeting "theme" with "Piano"
+      const sectionMidi = TMDMIDIGenerator.generateMIDI(sheet, undefined, {
+        targetParagraph: "theme",
+        targetInstrument: "Piano",
+      });
+      const sectionTracks = (sectionMidi[10] << 8) | sectionMidi[11];
+      expect(sectionTracks).toBe(2);
+    });
+
+    it("exports MusicXML and ABC with notes for default track without instrument", () => {
+      const sheet = TmdParser.parse(defaultTrackTMD)!;
+      const instruments = SheetInstrumentHelper.distinctInstruments(sheet);
+      expect(instruments).toEqual(["Piano"]);
+
+      const musicxml = TMDMusicXMLGenerator.generateMusicXML(sheet);
+      expect(musicxml).toContain("<step>C</step>");
+
+      const abc = TMDABCGenerator.generateABC(sheet);
+      expect(abc).toContain('V:V1 name="Piano"');
+    });
+  });
 });
 

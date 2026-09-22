@@ -7,6 +7,7 @@ import {
   MeasureEvent,
   KeySignature,
   SheetInstrumentHelper,
+  TMDMacroEvaluator,
 } from "../core";
 
 interface ABCKeyInfo {
@@ -16,7 +17,8 @@ interface ABCKeyInfo {
 }
 
 export class TMDABCGenerator {
-  public static generateABC(sheet: Sheet): string {
+  public static generateABC(rawSheet: Sheet): string {
+    const sheet = TMDMacroEvaluator.expand(rawSheet);
     let abc = "";
 
     abc += "X:1\n";

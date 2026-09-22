@@ -1,7 +1,8 @@
-import { Note, PitchMapping, PlaybackDirectiveEvent, Sheet, TMDPlaybackRenderer, TMDMeasureRenderer, SheetInstrumentHelper } from "../core";
+import { Note, PitchMapping, PlaybackDirectiveEvent, Sheet, TMDPlaybackRenderer, TMDMeasureRenderer, SheetInstrumentHelper, TMDMacroEvaluator } from "../core";
 
 export class TMDMusicXMLGenerator {
-  public static generateMusicXML(sheet: Sheet): string {
+  public static generateMusicXML(rawSheet: Sheet): string {
+    const sheet = TMDMacroEvaluator.expand(rawSheet);
     const metaCreators = Object.keys(sheet.metadata)
       .sort()
       .map((key) => {

@@ -11,6 +11,7 @@ import {
   ScaleDegree,
   Section,
   SectionDirective,
+  SExpr,
   Sheet,
   Unit,
   UnitGroup
@@ -651,6 +652,13 @@ export class TmdParser {
             }
             this.match("closeBrace");
             orders.push({ type: "absolute", value: val });
+          } else if (currType === "openParen") {
+            const tok = this.currentToken();
+            const sexpr = this.parseSExpr();
+            if (!sexpr || !Array.isArray(sexpr)) {
+              return null;
+            }
+            orders.push({ type: "macro", expr: sexpr as SExpr[], line: tok.line, column: tok.column });
           } else if (currType === "identifier") {
             orders.push({ type: "name", name: this.advance().value });
           } else {
@@ -689,41 +697,47 @@ export class TmdParser {
       name = this.advance().value;
     }
 
-    if (!this.require("colon")) {
-      return null;
-    }
-
     let instrument = "";
-    if (this.current.type === "identifier") {
-      instrument = this.advance().value;
-    }
-
-    if (!this.require("at")) {
-      return null;
-    }
-
     let start = 0;
     let executionTime: string | undefined;
-    if (this.match("pipe")) {
-      const currType = this.current.type as string;
-      if (currType === "tie") {
-        this.advance();
-        const nextType = this.current.type as string;
-        if (nextType === "number") start = -this.advance().value;
-        else if (nextType === "note") start = -this.advance().value.degree;
-      } else if (currType === "number" || currType === "positiveNumber") {
-        start = this.advance().value;
-      } else if (currType === "note") {
-        start = this.advance().value.degree;
-      }
-      this.match("pipe");
-    } else if (["identifier", "number", "positiveNumber", "double", "note"].includes(this.current.type as string)) {
-      const value = this.advance().value;
-      executionTime = typeof value === "object" ? String(value.degree) : String(value);
-    }
 
-    if (!this.require("openBrace")) {
-      return null;
+    if ((this.currentToken().type as string) === "colon") {
+      this.advance();
+      if ((this.currentToken().type as string) === "identifier") {
+        instrument = this.advance().value;
+      }
+
+      if (!this.require("at")) {
+        return null;
+      }
+
+      if (this.match("pipe")) {
+        const currType = this.currentToken().type as string;
+        if (currType === "tie") {
+          this.advance();
+          const nextType = this.currentToken().type as string;
+          if (nextType === "number") start = -this.advance().value;
+          else if (nextType === "note") start = -this.advance().value.degree;
+        } else if (currType === "number" || currType === "positiveNumber") {
+          start = this.advance().value;
+        } else if (currType === "note") {
+          start = this.advance().value.degree;
+        }
+        this.match("pipe");
+      } else if (["identifier", "number", "positiveNumber", "double", "note"].includes(this.currentToken().type as string)) {
+        const value = this.advance().value;
+        executionTime = typeof value === "object" ? String(value.degree) : String(value);
+      }
+
+      if (!this.require("openBrace")) {
+        return null;
+      }
+    } else {
+      if ((this.currentToken().type as string) !== "openBrace") {
+        this.recordFailure(this.pos, [tokenExpectedDescription("colon")]);
+        return null;
+      }
+      this.advance();
     }
 
     if (this.current.type === "programText") {
@@ -949,5 +963,48 @@ export class TmdParser {
 
     this.match("closeBrace");
     return result;
+  }
+
+  private parseSExpr(): SExpr | null {
+    if (!this.require("openParen")) return null;
+    const items: SExpr[] = [];
+    while (this.current.type !== "closeParen" && this.current.type !== "eof") {
+      if (this.current.type === "arrow" || this.current.type === "arrowEnd") {
+        this.recordFailure(this.pos, [tokenExpectedDescription("closeParen")]);
+        return null;
+      }
+      if (this.current.type === "openParen") {
+        const sub = this.parseSExpr();
+        if (sub === null) return null;
+        items.push(sub);
+      } else {
+        const tok = this.advance();
+        if (tok.type === "number" || tok.type === "positiveNumber") {
+          items.push(tok.value);
+        } else if (tok.type === "identifier") {
+          items.push(tok.value);
+        } else if (tok.type === "note") {
+          // If pure digit with no accidental/octave modifiers, treat as number in SExpr
+          if (tok.value.accidental === Accidental.Natural && tok.value.octave === 0 && !tok.text.includes("^") && !tok.text.includes("_") && !tok.text.includes("'") && !tok.text.includes(",")) {
+            items.push(tok.value.degree);
+          } else {
+            items.push(tok.text);
+          }
+        } else if (tok.type === "tie") {
+          // Negative number like -12 or signed number
+          if (this.current.type === "number" || this.current.type === "note") {
+            const numTok = this.advance();
+            const val = numTok.type === "number" ? numTok.value : numTok.value.degree;
+            items.push(-val);
+          } else {
+            items.push(tok.text);
+          }
+        } else if (tok.text) {
+          items.push(tok.text);
+        }
+      }
+    }
+    if (!this.require("closeParen")) return null;
+    return items;
   }
 }

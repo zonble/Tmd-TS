@@ -1,4 +1,5 @@
-import { Sheet, scaleDegreeLetter, accidentalToSemitone } from "../../../src/core/types.js";
+import { Sheet, scaleDegreeLetter, accidentalToSemitone, DEFAULT_INSTRUMENT } from "../../../src/core/types.js";
+import { SheetInstrumentHelper } from "../../../src/core/instruments.js";
 import { TMDOutlineGenerator } from "../../../src/core/outline.js";
 import { TMDSongInspector } from "../../../src/core/inspector.js";
 import { t } from "../i18n.js";
@@ -92,26 +93,29 @@ export function renderInspectorView(
 
   // Song Inspector Analysis
   try {
-    // Track list for pitch analysis
-    const distinctInsts = Array.from(new Set(currentSheet.paragraphs.map((p) => p.instrument))).sort();
     let currentInst = elements.selectedPitchInstrument;
+    const profile = TMDSongInspector.inspect(currentSheet, currentInst);
+
+    // Track list for pitch analysis from expanded instrument ranges
+    const distinctInsts = profile.instrumentRanges.map((r) => r.instrument);
     if (!currentInst || !distinctInsts.includes(currentInst)) {
-      currentInst = distinctInsts.find((inst) => /^(main_?vocal|lead_?vocal|vocal|voice|主唱|人聲|歌|vo)$/i.test(inst))
+      currentInst = profile.vocalRange?.instrument
+        || distinctInsts.find((inst) => /^(main_?vocal|lead_?vocal|vocal|voice|主唱|人聲|歌|vo)$/i.test(inst))
         || distinctInsts.find((inst) => /vocal|voice|miku|utau|teto|sing|melody|lead|主旋律/i.test(inst) && !/backing|harm|choir|guitar|synth|pad|bass|drum|beat/i.test(inst))
         || distinctInsts[0];
     }
 
     if (inspectorPitchInstSelect) {
-      const prevVal = inspectorPitchInstSelect.value;
       inspectorPitchInstSelect.innerHTML = distinctInsts
-        .map((inst) => `<option value="${escapeHtml(inst)}"${inst === currentInst ? " selected" : ""}>${escapeHtml(inst)}</option>`)
+        .map((inst) => {
+          const displayLabel = inst === "Pattern" ? (t("trackPattern") || "Pattern") : inst;
+          return `<option value="${escapeHtml(inst)}"${inst === currentInst ? " selected" : ""}>${escapeHtml(displayLabel)}</option>`;
+        })
         .join("");
       if (currentInst) {
         inspectorPitchInstSelect.value = currentInst;
       }
     }
-
-    const profile = TMDSongInspector.inspect(currentSheet, currentInst);
 
     if (statDuration) {
       const totalSec = profile.timing.totalDurationSeconds;
@@ -226,7 +230,21 @@ export function renderInspectorView(
   if (currentSheet.orders && currentSheet.orders.length > 0) {
     inspectorOrders.innerHTML = currentSheet.orders
       .map((ord, idx) => {
-        const orderLabel = ord.type === "name" ? ord.name : `{${ord.value}}`;
+        let orderLabel = "";
+        let opName = "";
+        let macroDetail = "";
+        if (ord.type === "name") {
+          orderLabel = ord.name;
+        } else if (ord.type === "relative" || ord.type === "absolute") {
+          orderLabel = `{${ord.value}}`;
+        } else if (ord.type === "macro") {
+          opName = Array.isArray(ord.expr) && ord.expr.length > 0 && typeof ord.expr[0] === "string"
+            ? ord.expr[0]
+            : "macro";
+          orderLabel = `(${opName})`;
+          macroDetail = ord.expr.map(e => (Array.isArray(e) ? `(${e.join(" ")})` : String(e))).join(" ");
+        }
+
         const playTitle = (t("playOrderTitle") || "Play from here ({order})").replace("{order}", orderLabel);
         const playBtnHtml = `<button type="button" class="order-play-btn" data-play-order-index="${idx}" title="${escapeHtml(playTitle)}">▶</button>`;
 
@@ -243,6 +261,9 @@ export function renderInspectorView(
           return `<span class="order-tag order-tag-directive" ${rangeAttrs} style="color: var(--accent-purple); border-color: rgba(188, 140, 255, 0.3);"><span class="order-tag-text" title="${escapeHtml(jumpTitle)}">{${escapeHtml(ord.value)}}</span>${playBtnHtml}</span>`;
         } else if (ord.type === "absolute") {
           return `<span class="order-tag order-tag-directive" ${rangeAttrs} style="color: var(--accent-yellow); border-color: rgba(210, 153, 34, 0.3);"><span class="order-tag-text" title="${escapeHtml(jumpTitle)}">{${escapeHtml(ord.value)}}</span>${playBtnHtml}</span>`;
+        } else if (ord.type === "macro") {
+          const tooltip = macroDetail ? `${opName}: ${macroDetail}` : jumpTitle;
+          return `<span class="order-tag order-tag-macro" ${rangeAttrs} style="color: var(--accent-blue); border-color: rgba(88, 166, 255, 0.35);"><span class="order-tag-text" title="${escapeHtml(tooltip)}">(${escapeHtml(opName)})</span>${playBtnHtml}</span>`;
         }
         return "";
       })
@@ -272,13 +293,14 @@ export function renderInspectorView(
             const tracksHtml = trackChildren
               .map((trkNode) => {
                 const trkRangeAttrs = `data-start-line="${trkNode.range.startLine}" data-start-col="${trkNode.range.startColumn}" data-end-line="${trkNode.range.endLine}" data-end-col="${trkNode.range.endColumn}"`;
+                const displayTrackName = trkNode.name === "Pattern" ? (t("trackPattern") || "Pattern") : trkNode.name;
                 const trkPlayTitle = (t("playTrackTitle") || "Play track: {section} ({instrument})")
                   .replace("{section}", secNode.name)
-                  .replace("{instrument}", trkNode.name);
+                  .replace("{instrument}", displayTrackName);
 
                 return `
                   <div class="track-item outline-track-item" ${trkRangeAttrs} title="L${trkNode.range.startLine}:C${trkNode.range.startColumn}">
-                    <span class="track-name">${escapeHtml(trkNode.name)}</span>
+                    <span class="track-name">${escapeHtml(displayTrackName)}</span>
                     <span class="outline-item-right">
                       ${trkNode.detail ? `<span class="track-meta">${escapeHtml(trkNode.detail)}</span>` : ""}
                       <button type="button" class="outline-play-btn" data-play-section="${escapeHtml(secNode.name)}" data-play-instrument="${escapeHtml(trkNode.name)}" title="${escapeHtml(trkPlayTitle)}">▶</button>
@@ -316,16 +338,17 @@ export function renderInspectorView(
         const offset = p.start ? (p.start > 0 ? `+${p.start}` : `${p.start}`) : "0";
         const totalUnits = p.sections.reduce((acc, s) => acc + s.unitGroups.reduce((uAcc, g) => uAcc + g.units.length, 0), 0);
         const lineAttr = p.line ? `data-start-line="${p.line}" data-start-col="1" data-end-line="${p.line}" data-end-col="1"` : "";
+        const instLabel = p.instrument || DEFAULT_INSTRUMENT;
         const trkPlayTitle = (t("playTrackTitle") || "Play track: {section} ({instrument})")
           .replace("{section}", p.name)
-          .replace("{instrument}", p.instrument);
+          .replace("{instrument}", instLabel);
 
         return `
           <div class="track-item" ${lineAttr}>
-            <span class="track-name">${escapeHtml(p.name)}:${escapeHtml(p.instrument)}</span>
+            <span class="track-name">${escapeHtml(p.name)}:${escapeHtml(instLabel)}</span>
             <span class="outline-item-right">
               <span class="track-meta">@|${offset}| · ${totalUnits} notes</span>
-              <button type="button" class="outline-play-btn" data-play-section="${escapeHtml(p.name)}" data-play-instrument="${escapeHtml(p.instrument)}" title="${escapeHtml(trkPlayTitle)}">▶</button>
+              <button type="button" class="outline-play-btn" data-play-section="${escapeHtml(p.name)}" data-play-instrument="${escapeHtml(p.instrument || DEFAULT_INSTRUMENT)}" title="${escapeHtml(trkPlayTitle)}">▶</button>
             </span>
           </div>
         `;
@@ -336,7 +359,8 @@ export function renderInspectorView(
   }
 
   // Status bar summary
-  const trackCount = new Set(currentSheet.paragraphs.map((p) => p.instrument)).size;
+  const distinctInstruments = SheetInstrumentHelper.distinctInstruments(currentSheet);
+  const trackCount = distinctInstruments.length;
   sbStatus.textContent = "Valid TMD";
   sbSummary.textContent = `${currentSheet.paragraphs.length} paragraphs · ${trackCount} instruments · BPM ${currentSheet.speed || 120}`;
 
@@ -442,7 +466,10 @@ export function setupInspectorPanelEvents(
       e.stopPropagation();
       e.preventDefault();
       const sec = playBtn.dataset.playSection;
-      const inst = playBtn.dataset.playInstrument;
+      let inst = playBtn.dataset.playInstrument;
+      if (inst === "Pattern" || !inst) {
+        inst = DEFAULT_INSTRUMENT;
+      }
       if (sec) {
         playSectionOrTrack(sec, inst);
       }

@@ -5,6 +5,7 @@ import {
   Order,
   Beat,
   SheetInstrumentHelper,
+  TMDMacroEvaluator,
 } from '../core/index.js';
 import {
   MIDIInstrument,
@@ -24,9 +25,10 @@ export class TMDReaperGenerator {
   public static readonly defaultPPQ = 960;
 
   public static generateRPP(
-    sheet: Sheet,
+    rawSheet: Sheet,
     ppq: number = TMDReaperGenerator.defaultPPQ
   ): string {
+    const sheet = TMDMacroEvaluator.expand(rawSheet);
     const distinctInstruments = SheetInstrumentHelper.distinctInstruments(sheet);
 
     const timelineInstrument =

@@ -11,4 +11,5 @@ coverage/
 # REAPER
 Backups/
 *.rpp-bak
-
+*.wav
+*.musicxml

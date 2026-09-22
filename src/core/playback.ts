@@ -1,6 +1,7 @@
 import {
   Beat,
   ChordSymbol,
+  DEFAULT_INSTRUMENT,
   KeySignature,
   Note,
   Order,
@@ -10,6 +11,7 @@ import {
   Sheet,
   Unit
 } from "./types";
+import { TMDMacroEvaluator } from "./macro.js";
 
 export type PlaybackContent =
   | { type: "note"; note: Note }
@@ -48,11 +50,16 @@ export interface TMDPlaybackRendererOptions {
 
 export class TMDPlaybackRenderer {
   public static render(
-    sheet: Sheet,
+    inputSheet: Sheet,
     instrument: string,
     options?: TMDPlaybackRendererOptions
   ): PlaybackTimeline {
-    const paragraphs = sheet.paragraphs.filter((p) => p.instrument === instrument);
+    const sheet = TMDMacroEvaluator.expand(inputSheet);
+    const targetInst = instrument || DEFAULT_INSTRUMENT;
+    const paragraphs = sheet.paragraphs.filter((p) => {
+      const pInst = p.instrument || DEFAULT_INSTRUMENT;
+      return pInst === targetInst || p.instrument === instrument;
+    });
     const orders: Order[] = sheet.orders.length > 0
       ? sheet.orders
       : Array.from(new Set(sheet.paragraphs.map((p) => p.name))).map((n) => ({ type: "name", name: n }));

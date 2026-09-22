@@ -10,10 +10,12 @@ import {
   MeasureEvent,
   NotationDuration,
   SheetInstrumentHelper,
+  TMDMacroEvaluator,
 } from "../core";
 
 export class TMDLilyPondGenerator {
-  public static generateLilyPond(sheet: Sheet): string {
+  public static generateLilyPond(rawSheet: Sheet): string {
+    const sheet = TMDMacroEvaluator.expand(rawSheet);
     const composer = sheet.metadata["composer"] || "TMD";
     let ly = `\\version "2.24.0"\n\n`;
     ly += `\\header {\n`;

@@ -222,4 +222,39 @@ A:Piano@|0|{
     expect(abcG).not.toMatch(/\^[Ff]4/);
     expect(abcG).toMatch(/=[Ff]4/);
   });
+
+  it('expands S-Expression macros so MusicXML, LilyPond, and ABC contain generated parts and notes', () => {
+    const macroTmd = `
+::SCORE::
+** Macro Exporter Test **
+!= 120
+?= C
+<4/4>
+
+Theme {
+    <4*>
+    1 2 3 4
+}
+
+-> (canon Theme (Violin1 Violin2) 2) ->#
+`;
+    const sheet = TmdParser.parse(macroTmd)!;
+
+    // MusicXML
+    const xml = TMDMusicXMLGenerator.generateMusicXML(sheet);
+    expect(xml).toContain('<part-name>Violin1</part-name>');
+    expect(xml).toContain('<part-name>Violin2</part-name>');
+    expect(xml).toContain('<step>C</step>');
+
+    // LilyPond
+    const ly = TMDLilyPondGenerator.generateLilyPond(sheet);
+    expect(ly).toContain('Violin1');
+    expect(ly).toContain('Violin2');
+
+    // ABC
+    const abc = TMDABCGenerator.generateABC(sheet);
+    expect(abc).toContain('name="Violin1"');
+    expect(abc).toContain('name="Violin2"');
+  });
 });
+

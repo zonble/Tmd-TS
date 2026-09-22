@@ -5,19 +5,22 @@ import { toggleComment, indentWithTab } from "@codemirror/commands";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { keymap, gutter, GutterMarker, BlockInfo, Decoration, DecorationSet, hoverTooltip, Tooltip } from "@codemirror/view";
 import type { TMDMeasureIssue } from "../../src/core/measure_check.js";
+import { DEFAULT_INSTRUMENT } from "../../src/core/types.js";
 
-interface TMDParserState {
+export interface TMDParserState {
   inComment: boolean;
+  inOrder: boolean;
+  parenDepth: number;
 }
 
-export const tmdLanguage = StreamLanguage.define<TMDParserState>({
+export const tmdStreamParser = {
   languageData: {
     commentTokens: {
       block: { open: "/*", close: "*/" },
     },
   },
   startState(): TMDParserState {
-    return { inComment: false };
+    return { inComment: false, inOrder: false, parenDepth: 0 };
   },
   token(stream: StringStream, state: TMDParserState): string | null {
     if (state.inComment) {
@@ -77,12 +80,44 @@ export const tmdLanguage = StreamLanguage.define<TMDParserState>({
       return "meta";
     }
 
-    // Paragraph Header: section:Instrument@|offset|{
-    if (stream.match(/^[a-zA-Z0-9_\u4e00-\u9fa5-]+:[a-zA-Z0-9_\u4e00-\u9fa5-]+(@\|?[+-]?\d+\|?)?\s*\{/)) {
+    // Paragraph Header: concrete `section:Instrument@|offset|{` or abstract `Theme {`
+    if (stream.match(/^[a-zA-Z0-9_\u4e00-\u9fa5-]+(:[a-zA-Z0-9_\u4e00-\u9fa5-]+(@\|?[+-]?\d+\|?)?)?\s*\{/)) {
       return "def";
     }
     if (stream.match(/^\}/)) {
       return "bracket";
+    }
+
+    // S-Expression macro forms: (canon Theme (V1 V2) 2)
+    // Distinguish from Jianpu tuplet like (1 2 3)%(--)
+    if (stream.match(/^\(/)) {
+      // Check if this paren is followed eventually by )% (which is tuplet)
+      const rest = stream.string.slice(stream.pos);
+      if (/^[^\)]*\)%/.test(rest)) {
+        // Tuplet prefix, fall through to tuplet matcher
+        stream.backUp(1);
+      } else {
+        state.parenDepth++;
+        return "bracket";
+      }
+    }
+    if (state.parenDepth > 0) {
+      if (stream.match(/^\)/)) {
+        state.parenDepth = Math.max(0, state.parenDepth - 1);
+        return "bracket";
+      }
+      // S-expression operators / macro combinators
+      if (stream.match(/^(canon|layer|loop|play|transpose|retrograde|invert|augment|diminish)\b/)) {
+        return "keyword";
+      }
+      // Numbers inside macro
+      if (stream.match(/^[+-]?\d+(\.\d+)?/)) {
+        return "number";
+      }
+      // Identifiers / Symbols inside macro
+      if (stream.match(/^[a-zA-Z0-9_\u4e00-\u9fa5-]+/)) {
+        return "variableName";
+      }
     }
 
     // Chords: [1], [6m], [Cmaj7], [Am7], [2m7-5]
@@ -118,8 +153,10 @@ export const tmdLanguage = StreamLanguage.define<TMDParserState>({
 
     stream.next();
     return null;
-  }
-});
+  },
+};
+
+export const tmdLanguage = StreamLanguage.define<TMDParserState>(tmdStreamParser);
 
 export interface CursorContext {
   section?: string;
@@ -256,9 +293,16 @@ export function createTmdEditor(
     class: "cm-section-play-gutter",
     lineMarker(view: EditorView, line: BlockInfo) {
       const lineText = view.state.doc.lineAt(line.from).text.trim();
-      const match = lineText.match(/^([a-zA-Z0-9_\u4e00-\u9fa5-]+):([a-zA-Z0-9_\u4e00-\u9fa5-]+)(?:@\|?[+-]?\d+\|?)?\s*\{/);
-      if (match) {
-        return new SectionPlayGutterMarker(match[1], match[2], onPlaySection);
+      const concreteMatch = lineText.match(/^([a-zA-Z0-9_\u4e00-\u9fa5-]+):([a-zA-Z0-9_\u4e00-\u9fa5-]+)(?:@\|?[+-]?\d+\|?)?\s*\{/);
+      if (concreteMatch) {
+        return new SectionPlayGutterMarker(concreteMatch[1], concreteMatch[2], onPlaySection);
+      }
+      const abstractMatch = lineText.match(/^([a-zA-Z0-9_\u4e00-\u9fa5-]+)\s*\{/);
+      if (abstractMatch) {
+        const secName = abstractMatch[1];
+        if (secName !== "instruments") {
+          return new SectionPlayGutterMarker(secName, DEFAULT_INSTRUMENT, onPlaySection);
+        }
       }
       return null;
     },
@@ -467,12 +511,22 @@ export function createTmdEditor(
 
       for (let l = currentLineNum; l >= 1; l--) {
         const lineText = doc.line(l).text.trim();
-        // Match paragraph header like `verse:Guitar@|0|{` or `verse:Guitar{`
-        const match = lineText.match(/^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/);
-        if (match) {
-          section = match[1];
-          instrument = match[2];
+        // Match concrete paragraph header like `verse:Guitar@|0|{` or `verse:Guitar{`
+        const concreteMatch = lineText.match(/^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/);
+        if (concreteMatch) {
+          section = concreteMatch[1];
+          instrument = concreteMatch[2];
           break;
+        }
+        // Match abstract / default paragraph header like `theme {` or `theme{`
+        const abstractMatch = lineText.match(/^([a-zA-Z0-9_-]+)\s*\{/);
+        if (abstractMatch) {
+          const sec = abstractMatch[1];
+          if (sec !== "instruments") {
+            section = sec;
+            instrument = DEFAULT_INSTRUMENT;
+            break;
+          }
         }
         // If we hit another block closing before opening, we stop or continue scanning
       }

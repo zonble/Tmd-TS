@@ -1,10 +1,11 @@
-import { Sheet, TMDPlaybackRenderer, PlaybackEvent, Note, Accidental } from "./core/index.js";
+import { Sheet, TMDPlaybackRenderer, TMDMacroEvaluator, PlaybackEvent, Note, Accidental } from "./core/index.js";
 
 export class TmdAudioError extends Error {}
 
 /** Portable fallback renderer. It produces deterministic stereo PCM WAV without platform audio APIs. */
 export class TMDWAVRenderer {
-  static renderWAV(sheet: Sheet, sampleRate = 44100): Uint8Array {
+  static renderWAV(rawSheet: Sheet, sampleRate = 44100): Uint8Array {
+    const sheet = TMDMacroEvaluator.expand(rawSheet);
     if (!Number.isFinite(sampleRate) || sampleRate < 8000) throw new TmdAudioError("Sample rate must be at least 8000 Hz");
     const events: PlaybackEvent[] = [];
     for (const instrument of new Set(sheet.paragraphs.map(p => p.instrument))) events.push(...TMDPlaybackRenderer.render(sheet, instrument).events);
