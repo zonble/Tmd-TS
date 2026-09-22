@@ -34,20 +34,36 @@ These functions expand into standard multi-voice polyphony or multi-section musi
 
 ---
 
-## 3. Motivic Transformation Operators (Pure Functions)
+## 3. Motivic Transformation Operators & Variations
 
-These operators take a theme or musical material and return a transformed version. They are referentially transparent and can be nested arbitrarily: `(op1 (op2 material))`.
+Musical transformations can be applied either as discrete pure functions or as flat modifiers in a single `(vary ...)` call.
 
-| Operator | Signature | Musical Meaning | Implementation Rule |
-| :--- | :--- | :--- | :--- |
-| **`transpose`** | `(transpose <semitones> <material>)` | **Chromatic Transposition** | Shifts all pitches by a signed number of semitones (`+7` for fifth, `-12` for octave). |
-| **`invert`** | `(invert <material> [<axis_degree>])` | **Melodic Inversion (倒影)** | Mirrors pitch intervals upside-down across an axis (defaults to the first note, or specified degree 1..7). |
-| **`retrograde`** | `(retrograde <material>)` | **Retrograde (逆行 / Cancrizans)** | Reverses chronological note and rest order (Bach crab canon). |
-| **`ri`** | `(ri <material> [<axis_degree>])` | **Retrograde Inversion (逆行倒影)** | Combines retrograde and inversion: `(invert (retrograde material))`. |
-| **`augment`** | `(augment <material> <factor>)` | **Rhythmic Augmentation (時值擴大)** | Scales note durations by `<factor>` (e.g. `2.0` doubles note lengths). |
-| **`diminish`** | `(diminish <material> <factor>)` | **Rhythmic Diminution (時值縮小)** | Compresses note durations by `<factor>` (e.g. `0.5` halves note lengths). |
-| **`minor`** | `(minor <material>)` | **Parallel Minor (同主音小調)** | Converts diatonic major scale degrees to natural/harmonic minor (flattens 3rd, 6th, 7th). |
-| **`major`** | `(major <material>)` | **Parallel Major (同主音大調)** | Raises minor intervals to major. |
+### A. The Unified `vary` Combinator (Zero Sub-Parentheses)
+Chain any sequence of modifications without nested parentheses:
+```lisp
+;; Flat syntax (clean & ergonomic):
+(vary Theme +7 reverse minor)
+(vary Theme flip reverse)
+(vary Theme -5 minor)
+```
+
+Supported flat tokens:
+- **Signed integers (`+7`, `-2`, `+12`)**: Chromatic transposition in semitones.
+- **`reverse`**: Chronological reversal of notes within bars.
+- **`flip`**: Melodic inversion / pitch reflection upside-down.
+- **`minor`**: Converts natural major scale degrees to parallel minor (flattens 3rd, 6th, 7th).
+- **`major`**: Restores minor scale degrees to parallel major.
+
+### B. Discrete Pure Operators
+| Operator | Signature | Description |
+| :--- | :--- | :--- |
+| **`transpose`** | `(transpose <semitones> <material>)` | Shifts pitches by signed semitones. |
+| **`octave`** | `(octave <material> <delta>)` | Shifts octave up or down. |
+| **`reverse`** | `(reverse <material>)` | Reverses chronological note order. |
+| **`flip`** | `(flip <material> [<axis>])` | Inverts melodic contour upside-down. |
+| **`minor`** | `(minor <material>)` | Flattens 3, 6, 7 to parallel minor. |
+| **`major`** | `(major <material>)` | Restores flattened 3, 6, 7 to parallel major. |
+| **`vary`** | `(vary <material> <modifiers...>)` | Flat or composite variation chain. |
 
 ---
 

@@ -399,9 +399,9 @@ Theme {
       expect(celloPitches).toEqual([48, 52, 55, 60]);
     });
 
-    it('evaluates (reverse Theme) and (retrograde Theme) reversing note sequence within bars', () => {
+    it('evaluates (reverse Theme) reversing note sequence within bars', () => {
       const input = `::SCORE::
-** Retrograde / Reverse Variation **
+** Reverse Variation **
 != 120
 ?= C
 <4/4>
@@ -411,29 +411,23 @@ Theme {
     1 2 3 4 | 5 6 7 1^
 }
 
--> (play (reverse Theme) Violin)
--> (play (retrograde Theme) Viola) ->#
+-> (play (reverse Theme) Violin) ->#
 `;
       const sheet = TmdParser.parse(input);
       const v = TMDPlaybackRenderer.render(sheet, 'Violin');
-      const va = TMDPlaybackRenderer.render(sheet, 'Viola');
 
       const vPitches = v.events.map((e) =>
-        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
-      );
-      const vaPitches = va.events.map((e) =>
         e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
       );
 
       // Original: 1 2 3 4 (60, 62, 64, 65) | 5 6 7 1^ (67, 69, 71, 72)
       // Reversed: 1^ 7 6 5 (72, 71, 69, 67) | 4 3 2 1 (65, 64, 62, 60)
       expect(vPitches).toEqual([72, 71, 69, 67, 65, 64, 62, 60]);
-      expect(vaPitches).toEqual([72, 71, 69, 67, 65, 64, 62, 60]);
     });
 
-    it('evaluates (invert Theme) inverting melodic contours around the first note or axis', () => {
+    it('evaluates (flip Theme) inverting melodic contours around the first note or axis', () => {
       const input = `::SCORE::
-** Inversion Variation **
+** Flip (Inversion) Variation **
 != 120
 ?= C
 <4/4>
@@ -443,7 +437,7 @@ Theme {
     1 3 5 1^
 }
 
--> (play (invert Theme) Violin) ->#
+-> (play (flip Theme) Violin) ->#
 `;
       const sheet = TmdParser.parse(input);
       const v = TMDPlaybackRenderer.render(sheet, 'Violin');
@@ -513,9 +507,9 @@ Subject {
       expect(bass.events[0].position).toBe(8);
     });
 
-    it('evaluates (ri Theme) retrograde-inversion and flexible argument order (transpose 7 Theme)', () => {
+    it('evaluates flat vary: (vary Theme flip reverse) and (vary Theme +2)', () => {
       const input = `::SCORE::
-** Retrograde Inversion & Flex Order **
+** Flat Vary Demo **
 != 120
 ?= C
 <4/4>
@@ -525,21 +519,21 @@ Theme {
     1 3 5 1^
 }
 
--> (play (transpose 2 Theme) Violin)
--> (play (ri Theme) Cello) ->#
+-> (play (vary Theme +2) Violin)
+-> (play (vary Theme reverse flip) Cello) ->#
 `;
       const sheet = TmdParser.parse(input);
       const v = TMDPlaybackRenderer.render(sheet, 'Violin');
       const cello = TMDPlaybackRenderer.render(sheet, 'Cello');
 
       // Theme: 1(60), 3(64), 5(67), 1^(72)
-      // Violin (transpose 2 Theme): 62, 66, 69, 74
+      // Violin (+2): 62, 66, 69, 74
       const vPitches = v.events.map((e) =>
         e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
       );
       expect(vPitches).toEqual([62, 66, 69, 74]);
 
-      // Cello (ri Theme):
+      // Cello (vary Theme reverse flip):
       // Reversed: 1^(72), 5(67), 3(64), 1(60)
       // Inverted around first note of reversed (72):
       // 72 -> 72 (diff 0)
@@ -592,9 +586,9 @@ Theme {
       expect(f1Pitches).toEqual([65, 64, 62, 60]);
     });
 
-    it('evaluates (canon (invert (canon Theme (Violin1 Violin2) 1)) (Flute1 Flute2) 4)', () => {
+    it('evaluates (canon (flip (canon Theme (Violin1 Violin2) 1)) (Flute1 Flute2) 4)', () => {
       const input = `::SCORE::
-** Inverted Canon in Canon **
+** Flipped Canon in Canon **
 != 120
 ?= C
 <4/4>
@@ -605,7 +599,7 @@ Theme {
 }
 
 -> (canon
-     (invert (canon Theme (Violin1 Violin2) 1))
+     (flip (canon Theme (Violin1 Violin2) 1))
      (Flute1 Flute2)
      4
    ) ->#
@@ -690,44 +684,34 @@ Ep2 {
       expect((playback.events[16].content as any).note.degree).toBe(1); // Refrain (16s)
     });
 
-    it('supports plain-English aliases (flip, mirror, mirror-rev) without Italian jargon', () => {
+    it('evaluates flat vary multi-transform with modal switch (vary Theme -2 reverse minor)', () => {
       const input = `::SCORE::
-** Modern Aliases Test **
+** Flat Vary Chained Test **
 != 120
 ?= C
 <4/4>
 
 Theme {
     <4*>
-    1 3 5 1^
+    1 2 3 4 | 5 6 7 1^
 }
 
--> (layer
-     (play (flip Theme) Violin)
-     (play (mirror Theme) Viola)
-     (play (mirror-rev Theme) Cello)) ->#
+-> (play (vary Theme -2 reverse minor) Viola) ->#
 `;
       const sheet = TmdParser.parse(input);
-      const v = TMDPlaybackRenderer.render(sheet, 'Violin');
       const va = TMDPlaybackRenderer.render(sheet, 'Viola');
-      const cello = TMDPlaybackRenderer.render(sheet, 'Cello');
 
-      const vPitches = v.events.map((e) =>
-        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
-      );
+      // In (vary Theme -2 reverse minor):
+      // 1. -2 semitones: all notes shifted by -2 semitones
+      // 2. reverse: notes sequence reversed
+      // 3. minor: notes with degree 3, 6, 7 that are Natural are flattened.
+      // After -2 semitones, C(1)->Bb(7), D(2)->C(1), E(3)->D(2), F(4)->Eb(b3), G(5)->F(4), A(6)->G(5), B(7)->A(6), C(1^)->Bb(7)
+      // When minor runs, it flattens notes whose *degrees* are 3, 6, 7.
+      // Therefore, the resulting pitches match [70, 68, 67, 65, 63, 62, 60, 58].
       const vaPitches = va.events.map((e) =>
         e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
       );
-      const celloPitches = cello.events.map((e) =>
-        e.content.type === 'note' ? TMDMIDIGenerator.noteToMIDIPitch(e.content.note, e.state.keyOffset) : 0
-      );
-
-      // Inverted around 60: 60, 56, 53, 48
-      expect(vPitches).toEqual([60, 56, 53, 48]);
-      expect(vaPitches).toEqual([60, 56, 53, 48]);
-
-      // mirror-rev: 72, 77, 80, 84
-      expect(celloPitches).toEqual([72, 77, 80, 84]);
+      expect(vaPitches).toEqual([70, 68, 67, 65, 63, 62, 60, 58]);
     });
 
     it('evaluates (minor Theme) converting natural major 3, 6, 7 to minor degrees', () => {

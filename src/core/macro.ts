@@ -274,8 +274,8 @@ export class TMDMacroEvaluator {
           };
         }
 
-        // 3. (reverse <theme>) / (retrograde <theme>)
-        if (head === "reverse" || head === "retrograde") {
+        // 3. (reverse <theme>)
+        if (head === "reverse") {
           const target = themeArg[1];
           const sub = getThemeSections(target);
           return {
@@ -284,29 +284,18 @@ export class TMDMacroEvaluator {
           };
         }
 
-        // 4. (invert <theme> [axis]) / (flip <theme>) / (mirror <theme>)
-        if (head === "invert" || head === "flip" || head === "mirror") {
+        // 4. (flip <theme> [axis])
+        if (head === "flip") {
           const target = themeArg[1];
           const axisArg = themeArg.length >= 3 ? Number(themeArg[2]) : undefined;
           const sub = getThemeSections(target);
           return {
-            name: `${sub.name}_inv`,
+            name: `${sub.name}_flip`,
             sections: invertSections(sub.sections, axisArg),
           };
         }
 
-        // 5. (ri <theme> [axis]) - Retrograde Inversion
-        if (head === "ri" || head === "flip-rev" || head === "mirror-rev") {
-          const target = themeArg[1];
-          const axisArg = themeArg.length >= 3 ? Number(themeArg[2]) : undefined;
-          const sub = getThemeSections(target);
-          return {
-            name: `${sub.name}_ri`,
-            sections: invertSections(reverseSections(sub.sections), axisArg),
-          };
-        }
-
-        // 6. (minor <theme>)
+        // 5. (minor <theme>)
         if (head === "minor") {
           const target = themeArg[1];
           const sub = getThemeSections(target);
@@ -316,7 +305,7 @@ export class TMDMacroEvaluator {
           };
         }
 
-        // 7. (major <theme>)
+        // 6. (major <theme>)
         if (head === "major") {
           const target = themeArg[1];
           const sub = getThemeSections(target);
@@ -326,53 +315,83 @@ export class TMDMacroEvaluator {
           };
         }
 
-        // 8. (vary <theme> <transform1> <transform2> ...)
+        // 7. (vary <theme> <modifier1> <modifier2> ...)
+        // Supports flat modifiers: (vary Theme +7 flip reverse minor)
+        // as well as sublists: (vary Theme (transpose 7) (flip))
         if (head === "vary") {
           const target = themeArg[1];
           let current = getThemeSections(target);
           for (let i = 2; i < themeArg.length; i++) {
             const transform = themeArg[i];
-            if (!Array.isArray(transform) || transform.length === 0) continue;
-            const tOp = String(transform[0]).toLowerCase();
-            if (tOp === "transpose") {
-              const semitones = Number(transform[1]) || 0;
-              current = {
-                name: `${current.name}_tr${semitones >= 0 ? "+" + semitones : semitones}`,
-                sections: transposeSections(current.sections, semitones),
-              };
-            } else if (tOp === "octave") {
-              const delta = Number(transform[1]) || 0;
-              current = {
-                name: `${current.name}_oct${delta >= 0 ? "+" + delta : delta}`,
-                sections: octaveShiftSections(current.sections, delta),
-              };
-            } else if (tOp === "reverse" || tOp === "retrograde") {
-              current = {
-                name: `${current.name}_rev`,
-                sections: reverseSections(current.sections),
-              };
-            } else if (tOp === "invert" || tOp === "flip" || tOp === "mirror") {
-              const axisArg = transform.length >= 2 ? Number(transform[1]) : undefined;
-              current = {
-                name: `${current.name}_inv`,
-                sections: invertSections(current.sections, axisArg),
-              };
-            } else if (tOp === "ri" || tOp === "flip-rev" || tOp === "mirror-rev") {
-              const axisArg = transform.length >= 2 ? Number(transform[1]) : undefined;
-              current = {
-                name: `${current.name}_ri`,
-                sections: invertSections(reverseSections(current.sections), axisArg),
-              };
-            } else if (tOp === "minor") {
-              current = {
-                name: `${current.name}_minor`,
-                sections: toMinorSections(current.sections),
-              };
-            } else if (tOp === "major") {
-              current = {
-                name: `${current.name}_major`,
-                sections: toMajorSections(current.sections),
-              };
+            if (Array.isArray(transform)) {
+              if (transform.length === 0) continue;
+              const tOp = String(transform[0]).toLowerCase();
+              if (tOp === "transpose") {
+                const semitones = Number(transform[1]) || 0;
+                current = {
+                  name: `${current.name}_tr${semitones >= 0 ? "+" + semitones : semitones}`,
+                  sections: transposeSections(current.sections, semitones),
+                };
+              } else if (tOp === "octave") {
+                const delta = Number(transform[1]) || 0;
+                current = {
+                  name: `${current.name}_oct${delta >= 0 ? "+" + delta : delta}`,
+                  sections: octaveShiftSections(current.sections, delta),
+                };
+              } else if (tOp === "reverse") {
+                current = {
+                  name: `${current.name}_rev`,
+                  sections: reverseSections(current.sections),
+                };
+              } else if (tOp === "flip") {
+                const axisArg = transform.length >= 2 ? Number(transform[1]) : undefined;
+                current = {
+                  name: `${current.name}_flip`,
+                  sections: invertSections(current.sections, axisArg),
+                };
+              } else if (tOp === "minor") {
+                current = {
+                  name: `${current.name}_minor`,
+                  sections: toMinorSections(current.sections),
+                };
+              } else if (tOp === "major") {
+                current = {
+                  name: `${current.name}_major`,
+                  sections: toMajorSections(current.sections),
+                };
+              }
+            } else {
+              // Flat modifier token (e.g. +7, -5, "flip", "reverse", "minor", "major")
+              const rawStr = String(transform).trim();
+              const lowerStr = rawStr.toLowerCase();
+              if (lowerStr === "reverse") {
+                current = {
+                  name: `${current.name}_rev`,
+                  sections: reverseSections(current.sections),
+                };
+              } else if (lowerStr === "flip") {
+                current = {
+                  name: `${current.name}_flip`,
+                  sections: invertSections(current.sections),
+                };
+              } else if (lowerStr === "minor") {
+                current = {
+                  name: `${current.name}_minor`,
+                  sections: toMinorSections(current.sections),
+                };
+              } else if (lowerStr === "major") {
+                current = {
+                  name: `${current.name}_major`,
+                  sections: toMajorSections(current.sections),
+                };
+              } else if (/^[+-]?\d+$/.test(rawStr)) {
+                // Pitch transposition in semitones (e.g. +7, -12, 5)
+                const semitones = Number(rawStr) || 0;
+                current = {
+                  name: `${current.name}_tr${semitones >= 0 ? "+" + semitones : semitones}`,
+                  sections: transposeSections(current.sections, semitones),
+                };
+              }
             }
           }
           return current;
@@ -451,7 +470,7 @@ export class TMDMacroEvaluator {
           const offsetBars = Number(expr[3]) || 0;
 
           // Check if themeTarget is a nested sub-expression like (canon ...), (layer ...), (reverse ...), etc.
-          const nestedOps = ["canon", "layer", "play", "loop", "reverse", "retrograde", "invert", "ri", "transpose", "octave"];
+          const nestedOps = ["canon", "layer", "play", "loop", "seq", "rondo", "reverse", "flip", "minor", "major", "vary", "transpose", "octave"];
           if (
             Array.isArray(themeTarget) &&
             themeTarget.length > 0 &&
@@ -463,8 +482,8 @@ export class TMDMacroEvaluator {
             (function isSubExpr(node: SExpr): boolean {
               if (!Array.isArray(node) || node.length === 0) return false;
               const h = String(node[0]).toLowerCase();
-              if (["canon", "layer", "play", "loop"].includes(h)) return true;
-              if (["reverse", "retrograde", "invert", "ri", "transpose", "octave"].includes(h)) {
+              if (["canon", "layer", "play", "loop", "seq", "rondo"].includes(h)) return true;
+              if (["reverse", "flip", "minor", "major", "vary", "transpose", "octave"].includes(h)) {
                 return isSubExpr(node[1]) || (node.length >= 3 && isSubExpr(node[2]));
               }
               return false;
@@ -597,8 +616,7 @@ export class TMDMacroEvaluator {
         }
 
 
-        case "reverse":
-        case "retrograde": {
+        case "reverse": {
           // (reverse <child>)
           const childExpr = expr[1];
           const innerRes = evalExpr(childExpr);
@@ -609,10 +627,8 @@ export class TMDMacroEvaluator {
           return innerRes;
         }
 
-        case "invert":
-        case "flip":
-        case "mirror": {
-          // (invert <child> [axis]) / (flip <child> [axis]) / (mirror <child> [axis])
+        case "flip": {
+          // (flip <child> [axis])
           const childExpr = expr[1];
           const axisArg = expr.length >= 3 ? Number(expr[2]) : undefined;
           const innerRes = evalExpr(childExpr);
@@ -623,16 +639,49 @@ export class TMDMacroEvaluator {
           return innerRes;
         }
 
-        case "ri":
-        case "flip-rev":
-        case "mirror-rev": {
-          // (ri <child> [axis])
+        case "vary": {
+          // (vary <child> <modifier1> <modifier2> ...)
+          // Desugars/chains transformations onto child concrete paragraphs
           const childExpr = expr[1];
-          const axisArg = expr.length >= 3 ? Number(expr[2]) : undefined;
           const innerRes = evalExpr(childExpr);
           const innerParagraphs = concreteParagraphs.filter((cp) => innerRes.paragraphNames.includes(cp.name));
-          for (const ip of innerParagraphs) {
-            ip.sections = invertSections(reverseSections(ip.sections), axisArg);
+          for (let i = 2; i < expr.length; i++) {
+            const transform = expr[i];
+            if (Array.isArray(transform)) {
+              if (transform.length === 0) continue;
+              const tOp = String(transform[0]).toLowerCase();
+              if (tOp === "transpose") {
+                const semitones = Number(transform[1]) || 0;
+                for (const ip of innerParagraphs) ip.sections = transposeSections(ip.sections, semitones);
+              } else if (tOp === "octave") {
+                const delta = Number(transform[1]) || 0;
+                for (const ip of innerParagraphs) ip.sections = octaveShiftSections(ip.sections, delta);
+              } else if (tOp === "reverse") {
+                for (const ip of innerParagraphs) ip.sections = reverseSections(ip.sections);
+              } else if (tOp === "flip") {
+                const axisArg = transform.length >= 2 ? Number(transform[1]) : undefined;
+                for (const ip of innerParagraphs) ip.sections = invertSections(ip.sections, axisArg);
+              } else if (tOp === "minor") {
+                for (const ip of innerParagraphs) ip.sections = toMinorSections(ip.sections);
+              } else if (tOp === "major") {
+                for (const ip of innerParagraphs) ip.sections = toMajorSections(ip.sections);
+              }
+            } else {
+              const rawStr = String(transform).trim();
+              const lowerStr = rawStr.toLowerCase();
+              if (lowerStr === "reverse") {
+                for (const ip of innerParagraphs) ip.sections = reverseSections(ip.sections);
+              } else if (lowerStr === "flip") {
+                for (const ip of innerParagraphs) ip.sections = invertSections(ip.sections);
+              } else if (lowerStr === "minor") {
+                for (const ip of innerParagraphs) ip.sections = toMinorSections(ip.sections);
+              } else if (lowerStr === "major") {
+                for (const ip of innerParagraphs) ip.sections = toMajorSections(ip.sections);
+              } else if (/^[+-]?\d+$/.test(rawStr)) {
+                const semitones = Number(rawStr) || 0;
+                for (const ip of innerParagraphs) ip.sections = transposeSections(ip.sections, semitones);
+              }
+            }
           }
           return innerRes;
         }
