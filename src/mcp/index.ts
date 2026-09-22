@@ -14,6 +14,7 @@ import {
   TMDReaperGenerator,
   TMDVSQGenerator,
   TMDVSQXGenerator,
+  TMDChordProGenerator,
 } from "../exporters/index.js";
 import { TMDWAVRenderer } from "../audio.js";
 import { TmdSkill } from "../skill.js";
@@ -148,7 +149,7 @@ export class TmdMcpServer {
   }: {
     text?: string;
     filePath?: string;
-    format: "midi" | "musicxml" | "lilypond" | "abc" | "wav" | "reaper" | "rpp" | "vsq" | "vsqx";
+    format: "midi" | "musicxml" | "lilypond" | "abc" | "wav" | "reaper" | "rpp" | "vsq" | "vsqx" | "chordpro" | "cho";
     outputPath?: string;
   }) {
     let content = text;
@@ -231,6 +232,15 @@ export class TmdMcpServer {
         }
         return textContent(xml);
       }
+      case "chordpro":
+      case "cho": {
+        const cho = TMDChordProGenerator.generateChordPro(sheet);
+        if (outputPath) {
+          fs.writeFileSync(outputPath, cho, "utf-8");
+          return textContent(`ChordPro lead sheet successfully written to ${outputPath}`);
+        }
+        return textContent(cho);
+      }
       default:
         throw new Error(`Unsupported format: ${format}`);
     }
@@ -283,12 +293,12 @@ export class TmdMcpServer {
       "convert_tmd",
       {
         description:
-          "Convert TMD score to target format: midi (base64 or file), musicxml, lilypond, abc, wav audio, reaper project, vsq (VOCALOID2), or vsqx (VOCALOID3/4).",
+          "Convert TMD score to target format: midi (base64 or file), musicxml, lilypond, abc, wav audio, reaper project, vsq (VOCALOID2), vsqx (VOCALOID3/4), or chordpro (.cho).",
         inputSchema: z.object({
           text: z.string().optional().describe("TMD score code text"),
           filePath: z.string().optional().describe("Path to .tmd file on filesystem"),
           format: z
-            .enum(["midi", "musicxml", "lilypond", "abc", "wav", "reaper", "rpp", "vsq", "vsqx"])
+            .enum(["midi", "musicxml", "lilypond", "abc", "wav", "reaper", "rpp", "vsq", "vsqx", "chordpro", "cho"])
             .describe("Target format"),
           outputPath: z
             .string()

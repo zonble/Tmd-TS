@@ -114,6 +114,7 @@ export const en = {
   exportMusicXML: "MusicXML 4.0 (.musicxml)",
   exportLilyPond: "LilyPond (.ly)",
   exportABC: "ABC Notation (.abc)",
+  exportChordPro: "ChordPro Lead Sheet (.cho)",
   exportVsq: "VOCALOID2 Project (.vsq)",
   exportVsqx: "VOCALOID3/4 Project (.vsqx)",
   exportWAV: "Sine Wave WAV (.wav)",

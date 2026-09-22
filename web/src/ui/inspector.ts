@@ -249,9 +249,14 @@ export function renderInspectorView(
         const playBtnHtml = `<button type="button" class="order-play-btn" data-play-order-index="${idx}" title="${escapeHtml(playTitle)}">▶</button>`;
 
         const childNode = ordersNode?.children?.[idx];
-        const rangeAttrs = childNode
-          ? `data-start-line="${childNode.range.startLine}" data-start-col="${childNode.range.startColumn}" data-end-line="${childNode.range.endLine}" data-end-col="${childNode.range.endColumn}"`
-          : (ordersNode ? `data-start-line="${ordersNode.range.startLine}" data-start-col="${ordersNode.range.startColumn}" data-end-line="${ordersNode.range.endLine}" data-end-col="${ordersNode.range.endColumn}"` : "");
+        let rangeAttrs = "";
+        if (childNode) {
+          rangeAttrs = `data-start-line="${childNode.range.startLine}" data-start-col="${childNode.range.startColumn}" data-end-line="${childNode.range.endLine}" data-end-col="${childNode.range.endColumn}"`;
+        } else if (ord.type === "macro" && typeof ord.line === "number" && typeof ord.column === "number") {
+          rangeAttrs = `data-start-line="${ord.line}" data-start-col="${ord.column}" data-end-line="${ord.line}" data-end-col="${ord.column}"`;
+        } else if (ordersNode) {
+          rangeAttrs = `data-start-line="${ordersNode.range.startLine}" data-start-col="${ordersNode.range.startColumn}" data-end-line="${ordersNode.range.endLine}" data-end-col="${ordersNode.range.endColumn}"`;
+        }
 
         const jumpTitle = t("jumpToOrdersTitle") || "Jump to editor to modify playback order";
 

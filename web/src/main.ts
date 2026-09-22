@@ -272,6 +272,7 @@ function initEvents() {
       btnExportMusicXML: dom.btnExportMusicXML,
       btnExportLilyPond: dom.btnExportLilyPond,
       btnExportABC: dom.btnExportABC,
+      btnExportChordPro: dom.btnExportChordPro,
       btnExportVsq: dom.btnExportVsq,
       btnExportVsqx: dom.btnExportVsqx,
       btnExportWAV: dom.btnExportWAV,

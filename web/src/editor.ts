@@ -6,6 +6,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { keymap, gutter, GutterMarker, BlockInfo, Decoration, DecorationSet, hoverTooltip, Tooltip } from "@codemirror/view";
 import type { TMDMeasureIssue } from "../../src/core/measure_check.js";
 import { DEFAULT_INSTRUMENT } from "../../src/core/types.js";
+import { t } from "./i18n.js";
 
 export interface TMDParserState {
   inComment: boolean;
@@ -190,10 +191,11 @@ class SectionPlayGutterMarker extends GutterMarker {
     super();
   }
 
-  toDOM() {
+  override toDOM(): HTMLElement {
     const btn = document.createElement("span");
     btn.className = "cm-section-play-btn";
-    btn.title = `試聽段落: ${this.sectionName} (${this.instrumentName})`;
+    const titleTmpl = t("playSectionTitle") || "Play section: {section}";
+    btn.title = titleTmpl.replace("{section}", `${this.sectionName} (${this.instrumentName})`);
     btn.textContent = "▶";
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
