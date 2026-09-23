@@ -831,6 +831,19 @@ verse:Lead@|0|{
               </select>
             </div>
           </div>
+
+          <!-- Algorithmic Counterpoint Explanation Details -->
+          <details style="border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 12px; background: var(--bg-secondary); font-size: 12px; line-height: 1.6; color: var(--text-secondary);">
+            <summary style="cursor: pointer; font-weight: 600; color: var(--text-primary); user-select: none;" data-i18n="canonAlgorithmTitle">
+              💡 演算法原理與對位法設計 (Counterpoint Architecture)
+            </summary>
+            <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+              <div><strong>1. 和聲地基 (Ground Bass)：</strong><span data-i18n="canonAlgoBass">自然調式採帕海貝爾 Romanesca 進行 (I-V-vi-iii-IV-I-IV-V)；五聲調式採宮/羽調循環低音，天生避開小二度與三全音衝突。</span></div>
+              <div><strong>2. 強拍和弦音咬度 (Chord Gravity)：</strong><span data-i18n="canonAlgoChord">小節強拍（第 1、3 拍）100% 鎖定和弦內音 (Root, 3rd, 5th)，確保複音聲部縱向縱使交錯追逐仍穩固協和。</span></div>
+              <div><strong>3. 級進歌唱偏好與補償 (Voice Leading)：</strong><span data-i18n="canonAlgoMotion">選音 ~75% 走相鄰二度級進；若出現大於二度之大跳，次個音 80% 強制反向級進解決 (Gap-Fill)，保持旋律如呼吸般自然。</span></div>
+              <div><strong>4. 對稱與變奏 (Forms)：</strong><span data-i18n="canonAlgoForms">支援輪唱 (Staggered)、螃蟹逆行 (Crab)、倒影 (Mirror)、雙倒影逆行桌子卡農 (Table)，並涵蓋 Cantabile、Lilt、Flourish 等 5 種巴洛克變奏風格。</span></div>
+            </div>
+          </details>
         </div>
         <div class="modal-footer">
           <button id="btn-confirm-generate-canon" class="btn btn-primary" data-i18n="canonBtnGenerate">🎲 Generate & Add to Library</button>

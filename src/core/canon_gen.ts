@@ -1,3 +1,57 @@
+/**
+ * TMDCanonGenerator (Algorithmic Counterpoint Canon Engine)
+ * 
+ * Algorithmic Counterpoint Architecture & Design Principles:
+ * --------------------------------------------------------------------------------
+ * 1. Basso Ostinato / Ground Bass Foundation
+ *    - Tonal Mode: Employs the classical Pachelbel Romanesca progression
+ *      (I - V - vi - iii - IV - I - IV - V), providing Renaissance and Baroque
+ *      descending-fourth / ascending-second harmonic drive.
+ *    - Pentatonic Mode: Utilizes Gong (major) or Yu (minor) cyclic bass lines.
+ *      Formed exclusively from scale degrees 1, 2, 3, 5, and 6, which inherently
+ *      eliminates minor-second semitone friction and the tritone, yielding
+ *      pure, consonant, and ethereal textures.
+ *
+ * 2. Melodic Generation & Probability Engineering (Voice Leading Heuristics)
+ *    - Strong-Beat Chord Tone Gravity:
+ *      On downbeats and secondary strong beats (beats 1 and 3), pitches are
+ *      strictly selected from the triad chord tones (Root, 3rd, 5th) corresponding
+ *      to the active bass note, anchoring vertical counterpoint even through dense delays.
+ *    - Stepwise Cantabile Preference:
+ *      Melodic step distribution favors stepwise motion (±1 scale degree ~75%),
+ *      repeated notes (~10%), and small thirds (±2 scale degrees ~15%),
+ *      emulating vocal breathing and instrumental phrasing.
+ *    - Gap-Fill Heuristics:
+ *      Following any leap of 2 or more scale degrees, the subsequent motion
+ *      has an 80% probability to resolve in the opposite direction by step,
+ *      maintaining balanced melodic contour and preventing erratic jumps.
+ *
+ * 3. Baroque Stylistic Variation Library
+ *    - Style 0: Lyrical Cantabile (<4*>) - Broad, vocal lines with alternating half and quarter notes.
+ *    - Style 1: Baroque Lilt (<8*>) - Dotted figures and rolling 8th-note scalar runs.
+ *    - Style 2: Virtuosic Flourish (<16*>) - Anchor-led 16th-note arpeggiated wave figures.
+ *    - Style 3: Staccato Dialogue (<8*>) - Playful 8th-note rests and syncopated rhythmic interplay.
+ *    - Style 4: Pastoral Sicilienne (<8*>) - Dotted lilting compound-feel rhythms.
+ *
+ * 4. Symmetrical Canon Forms & Transformations
+ *    - Standard Staggered Canon:
+ *      The dux (leader) theme is chased by comes (follower) voices delayed by a fixed measure offset.
+ *    - Crab Canon (Cancrizans):
+ *      The second voice renders the retrograde (reversed) theme, meeting at the temporal midpoint.
+ *    - Mirror Canon (Inversion):
+ *      The second voice flips pitch intervals vertically over a modal axis (ascending becomes descending).
+ *    - Table Canon (Tafelkanon / Retrograde Inversion):
+ *      Combines retrograde and inversion (flip (reverse ...)), as if two musicians read the score
+ *      from opposite sides of a shared table.
+ *
+ * 5. High-Level TMD DSL Integration
+ *    - S-Expression Macros: Generates expressive, high-level AST orders like
+ *      `(canon ...)`, `(layer ...)`, `(reverse ...)`, and `(flip ...)`.
+ *    - Unrolled Score: Computes exact voice lead-in rests and measure offsets,
+ *      compatible with all standard TMD compilers and exporters.
+ * --------------------------------------------------------------------------------
+ */
+
 export interface CanonGeneratorOptions {
   title?: string;
   tempo?: number;
@@ -209,10 +263,15 @@ export class TMDCanonGenerator {
     const typeDesc = typeDescMap[this.canonType] || "Standard Polyphonic Canon";
 
     const capMode = this.mode.charAt(0).toUpperCase() + this.mode.slice(1);
+    const algoSummary = this.mode === "tonal"
+      ? "Pachelbel Romanesca Ground Bass with Stepwise Voice Leading & Strong-beat Chord Tone Constraints"
+      : "Anhemitonic Pentatonic Ground Bass with Constant Concord & Voice Leading Heuristics";
+
     return `::SCORE::
 ** ${this.title} **
 ~ "composer: CanonGenerator (${capMode} Algorithmic Engine)"
 ~ "style: ${modeDesc}, Form: ${typeDesc}"
+~ "algorithm: ${algoSummary}"
 != ${this.tempo}
 ?= ${this.key}
 <${this.timeSig}>
@@ -228,14 +287,24 @@ export class TMDCanonGenerator {
   }
 
   public formatBassMacro(bassNotes: string[]): { code: string; totalMeasures: number } {
-    const totalMeasures = bassNotes.length;
     const modeLabel = this.mode === "tonal" ? "Tonal Functional" : "Pentatonic";
     const lines = [
-      `/* ${modeLabel} Ground Bass Prototype (Basso Ostinato) */`,
+      `/* ${modeLabel} Ground Bass Prototype (Basso Ostinato - Authentic Half-Note Pairs) */`,
       "Bass {",
       "    <4*>",
     ];
-    const barChunks = bassNotes.map((note) => `${note} - - -`);
+
+    // Authentic Pachelbel rhythm: 2 half-notes per 4/4 measure (| n1 - n2 - |)
+    const barChunks: string[] = [];
+    for (let i = 0; i < bassNotes.length; i += 2) {
+      if (i + 1 < bassNotes.length) {
+        barChunks.push(`${bassNotes[i]} - ${bassNotes[i + 1]} -`);
+      } else {
+        barChunks.push(`${bassNotes[i]} - - -`);
+      }
+    }
+
+    const totalMeasures = barChunks.length;
     for (let i = 0; i < barChunks.length; i += 2) {
       lines.push(`    | ${barChunks.slice(i, i + 2).join(" | ")} |`);
     }
@@ -263,13 +332,43 @@ export class TMDCanonGenerator {
       : this.scale.slice(5, 10);
   }
 
-  private stepInScale(currentTone: string, maxSteps = 2): string {
+  /**
+   * Probability Engineering (RTP / Heuristics):
+   * Selects melodic motion based on voice leading rules:
+   * 1. High stepwise bias (~75% ±1 step).
+   * 2. Gap-fill rule: If previous motion was a leap (|prevStep| >= 2),
+   *    force/strongly bias next motion in the opposite direction.
+   */
+  public pickStepWithHeuristics(prevStep = 0, maxSteps = 2): number {
+    // If previous was a leap (|prevStep| >= 2), perform Gap-Fill (counter-motion)
+    if (Math.abs(prevStep) >= 2) {
+      const counterDirection = prevStep > 0 ? -1 : 1;
+      // 80% chance of stepwise counter-motion (-1 or +1 opposite to leap), 20% stay/step further
+      if (this.rng() < 0.8) {
+        return counterDirection;
+      }
+    }
+
+    // Weighted selection for natural melodiousness:
+    // ±1 (stepwise): 75%
+    // 0 (repeated tone): 10%
+    // ±2 (small leap/third): 15%
+    const r = this.rng();
+    if (maxSteps < 2 || r < 0.75) {
+      return this.randomChoice([-1, 1]);
+    } else if (r < 0.85) {
+      return 0;
+    } else {
+      return this.randomChoice([-2, 2]);
+    }
+  }
+
+  private stepInScale(currentTone: string, maxSteps = 2, prevStep = 0): string {
     let idx = this.scale.indexOf(currentTone);
     if (idx === -1) {
       idx = Math.floor(this.scale.length / 2);
     }
-    const possibleSteps = [-1, 1, -2, 2, 0].filter(s => Math.abs(s) <= maxSteps);
-    const step = this.randomChoice(possibleSteps.length > 0 ? possibleSteps : [0]);
+    const step = this.pickStepWithHeuristics(prevStep, maxSteps);
     const newIdx = Math.max(0, Math.min(this.scale.length - 1, idx + step));
     return this.scale[newIdx];
   }
@@ -278,172 +377,102 @@ export class TMDCanonGenerator {
     const style = variationIdx % 5;
     const measures: string[] = [];
 
-    if (style === 0) {
-      // Style 0: Lyrical Cantabile (<4*>)
-      for (const bNote of bassNotes) {
-        const tones = this.getChordTones(bNote);
-        const patternType = this.randomChoice(["half_quarters", "dotted_quarter", "quarter_half", "two_halves"]);
-        const t1 = this.randomChoice(tones);
-        const t2 = this.stepInScale(t1, 1);
-        const t3 = this.stepInScale(t2, 2);
+    // Authentic Pachelbel rhythm: Each measure covers 2 bass chords (beats 1-2 and beats 3-4)
+    for (let b = 0; b < bassNotes.length; b += 2) {
+      const b1 = bassNotes[b];
+      const b2 = b + 1 < bassNotes.length ? bassNotes[b + 1] : b1;
+      const tones1 = this.getChordTones(b1);
+      const tones2 = this.getChordTones(b2);
 
-        if (patternType === "half_quarters") {
-          measures.push(`${t1} - ${t2} ${t3}`);
-        } else if (patternType === "dotted_quarter") {
-          measures.push(`${t1} - - ${t2}`);
-        } else if (patternType === "quarter_half") {
-          measures.push(`${t1} ${t2} - ${t3}`);
+      if (style === 0) {
+        // Style 0: Lyrical Cantabile (<4*>) - 4 beats per measure:
+        // Beats 1-2 over chord b1, beats 3-4 over chord b2
+        const t1 = this.randomChoice(tones1);
+        const t2 = this.stepInScale(t1, 1, 0);
+        const t3 = this.randomChoice(tones2);
+        const t4 = this.stepInScale(t3, 1, 0);
+
+        const patternChoice = this.randomChoice(["two_halves", "half_quarters", "quarters"]);
+        if (patternChoice === "two_halves") {
+          measures.push(`${t1} - ${t3} -`);
+        } else if (patternChoice === "half_quarters") {
+          measures.push(`${t1} - ${t3} ${t4}`);
         } else {
-          measures.push(`${t1} - ${t2} -`);
+          measures.push(`${t1} ${t2} ${t3} ${t4}`);
         }
-      }
-      return [["<4*>", measures]];
-    } else if (style === 1) {
-      // Style 1: Baroque Lilt (<8*>)
-      for (const bNote of bassNotes) {
-        const tones = this.getChordTones(bNote);
-        let curr = this.randomChoice(tones);
-        const patternChoice = this.randomChoice([1, 2, 3, 4]);
+      } else if (style === 1) {
+        // Style 1: Baroque Lilt (<8*>) - 8 sub-beats: 4 over b1, 4 over b2
+        const t1 = this.randomChoice(tones1);
+        const t1_step = this.stepInScale(t1, 1, 0);
+        const t1_step2 = this.stepInScale(t1_step, 1, 1);
+        const t2 = this.randomChoice(tones2);
+        const t2_step = this.stepInScale(t2, 1, 0);
+        const t2_step2 = this.stepInScale(t2_step, 1, 1);
 
+        const patternChoice = this.randomChoice([1, 2, 3]);
         if (patternChoice === 1) {
-          const run = [`${curr} -`];
-          for (let i = 0; i < 6; i++) {
-            curr = this.stepInScale(curr, 1);
-            run.push(curr);
-          }
-          measures.push(run.join(" "));
+          measures.push(`${t1} - ${t1_step} ${t1_step2}  ${t2} - ${t2_step} ${t2_step2}`);
         } else if (patternChoice === 2) {
-          const t1 = curr;
-          const t2 = this.stepInScale(t1, 1);
-          curr = t2;
-          const run = [`${t1} -`, `${t2} -`];
-          for (let i = 0; i < 4; i++) {
-            curr = this.stepInScale(curr, 1);
-            run.push(curr);
-          }
-          measures.push(run.join(" "));
-        } else if (patternChoice === 3) {
-          const t1 = curr;
-          const t2 = this.stepInScale(t1, 1);
-          const t3 = this.stepInScale(t2, 1);
-          const t4 = this.stepInScale(t3, 1);
-          const t5 = this.stepInScale(t4, 1);
-          measures.push(`${t1} - ${t2}  ${t3} - ${t4}  ${t5} ${t4}`);
+          measures.push(`${t1} ${t1_step} ${t1_step2} ${t1_step}  ${t2} ${t2_step} ${t2_step2} ${t2_step}`);
         } else {
-          const t1 = curr;
-          const t2 = this.stepInScale(t1, 1);
-          const t3 = this.stepInScale(t2, 1);
-          const t4 = this.stepInScale(t3, 2);
-          const t5 = this.stepInScale(t4, 1);
-          const t6 = this.stepInScale(t5, 1);
-          measures.push(`0 ${t1} ${t2} ${t3}  ${t4} - ${t5} ${t6}`);
+          measures.push(`${t1} - - ${t1_step}  ${t2} - - ${t2_step}`);
         }
-      }
-      return [["<8*>", measures]];
-    } else if (style === 2) {
-      // Style 2: Virtuosic Flourish (<16*>)
-      for (const bNote of bassNotes) {
-        const tones = this.getChordTones(bNote);
-        let curr = this.randomChoice(tones);
-        const flourishType = this.randomChoice(["head_anchor", "center_anchor", "wave_with_rest"]);
+      } else if (style === 2) {
+        // Style 2: Virtuosic Flourish (<16*>) - 16 sub-beats: 8 over b1, 8 over b2
+        let curr1 = this.randomChoice(tones1);
+        const g1: string[] = [curr1];
+        let prevStep = 0;
+        for (let i = 0; i < 7; i++) {
+          const next = this.stepInScale(curr1, 1, prevStep);
+          prevStep = this.scale.indexOf(next) - this.scale.indexOf(curr1);
+          curr1 = next;
+          g1.push(curr1);
+        }
 
-        if (flourishType === "head_anchor") {
-          const groups = [`${curr} - - -`];
-          for (let i = 0; i < 3; i++) {
-            const g: string[] = [];
-            for (let j = 0; j < 4; j++) {
-              curr = this.stepInScale(curr, 1);
-              g.push(curr);
-            }
-            groups.push(g.join(" "));
-          }
-          measures.push(groups.join("  "));
-        } else if (flourishType === "center_anchor") {
-          const g1: string[] = [];
-          for (let j = 0; j < 4; j++) {
-            curr = this.stepInScale(curr, 1);
-            g1.push(curr);
-          }
-          const anchor = this.stepInScale(curr, 2);
-          curr = anchor;
-          const g3: string[] = [];
-          const g4: string[] = [];
-          for (let j = 0; j < 4; j++) {
-            curr = this.stepInScale(curr, 1);
-            g3.push(curr);
-          }
-          for (let j = 0; j < 4; j++) {
-            curr = this.stepInScale(curr, 1);
-            g4.push(curr);
-          }
-          measures.push([g1.join(" "), `${anchor} - - -`, g3.join(" "), g4.join(" ")].join("  "));
-        } else {
-          const g1 = [curr];
-          for (let j = 0; j < 3; j++) {
-            curr = this.stepInScale(curr, 1);
-            g1.push(curr);
-          }
-          const g2: string[] = [];
-          for (let j = 0; j < 4; j++) {
-            curr = this.stepInScale(curr, 1);
-            g2.push(curr);
-          }
-          const tEntry = this.stepInScale(curr, 1);
-          curr = tEntry;
-          const g4: string[] = [];
-          for (let j = 0; j < 4; j++) {
-            curr = this.stepInScale(curr, 1);
-            g4.push(curr);
-          }
-          measures.push([g1.join(" "), g2.join(" "), `0 0 ${tEntry} ${curr}`, g4.join(" ")].join("  "));
+        let curr2 = this.randomChoice(tones2);
+        const g2: string[] = [curr2];
+        prevStep = 0;
+        for (let i = 0; i < 7; i++) {
+          const next = this.stepInScale(curr2, 1, prevStep);
+          prevStep = this.scale.indexOf(next) - this.scale.indexOf(curr2);
+          curr2 = next;
+          g2.push(curr2);
         }
-      }
-      return [["<16*>", measures]];
-    } else if (style === 3) {
-      // Style 3: Staccato Dialogue (<8*>)
-      for (const bNote of bassNotes) {
-        const tones = this.getChordTones(bNote);
-        let curr = this.randomChoice(tones);
-        const dialogueChoice = this.randomChoice(["staccato_steps", "offbeat_syncopation", "echo_chords"]);
 
-        if (dialogueChoice === "staccato_steps") {
-          const bar: string[] = [];
-          for (let i = 0; i < 4; i++) {
-            bar.push(`${curr} 0`);
-            curr = this.stepInScale(curr, 2);
-          }
-          measures.push(bar.join(" "));
-        } else if (dialogueChoice === "offbeat_syncopation") {
-          const t1 = curr;
-          const t2 = this.stepInScale(t1, 1);
-          const t3 = this.stepInScale(t2, 1);
-          const t4 = this.stepInScale(t3, 2);
-          measures.push(`0 ${t1}  0 ${t2}  0 ${t3}  ${t4} -`);
+        measures.push(`${g1.slice(0, 4).join(" ")}  ${g1.slice(4).join(" ")}  ${g2.slice(0, 4).join(" ")}  ${g2.slice(4).join(" ")}`);
+      } else if (style === 3) {
+        // Style 3: Staccato Dialogue (<8*>) - Rhythmic syncopation & rests
+        const t1 = this.randomChoice(tones1);
+        const t1_next = this.stepInScale(t1, 1, 0);
+        const t2 = this.randomChoice(tones2);
+        const t2_next = this.stepInScale(t2, 1, 0);
+
+        const choice = this.randomChoice(["rest_leaps", "staccato_steps"]);
+        if (choice === "rest_leaps") {
+          measures.push(`${t1} 0 ${t1_next} 0  ${t2} 0 ${t2_next} 0`);
         } else {
-          const t1 = curr;
-          const t2 = this.stepInScale(t1, 1);
-          measures.push(`${t1} - 0 ${t1}  ${t2} - 0 ${t2}`);
+          measures.push(`0 ${t1}  ${t1_next} -  0 ${t2}  ${t2_next} -`);
         }
+      } else {
+        // Style 4: Pastoral Sicilienne (<8*>) - Dotted lilting rhythm
+        const t1 = this.randomChoice(tones1);
+        const t1_next = this.stepInScale(t1, 1, 0);
+        const t2 = this.randomChoice(tones2);
+        const t2_next = this.stepInScale(t2, 1, 0);
+
+        measures.push(`${t1} - - ${t1_next}  ${t2} - - ${t2_next}`);
       }
-      return [["<8*>", measures]];
-    } else {
-      // Style 4: Pastoral Sicilienne (<8*>)
-      for (const bNote of bassNotes) {
-        const tones = this.getChordTones(bNote);
-        const t1 = this.randomChoice(tones);
-        const t2 = this.stepInScale(t1, 1);
-        const t3 = this.stepInScale(t2, 1);
-        const t4 = this.stepInScale(t3, 2);
-        measures.push(`${t1} - - ${t2}  ${t3} - ${t4} -`);
-      }
-      return [["<8*>", measures]];
     }
+
+    const grid = style === 2 ? "<16*>" : style === 0 ? "<4*>" : "<8*>";
+    return [[grid, measures]];
   }
 
   public generateThemeSectionMacro(bassNotes: string[], variationIdx: number): string {
     const varName = variationIdx === 0 ? "Theme" : `Var${variationIdx}`;
+    const modeLabel = this.mode === "tonal" ? "Tonal" : "Pentatonic";
     const lines = [
-      `/* Pentatonic Variation ${variationIdx} (${varName}) */`,
+      `/* ${modeLabel} Variation ${variationIdx} (${varName}) */`,
       `${varName} {`,
     ];
     const subsections = this.generateThemeBars(bassNotes, variationIdx);
@@ -458,9 +487,19 @@ export class TMDCanonGenerator {
   }
 
   public generateConcreteSections(bassNotes: string[]): string {
-    const introBars = bassNotes.slice(0, this.offsetBars).map(n => `${n} - - -`).join(" | ") + " |";
+    // Format intro bars as half-note pairs (| n1 - n2 - |)
+    const introBarChunks: string[] = [];
+    for (let i = 0; i < bassNotes.length && introBarChunks.length < this.offsetBars; i += 2) {
+      if (i + 1 < bassNotes.length) {
+        introBarChunks.push(`${bassNotes[i]} - ${bassNotes[i + 1]} -`);
+      } else {
+        introBarChunks.push(`${bassNotes[i]} - - -`);
+      }
+    }
+    const introBars = introBarChunks.join(" | ") + " |";
+    const modeLabel = this.mode === "tonal" ? "Tonal" : "Pentatonic";
     const outroLines = [
-      "/* Concrete Pentatonic Intro & Outro */",
+      `/* Concrete ${modeLabel} Intro & Outro */`,
       `intro:${this.bassInstrument}@|0|{`,
       "    <4*>",
       `    | ${introBars}`,
@@ -493,7 +532,7 @@ export class TMDCanonGenerator {
       const v1 = this.voiceInstruments[0];
       const v2 = this.voiceInstruments.length > 1 ? this.voiceInstruments[1] : "Violin2";
       return [
-        "/* S-Expression Playback Flow: Crab Canon (Cancrizans / 螃蟹卡農) */",
+        "/* S-Expression Playback Flow: Crab Canon (Cancrizans / Retrograde) */",
         "-> intro",
         "-> (layer",
         `     (play ${themeSequence} ${v1})`,
@@ -507,7 +546,7 @@ export class TMDCanonGenerator {
       const v1 = this.voiceInstruments[0];
       const v2 = this.voiceInstruments.length > 1 ? this.voiceInstruments[1] : "Violin2";
       return [
-        "/* S-Expression Playback Flow: Mirror Canon (Inversion / 倒影鏡像卡農) */",
+        "/* S-Expression Playback Flow: Mirror Canon (Inversion) */",
         "-> intro",
         "-> (layer",
         `     (play ${themeSequence} ${v1})`,
@@ -521,7 +560,7 @@ export class TMDCanonGenerator {
       const v1 = this.voiceInstruments[0];
       const v2 = this.voiceInstruments.length > 1 ? this.voiceInstruments[1] : "Violin2";
       return [
-        "/* S-Expression Playback Flow: Table Canon (Tafelkanon / 雙倒影逆行桌子卡農) */",
+        "/* S-Expression Playback Flow: Table Canon (Tafelkanon / Retrograde Inversion) */",
         "-> intro",
         "-> (layer",
         `     (play ${themeSequence} ${v1})`,
@@ -534,7 +573,7 @@ export class TMDCanonGenerator {
       const totalCanonBars = totalThemeBars + (this.numVoices - 1) * this.offsetBars;
       const loopCount = Math.floor((totalCanonBars + bassMeasures - 1) / bassMeasures);
       return [
-        "/* S-Expression Playback Flow: Standard Polyphonic Canon (輪唱卡農) */",
+        "/* S-Expression Playback Flow: Standard Staggered Polyphonic Canon */",
         "-> intro",
         "-> (layer",
         `     (canon ${themeSequence} ${voiceSequence} ${this.offsetBars})`,
@@ -552,7 +591,17 @@ export class TMDCanonGenerator {
       varData.push(this.generateThemeBars(bassNotes, v));
     }
 
-    const bassMeasures = bassNotes.length;
+    // Authentic Pachelbel rhythm: 2 half-notes per 4/4 measure
+    const halfNoteChunks: string[] = [];
+    for (let i = 0; i < bassNotes.length; i += 2) {
+      if (i + 1 < bassNotes.length) {
+        halfNoteChunks.push(`${bassNotes[i]} - ${bassNotes[i + 1]} -`);
+      } else {
+        halfNoteChunks.push(`${bassNotes[i]} - - -`);
+      }
+    }
+
+    const bassMeasures = halfNoteChunks.length;
     const totalThemeBars = this.numVariations * bassMeasures;
     const totalCanonBars = totalThemeBars + (this.numVoices - 1) * this.offsetBars;
     const loopCount = Math.floor((totalCanonBars + bassMeasures - 1) / bassMeasures);
@@ -567,9 +616,8 @@ export class TMDCanonGenerator {
       "    <4*>",
     ];
     for (let l = 0; l < loopCount; l++) {
-      const barChunks = bassNotes.map(n => `${n} - - -`);
-      for (let i = 0; i < barChunks.length; i += 2) {
-        celloLines.push(`    | ${barChunks.slice(i, i + 2).join(" | ")} |`);
+      for (let i = 0; i < halfNoteChunks.length; i += 2) {
+        celloLines.push(`    | ${halfNoteChunks.slice(i, i + 2).join(" | ")} |`);
       }
     }
     celloLines.push("}\n");

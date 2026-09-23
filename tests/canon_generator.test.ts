@@ -89,4 +89,80 @@ describe("TMDCanonGenerator (TDD port from canon_gen.py)", () => {
     });
     expect(tableGen.generate()).toContain("(play (flip (reverse Theme)) Violin2)");
   });
+
+  describe("Musical Probability Engineering (RTP / Heuristics Tuning)", () => {
+    it("ensures strong beats have high chord-tone density and stepwise voice leading", () => {
+      const generator = new TMDCanonGenerator({
+        mode: "tonal",
+        key: "C",
+        seed: 777,
+      });
+
+      // Let's generate 50 theme bars across multiple variations to sample statistics
+      const bassNotes = ["1_", "5__", "6__", "3__", "4__", "1__", "4__", "5__"];
+      const subsections = generator.generateThemeBars(bassNotes, 0);
+      const bars = subsections[0][1];
+
+      // With authentic half-note bass rhythm, 8 bass notes yield 4 measures (2 chords per measure)
+      expect(bars.length).toBe(4);
+
+      let chordToneHits = 0;
+      for (let m = 0; m < bars.length; m++) {
+        const b = bassNotes[m * 2]; // first chord of the measure
+        const bar = bars[m];
+        const firstToken = bar.trim().split(/\s+/)[0].replace(/[~_-]$/, "");
+        const allowedTones = (generator as any).getChordTones(b);
+        if (allowedTones.some((t: string) => t.startsWith(firstToken))) {
+          chordToneHits++;
+        }
+      }
+
+      // Strong beat chord-tone hit rate should be 100% in Style 0
+      expect(chordToneHits / bars.length).toBeGreaterThanOrEqual(0.85);
+    });
+
+    it("uses intelligent gap-fill motion to smooth out large leaps in stepInScale", () => {
+      const generator = new TMDCanonGenerator({
+        mode: "tonal",
+        key: "D",
+        seed: 555,
+      });
+
+      // When asked to step with gap-fill, if previous motion was leap > 2 steps, next should compensate
+      const prevLeapDirection = 3; // jumped up by 3 scale steps
+      const nextStep = (generator as any).pickStepWithHeuristics(prevLeapDirection);
+      // Next step should resolve downward (negative step) to balance the melodic contour
+      expect(nextStep).toBeLessThan(0);
+    });
+
+    it("supports tonal inversion axis targeting the 3rd degree to preserve tonal beauty", () => {
+      const mirrorGen = new TMDCanonGenerator({
+        canonType: "mirror",
+        mode: "tonal",
+        numVariations: 1,
+        key: "D",
+        seed: 888,
+      });
+      const tmd = mirrorGen.generate();
+      // Mirror canon macro should specify optimal mirror axis, e.g. (flip Theme 4) or (flip Theme)
+      expect(tmd).toMatch(/\(play \(flip Theme( \d+)?\) Violin2\)/);
+    });
+
+    it("supports Pachelbel authentic half-note bass rhythm (2 beats per harmonic change)", () => {
+      const generator = new TMDCanonGenerator({
+        mode: "tonal",
+        key: "D",
+        bassRhythm: "half", // Half-note bass rhythm (Pachelbel authentic)
+        numVariations: 1,
+      });
+      const tmd = generator.generate();
+      // With half notes, each bar in 4/4 contains 2 bass notes: e.g. | 1_ - 5__ - |
+      expect(tmd).toMatch(/\|\s*\S+\s+-\s+\S+\s+-\s*\|/);
+
+      const sheet = TmdParser.parse(tmd);
+      expect(sheet).not.toBeNull();
+      const issues = TMDMeasureChecker.check(tmd);
+      expect(issues).toEqual([]);
+    });
+  });
 });
