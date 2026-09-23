@@ -230,9 +230,9 @@
           <div class="panel-header">
             <div class="library-toolbar-actions" style="display: flex; align-items: center; gap: 4px;">
               <button id="btn-library-new" class="btn btn-sm" title="Start a new song with clean template" data-i18n-title="btnNewSongTitle"><span class="btn-icon">➕</span><span data-i18n="btnNewSong">New</span></button>
-              <label for="input-import-tmd" class="btn btn-sm" title="Import .tmd file from disk" data-i18n-title="btnImportTmdTitle" style="cursor: pointer; margin: 0;">
+              <label for="input-import-tmd" class="btn btn-sm" title="Import score (.tmd, .md) from disk" data-i18n-title="btnImportTmdTitle" style="cursor: pointer; margin: 0;">
                 <span class="btn-icon">📂</span><span data-i18n="btnImportTmd">Import</span>
-                <input type="file" id="input-import-tmd" accept=".tmd,.txt" style="display: none;" />
+                <input type="file" id="input-import-tmd" accept=".tmd,.md,.markdown,.txt" style="display: none;" />
               </label>
               <button id="btn-import-gist" class="btn btn-sm" title="Import score from GitHub Gist" data-i18n-title="btnImportGistTitle"><span class="btn-icon">🐙</span><span data-i18n="btnImportGist">Gist</span></button>
               <button id="btn-backup-zip" class="btn btn-sm" title="Export all saved scores as ZIP bundle" data-i18n-title="btnBackupZipTitle"><span class="btn-icon">📦</span><span data-i18n="btnBackupZip">Backup ZIP</span></button>
