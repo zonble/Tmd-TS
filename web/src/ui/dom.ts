@@ -29,6 +29,20 @@ export interface AppDOMElements {
   libraryScoresList: HTMLElement;
   librarySamplesList: HTMLElement;
   libraryScoresCount: HTMLElement;
+  btnOpenCanonModal?: HTMLButtonElement | null;
+  canonGeneratorModal?: HTMLDialogElement | null;
+  inputCanonTitle?: HTMLInputElement | null;
+  selectCanonKey?: HTMLSelectElement | null;
+  inputCanonTempo?: HTMLInputElement | null;
+  selectCanonMode?: HTMLSelectElement | null;
+  selectCanonType?: HTMLSelectElement | null;
+  inputCanonVoices?: HTMLInputElement | null;
+  inputCanonOffset?: HTMLInputElement | null;
+  inputCanonVariations?: HTMLInputElement | null;
+  selectCanonOutput?: HTMLSelectElement | null;
+  btnConfirmGenerateCanon?: HTMLButtonElement | null;
+  btnCloseCanonModal?: HTMLButtonElement | null;
+  btnCancelCanonModal?: HTMLButtonElement | null;
 
   btnNewSong: HTMLButtonElement;
   btnPlay: HTMLButtonElement;
@@ -271,6 +285,20 @@ export function initAppDOMElements(): AppDOMElements {
     libraryScoresList: getElement("library-scores-list"),
     librarySamplesList: getElement("library-samples-list"),
     libraryScoresCount: getElement("library-scores-count"),
+    btnOpenCanonModal: getElement<HTMLButtonElement>("btn-open-canon-modal"),
+    canonGeneratorModal: getElement<HTMLDialogElement>("canon-generator-modal"),
+    inputCanonTitle: getElement<HTMLInputElement>("canon-param-title"),
+    selectCanonKey: getElement<HTMLSelectElement>("canon-param-key"),
+    inputCanonTempo: getElement<HTMLInputElement>("canon-param-tempo"),
+    selectCanonMode: getElement<HTMLSelectElement>("canon-param-mode"),
+    selectCanonType: getElement<HTMLSelectElement>("canon-param-type"),
+    inputCanonVoices: getElement<HTMLInputElement>("canon-param-voices"),
+    inputCanonOffset: getElement<HTMLInputElement>("canon-param-offset"),
+    inputCanonVariations: getElement<HTMLInputElement>("canon-param-variations"),
+    selectCanonOutput: getElement<HTMLSelectElement>("canon-param-output"),
+    btnConfirmGenerateCanon: getElement<HTMLButtonElement>("btn-confirm-generate-canon"),
+    btnCloseCanonModal: getElement<HTMLButtonElement>("btn-close-canon-modal"),
+    btnCancelCanonModal: getElement<HTMLButtonElement>("btn-cancel-canon-modal"),
 
     btnNewSong: getElement("btn-new-song"),
     btnPlay: getElement("btn-play"),

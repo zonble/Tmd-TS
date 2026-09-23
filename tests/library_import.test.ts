@@ -148,6 +148,100 @@ describe("Library Score File Import (TDD)", () => {
       const scores = await TmdStorage.listScores();
       expect(scores.some((s) => s.title === "Controller Test")).toBe(true);
     });
+
+    it("generates a canon, stores it in IndexedDB, and loads into editor", async () => {
+      let loadedContent = "";
+      let toastMessage = "";
+      let toastType = "";
+
+      const makeMockElement = (initialValue = "") => {
+        const listeners: Record<string, Function[]> = {};
+        const classSet = new Set<string>();
+        return {
+          value: initialValue,
+          classList: {
+            add: (c: string) => classSet.add(c),
+            remove: (c: string) => classSet.delete(c),
+            contains: (c: string) => classSet.has(c),
+          },
+          addEventListener: (event: string, fn: Function) => {
+            if (!listeners[event]) listeners[event] = [];
+            listeners[event].push(fn);
+          },
+          click: () => {
+            (listeners["click"] || []).forEach((fn) => fn({ preventDefault: () => {} }));
+          },
+          close: () => {},
+          showModal: () => {},
+          dispatchEvent: (evt: { type: string }) => {
+            (listeners[evt.type] || []).forEach((fn) => fn(evt));
+          },
+        };
+      };
+
+      const btnConfirmGenerateCanon = makeMockElement() as any;
+      const canonGeneratorModal = makeMockElement() as any;
+      const inputCanonTitle = makeMockElement("Library Canon Test") as any;
+      const selectCanonKey = makeMockElement("D") as any;
+      const inputCanonTempo = makeMockElement("64") as any;
+      const selectCanonMode = makeMockElement("tonal") as any;
+      const selectCanonType = makeMockElement("standard") as any;
+      const inputCanonVoices = makeMockElement("3") as any;
+      const inputCanonOffset = makeMockElement("2") as any;
+      const inputCanonVariations = makeMockElement("2") as any;
+      const selectCanonOutput = makeMockElement("macro") as any;
+
+      const dummyEditor = {
+        setContent: (c: string) => {
+          loadedContent = c;
+        },
+      } as any;
+
+      const { TMDLibraryDrawerController } = await import("../web/src/ui/libraryDrawer.js");
+      const controller = new TMDLibraryDrawerController(
+        {
+          libraryDrawer: makeMockElement() as any,
+          libraryScoresList: makeMockElement() as any,
+          librarySamplesList: makeMockElement() as any,
+          libraryScoresCount: makeMockElement() as any,
+          canonGeneratorModal,
+          btnConfirmGenerateCanon,
+          inputCanonTitle,
+          selectCanonKey,
+          inputCanonTempo,
+          selectCanonMode,
+          selectCanonType,
+          inputCanonVoices,
+          inputCanonOffset,
+          inputCanonVariations,
+          selectCanonOutput,
+        },
+        () => dummyEditor,
+        (content) => {
+          loadedContent = content;
+        },
+        () => {},
+        (msg, type) => {
+          toastMessage = msg;
+          toastType = type || "";
+        }
+      );
+      controller.init();
+
+      // Trigger generate button
+      btnConfirmGenerateCanon.click();
+
+      // Await next tick so async event handler runs
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(loadedContent).toContain("::SCORE::");
+      expect(loadedContent).toContain("Library Canon Test");
+      expect(toastType).toBe("success");
+
+      const scores = await TmdStorage.listScores();
+      expect(scores.some((s) => s.title === "Library Canon Test")).toBe(true);
+    });
   });
 });
+
 

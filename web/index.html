@@ -260,6 +260,14 @@
                 <!-- Dynamically populated from SAMPLES -->
               </div>
             </div>
+
+            <!-- Section: Algorithmic Canon Generator -->
+            <div class="library-section" style="margin-top: 4px; padding-top: 8px; border-top: 1px dashed var(--border-subtle);">
+              <button id="btn-open-canon-modal" class="btn btn-sm" style="width: 100%; justify-content: center; gap: 6px; padding: 6px 10px; background: rgba(88, 166, 255, 0.1); border-color: rgba(88, 166, 255, 0.35); font-weight: 500;" title="Open Algorithmic Canon Generator" data-i18n-title="btnCanonGeneratorTitle">
+                <span>🎼</span>
+                <span data-i18n="btnCanonGenerator">Canon Generator</span>
+              </button>
+            </div>
           </div>
         </aside>
 
@@ -737,6 +745,96 @@ verse:Lead@|0|{
         <div class="modal-footer">
           <button id="btn-confirm-import-gist" class="btn btn-primary" data-i18n="btnConfirm">Confirm</button>
           <button class="btn btn-close-modal" data-i18n="btnCancel">Cancel</button>
+        </div>
+      </dialog>
+
+      <!-- Algorithmic Canon Generator Modal -->
+      <dialog id="canon-generator-modal" class="modal" style="max-width: 520px; width: 90%;">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">🎼</span>
+            <h2 class="modal-title" data-i18n="canonModalTitle" style="margin: 0;">Polyphonic Canon Generator</h2>
+          </div>
+          <button class="btn btn-icon-only btn-close-modal" id="btn-close-canon-modal">✕</button>
+        </div>
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px; max-height: 70vh; overflow-y: auto;">
+          <p style="font-size: 12px; color: var(--text-secondary); margin: 0; line-height: 1.5;" data-i18n="canonModalDesc">
+            Generates multi-voice polyphonic canons using Chen Chih-Han's TMD S-Expressions and pentatonic/diatonic counterpoint algorithms.
+          </p>
+
+          <div class="form-group">
+            <label for="canon-param-title" data-i18n="canonLabelTitle">Score Title:</label>
+            <input type="text" id="canon-param-title" class="text-control" value="Canon in D" style="width: 100%;" />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label for="canon-param-key" data-i18n="canonLabelKey">Key Signature:</label>
+              <select id="canon-param-key" class="select-control" style="width: 100%;">
+                <option value="C">C Major</option>
+                <option value="D" selected>D Major</option>
+                <option value="G">G Major</option>
+                <option value="F">F Major</option>
+                <option value="A">A Major</option>
+                <option value="E">E Major</option>
+                <option value="Am">A Minor (Am)</option>
+                <option value="Em">E Minor (Em)</option>
+                <option value="Dm">D Minor (Dm)</option>
+                <option value="Bm">B Minor (Bm)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="canon-param-tempo" data-i18n="canonLabelTempo">Tempo (BPM):</label>
+              <input type="number" id="canon-param-tempo" class="text-control" value="64" min="30" max="240" style="width: 100%;" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="canon-param-mode" data-i18n="canonLabelMode">Harmonic Framework:</label>
+            <select id="canon-param-mode" class="select-control" style="width: 100%;">
+              <option value="tonal" selected data-i18n="canonModeTonal">Diatonic Tonal (Pachelbel Romanesca / Baroque Progressions)</option>
+              <option value="pentatonic" data-i18n="canonModePentatonic">Pentatonic (Zero Dissonance / Eastern & Folk Modal)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="canon-param-type" data-i18n="canonLabelType">Canon Form:</label>
+            <select id="canon-param-type" class="select-control" style="width: 100%;">
+              <option value="standard" selected data-i18n="canonTypeStandard">Standard Staggered Canon (輪唱卡農)</option>
+              <option value="crab" data-i18n="canonTypeCrab">Crab Canon / Cancrizans (螃蟹逆行卡農)</option>
+              <option value="mirror" data-i18n="canonTypeMirror">Mirror Canon / Inversion (倒影鏡像卡農)</option>
+              <option value="table" data-i18n="canonTypeTable">Table Canon / Retrograde Inversion (桌子卡農)</option>
+            </select>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label for="canon-param-voices" data-i18n="canonLabelVoices">Number of Voices:</label>
+              <input type="number" id="canon-param-voices" class="text-control" value="3" min="2" max="6" style="width: 100%;" />
+            </div>
+            <div class="form-group">
+              <label for="canon-param-offset" data-i18n="canonLabelOffset">Voice Delay Offset (Bars):</label>
+              <input type="number" id="canon-param-offset" class="text-control" value="2" min="1" max="8" style="width: 100%;" />
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label for="canon-param-variations" data-i18n="canonLabelVariations">Variation Sections:</label>
+              <input type="number" id="canon-param-variations" class="text-control" value="3" min="1" max="10" style="width: 100%;" />
+            </div>
+            <div class="form-group">
+              <label for="canon-param-output" data-i18n="canonLabelOutputFormat">Output Format:</label>
+              <select id="canon-param-output" class="select-control" style="width: 100%;">
+                <option value="macro" selected data-i18n="canonFormatMacro">S-Expression Macro</option>
+                <option value="unrolled" data-i18n="canonFormatUnrolled">Unrolled Score</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-confirm-generate-canon" class="btn btn-primary" data-i18n="canonBtnGenerate">🎲 Generate & Add to Library</button>
+          <button class="btn btn-close-modal" id="btn-cancel-canon-modal" data-i18n="btnCancel">Cancel</button>
         </div>
       </dialog>
 

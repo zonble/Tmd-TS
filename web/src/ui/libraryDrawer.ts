@@ -3,6 +3,7 @@ import { SAMPLES } from "../samples.js";
 import { escapeHtml } from "../html.js";
 import { t } from "../i18n.js";
 import { fetchGistTmd } from "../gist.js";
+import { TMDCanonGenerator } from "../../../src/core/canon_gen.js";
 import type { TMDWebEditor } from "../editor.js";
 
 export interface LibraryDrawerElements {
@@ -18,6 +19,22 @@ export interface LibraryDrawerElements {
   libraryScoresList?: HTMLElement | null;
   librarySamplesList?: HTMLElement | null;
   libraryScoresCount?: HTMLElement | null;
+
+  // Canon Generator Modal Elements
+  btnOpenCanonModal?: HTMLButtonElement | null;
+  canonGeneratorModal?: HTMLDialogElement | null;
+  inputCanonTitle?: HTMLInputElement | null;
+  selectCanonKey?: HTMLSelectElement | null;
+  inputCanonTempo?: HTMLInputElement | null;
+  selectCanonMode?: HTMLSelectElement | null;
+  selectCanonType?: HTMLSelectElement | null;
+  inputCanonVoices?: HTMLInputElement | null;
+  inputCanonOffset?: HTMLInputElement | null;
+  inputCanonVariations?: HTMLInputElement | null;
+  selectCanonOutput?: HTMLSelectElement | null;
+  btnConfirmGenerateCanon?: HTMLButtonElement | null;
+  btnCloseCanonModal?: HTMLButtonElement | null;
+  btnCancelCanonModal?: HTMLButtonElement | null;
 }
 
 export function parseImportedScoreFile(
@@ -230,6 +247,79 @@ export class TMDLibraryDrawerController {
       if (e.key === "Enter") {
         e.preventDefault();
         handleImportGistConfirm();
+      }
+    });
+
+    // --- Canon Generator Modal Logic ---
+    const {
+      btnOpenCanonModal,
+      canonGeneratorModal,
+      inputCanonTitle,
+      selectCanonKey,
+      inputCanonTempo,
+      selectCanonMode,
+      selectCanonType,
+      inputCanonVoices,
+      inputCanonOffset,
+      inputCanonVariations,
+      selectCanonOutput,
+      btnConfirmGenerateCanon,
+      btnCloseCanonModal,
+      btnCancelCanonModal,
+    } = this.elements;
+
+    btnOpenCanonModal?.addEventListener("click", () => {
+      canonGeneratorModal?.showModal();
+    });
+
+    const closeCanonModal = () => {
+      canonGeneratorModal?.close();
+    };
+
+    btnCloseCanonModal?.addEventListener("click", closeCanonModal);
+    btnCancelCanonModal?.addEventListener("click", closeCanonModal);
+
+    btnConfirmGenerateCanon?.addEventListener("click", async () => {
+      try {
+        const title = inputCanonTitle?.value?.trim() || "Canon";
+        const key = selectCanonKey?.value || "D";
+        const tempo = parseInt(inputCanonTempo?.value || "64", 10) || 64;
+        const mode = (selectCanonMode?.value || "tonal") as "tonal" | "pentatonic";
+        const canonType = (selectCanonType?.value || "standard") as "standard" | "crab" | "mirror" | "table";
+        const numVoices = parseInt(inputCanonVoices?.value || "3", 10) || 3;
+        const offsetBars = parseInt(inputCanonOffset?.value || "2", 10) || 2;
+        const numVariations = parseInt(inputCanonVariations?.value || "3", 10) || 3;
+        const useMacro = (selectCanonOutput?.value || "macro") === "macro";
+
+        const generator = new TMDCanonGenerator({
+          title,
+          key,
+          tempo,
+          mode,
+          canonType,
+          numVoices,
+          offsetBars,
+          numVariations,
+          useMacro,
+        });
+
+        const scoreContent = generator.generate();
+        const savedScore = await TmdStorage.saveScore({
+          title,
+          content: scoreContent,
+        });
+
+        this.loadScoreIntoEditor(savedScore);
+        closeCanonModal();
+
+        if (this.onShowToast) {
+          this.onShowToast(
+            t("canonToastSuccess").replace("{title}", savedScore.title),
+            "success"
+          );
+        }
+      } catch (err: any) {
+        alert(`生成卡農失敗: ${err.message || String(err)}`);
       }
     });
 
