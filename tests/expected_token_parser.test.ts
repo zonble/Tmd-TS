@@ -111,6 +111,76 @@ describe('Expected tokens on TMD parse syntax errors', () => {
       expect(err.expectedTokens).toContain('{');
     }
   });
+  it('formats code frame with line number, context lines, and caret pointer', () => {
+    const input = `::SCORE::\nintro:Piano@|0|{\n<4*>\n1 2 Foo 4\n}`;
+    try {
+      TmdParser.parse(input);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(TMDParseError);
+      const err = error as TMDParseError;
+      const frame = err.formatCodeFrame(input, { color: false });
+      expect(frame).toContain('3 | <4*>');
+      expect(frame).toContain('4 | 1 2 Foo 4');
+      expect(frame).toMatch(/\|\s+\^/);
+    }
+  });
+
+  it('diagnoses fullwidth punctuation typo and suggests ASCII replacement', () => {
+    const fullwidthCases = [
+      { text: '（', expected: '(' },
+      { text: '）', expected: ')' },
+      { text: '｛', expected: '{' },
+      { text: '｝', expected: '}' },
+      { text: '【', expected: '[' },
+      { text: '】', expected: ']' },
+      { text: '：', expected: ':' },
+      { text: '｜', expected: '|' },
+      { text: '－', expected: '-' },
+    ];
+
+    for (const { text, expected } of fullwidthCases) {
+      try {
+        TmdParser.parse(`::SCORE::\nintro:Piano@|0|{\n<4*>\n1 2 ${text} 4\n}`);
+        expect.unreachable();
+      } catch (error) {
+        expect(error).toBeInstanceOf(TMDParseError);
+        const err = error as TMDParseError;
+        expect(err.message).toContain(`Fullwidth punctuation detected: \`${text}\` -> replace with halfwidth \`${expected}\``);
+      }
+    }
+  });
+
+  it('diagnoses accidental typos like 1# or 4# and suggests TMD accidental syntax', () => {
+    try {
+      TmdParser.parse('::SCORE::\nintro:Piano@|0|{\n<4*>\n1# 2 3 4\n}');
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(TMDParseError);
+      const err = error as TMDParseError;
+      expect(err.message).toContain("Hint: For sharp/flat accidentals in TMD, use `'` for sharp (e.g. `1'`) and `,` for flat (e.g. `7,`)");
+    }
+
+    try {
+      TmdParser.parse('::SCORE::\nintro:Piano@|0|{\n<4*>\n1 4# 3 4\n}');
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(TMDParseError);
+      const err = error as TMDParseError;
+      expect(err.message).toContain("Hint: For sharp/flat accidentals in TMD, use `'` for sharp (e.g. `1'`) and `,` for flat (e.g. `7,`)");
+    }
+  });
+
+  it('diagnoses missing time grid when entering paragraph notes directly without <4*>', () => {
+    try {
+      TmdParser.parse('::SCORE::\nintro:Piano@|0|{\n1 2 3 4\n}');
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(TMDParseError);
+      const err = error as TMDParseError;
+      expect(err.message).toContain('Hint: Each section inside `{ ... }` must start with a time grid directive like `<4*>` or `<8*>` before note events');
+    }
+  });
 });
 
 

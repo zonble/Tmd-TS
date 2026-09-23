@@ -39,9 +39,23 @@ export function updateProblemsPanel(
     TmdParser.parse(text);
     currentSyntaxError = null;
   } catch (err: any) {
+    const line = err.range?.start?.line ?? 1;
+    const column = err.range?.start?.column ?? 1;
+    const length = err.range?.length ?? err.text?.length ?? 1;
+    const fullMsg = err.message || "Syntax Error";
+
+    // Split main error and hint if present
+    let mainMsg = fullMsg;
+    let hintMsg = "";
+    if (fullMsg.includes("\nHint: ")) {
+      const parts = fullMsg.split("\nHint: ");
+      mainMsg = parts[0];
+      hintMsg = parts[1];
+    }
+
     currentSyntaxError = {
-      message: err.message || "Syntax Error",
-      line: 1,
+      message: fullMsg,
+      line,
     };
     currentIssues = [];
 
@@ -50,10 +64,17 @@ export function updateProblemsPanel(
     if (fixAllBtn) fixAllBtn.style.display = "inline-flex";
 
     problemsList.innerHTML = `
-      <div class="problem-item error" data-line="1">
-        <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-          <span class="problem-item-line">Ln 1</span>
-          <span class="problem-item-msg">${escapeHtml(err.message || "Syntax Error")}</span>
+      <div class="problem-item error" data-line="${line}" data-col="${column}" data-len="${length}">
+        <div style="display: flex; flex-direction: column; gap: 3px; flex: 1;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="problem-item-line">Ln ${line}:${column}</span>
+            <span class="problem-item-msg">${escapeHtml(mainMsg)}</span>
+          </div>
+          ${
+            hintMsg
+              ? `<div class="problem-item-hint" style="font-size: 11px; color: var(--accent-orange, #d29922); padding-left: 2px;">💡 ${escapeHtml(hintMsg)}</div>`
+              : ""
+          }
         </div>
         <button class="btn btn-sm btn-quick-fix-ai" data-action="fix-ai" title="${escapeHtml(t("problemsFixWithAi"))}">
           ${escapeHtml(t("problemsFixWithAi"))}
@@ -166,8 +187,14 @@ export function setupProblemsPanelEvents(
     const item = target.closest(".problem-item") as HTMLElement | null;
     if (item && item.dataset.line) {
       const line = parseInt(item.dataset.line, 10);
+      const col = item.dataset.col ? parseInt(item.dataset.col, 10) : 1;
+      const len = item.dataset.len ? parseInt(item.dataset.len, 10) : 1;
       if (!isNaN(line) && line > 0) {
-        editor.scrollToLine(line);
+        if (typeof editor.scrollToRange === "function" && !isNaN(col) && col > 0) {
+          editor.scrollToRange(line, col, line, col + len);
+        } else {
+          editor.scrollToLine(line);
+        }
       }
     }
   });
