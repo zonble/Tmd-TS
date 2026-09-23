@@ -113,6 +113,11 @@ export class TMDParseError extends Error {
     if (expectedTokens.length > 0) {
       fullMessage += ` (expected ${expectedTokens.join(", ")})`;
     }
+
+    if (expectedTokens.includes("percussion") && /[A-Za-z]/.test(text)) {
+      fullMessage += `\nHint: If writing percussion/drums, valid symbols are: X/x (Hi-Hat), S/s (Snare), B/b/D/d (Bass Drum), T/t (Tom), C/c (Crash), O/o (Open Hi-Hat)`;
+    }
+
     super(fullMessage);
     this.name = "TMDParseError";
     this.expectedTokens = expectedTokens;

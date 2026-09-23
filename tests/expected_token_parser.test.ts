@@ -87,5 +87,30 @@ describe('Expected tokens on TMD parse syntax errors', () => {
       TmdParser.parse('::SCORE::\nintro:Piano@|0|{\n<4*>\n1 2 Foo 4\n}')
     ).toThrowError(/expected note, chord, tie, rest, percussion, tuplet, directive, }/);
   });
+
+  it('includes drum/percussion hint when encountering unknown alphabetic token in measure body', () => {
+    expect.assertions(3);
+    try {
+      TmdParser.parse('::SCORE::\nintro:Drums@|0|{\n<4*>\n1 2 A 4\n}');
+    } catch (error) {
+      expect(error).toBeInstanceOf(TMDParseError);
+      const err = error as TMDParseError;
+      expect(err.message).toContain('Unexpected token at 4:5: `A` (expected note, chord, tie, rest, percussion, tuplet, directive, })');
+      expect(err.message).toMatch(/Hint: If writing percussion\/drums, valid symbols are: X\/x \(Hi-Hat\), S\/s \(Snare\), B\/b\/D\/d \(Bass Drum\), T\/t \(Tom\), C\/c \(Crash\), O\/o \(Open Hi-Hat\)/);
+    }
+  });
+
+  it('does not append drum hint when expectedTokens does not include percussion', () => {
+    expect.assertions(3);
+    try {
+      TmdParser.parse('::SCORE::\nintro:Piano@|0|\n<4*>\n1 2 3 4\n}');
+    } catch (error) {
+      expect(error).toBeInstanceOf(TMDParseError);
+      const err = error as TMDParseError;
+      expect(err.message).not.toContain('Hint: If writing percussion');
+      expect(err.expectedTokens).toContain('{');
+    }
+  });
 });
+
 
