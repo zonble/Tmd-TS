@@ -20,6 +20,51 @@ export interface LibraryDrawerElements {
   libraryScoresCount?: HTMLElement | null;
 }
 
+export function parseImportedScoreFile(
+  fileName: string,
+  rawContent: string
+): { title: string; content: string } {
+  const trimmed = rawContent.trim();
+  if (!trimmed) {
+    throw new Error(t("importFileNoTmdFound") || "未在檔案中找到有效的 TMD 樂譜代碼或標頭 (缺少 ::SCORE::)");
+  }
+
+  const isMarkdown = /\.(?:md|markdown)$/i.test(fileName);
+  let scoreContent = "";
+
+  if (isMarkdown) {
+    const codeBlockMatch = trimmed.match(/```(?:tmd)?\s*([\s\S]*?)```/i);
+    if (codeBlockMatch && codeBlockMatch[1]?.trim()) {
+      scoreContent = codeBlockMatch[1].trim();
+    } else if (trimmed.includes("::SCORE::")) {
+      const idx = trimmed.indexOf("::SCORE::");
+      scoreContent = trimmed.slice(idx).trim();
+    } else {
+      throw new Error(t("importFileNoTmdFound") || "未在檔案中找到有效的 TMD 樂譜代碼或標頭 (缺少 ::SCORE::)");
+    }
+  } else {
+    // .tmd, .txt, or other text files - preserve original score content
+    scoreContent = rawContent;
+  }
+
+  // Ensure content has ::SCORE:: or valid TMD structure
+  if (!scoreContent.includes("::SCORE::")) {
+    // If not markdown, could still be valid if it starts or has headers, but if it came from .md it must have ::SCORE::
+    if (isMarkdown) {
+      throw new Error(t("importFileNoTmdFound") || "未在檔案中找到有效的 TMD 樂譜代碼或標頭 (缺少 ::SCORE::)");
+    }
+  }
+
+  const defaultBaseName = fileName.replace(/\.[^/.]+$/, "");
+  const extracted = extractTmdTitle(scoreContent);
+  const title = extracted !== "未命名樂譜" ? extracted : defaultBaseName;
+
+  return {
+    title,
+    content: scoreContent,
+  };
+}
+
 export class TMDLibraryDrawerController {
   private currentScoreId: string | null = null;
   private isTemplateScore: boolean = false;
@@ -32,6 +77,23 @@ export class TMDLibraryDrawerController {
     private onSavePanelsState: () => void,
     private onShowToast?: (message: string, type?: "success" | "error") => void
   ) {}
+
+  public async importScoreFile(file: File): Promise<SavedScore> {
+    const rawContent = await file.text();
+    const { title, content } = parseImportedScoreFile(file.name, rawContent);
+    const newScore = await TmdStorage.saveScore({
+      title,
+      content,
+    });
+    this.loadScoreIntoEditor(newScore);
+    if (this.onShowToast) {
+      this.onShowToast(
+        t("importFileSuccess").replace("{title}", newScore.title),
+        "success"
+      );
+    }
+    return newScore;
+  }
 
   public init(): void {
     const {
@@ -65,20 +127,58 @@ export class TMDLibraryDrawerController {
       this.createNewSong();
     });
 
+    // File input change handler (.tmd, .md, .txt)
     inputImportTmd?.addEventListener("change", async () => {
       const file = inputImportTmd.files?.[0];
       if (!file) return;
       try {
-        const text = await file.text();
-        const title = extractTmdTitle(text) || file.name.replace(/\.[^/.]+$/, "");
-        const newScore = await TmdStorage.saveScore({
-          title,
-          content: text,
-        });
-        this.loadScoreIntoEditor(newScore);
+        await this.importScoreFile(file);
         inputImportTmd.value = "";
       } catch (err: any) {
-        alert(`匯入失敗: ${err.message || String(err)}`);
+        const errorMsg = err.message || String(err);
+        alert(t("importFileError").replace("{error}", errorMsg));
+      }
+    });
+
+    // Drag-and-drop support on libraryDrawer
+    let dragCounter = 0;
+    libraryDrawer.addEventListener("dragenter", (e) => {
+      e.preventDefault();
+      dragCounter++;
+      libraryDrawer.classList.add("drag-over");
+    });
+
+    libraryDrawer.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "copy";
+      }
+      libraryDrawer.classList.add("drag-over");
+    });
+
+    libraryDrawer.addEventListener("dragleave", (e) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        libraryDrawer.classList.remove("drag-over");
+      }
+    });
+
+    libraryDrawer.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      libraryDrawer.classList.remove("drag-over");
+
+      const files = e.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+
+      const file = files[0];
+      try {
+        await this.importScoreFile(file);
+      } catch (err: any) {
+        const errorMsg = err.message || String(err);
+        alert(t("importFileError").replace("{error}", errorMsg));
       }
     });
 

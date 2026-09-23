@@ -700,6 +700,12 @@ html, body {
   display: none;
 }
 
+.library-drawer.drag-over {
+  outline: 2px dashed var(--accent-blue);
+  outline-offset: -3px;
+  background-color: rgba(88, 166, 255, 0.08);
+}
+
 .library-drawer .panel-header {
   padding: 8px 10px;
   gap: 6px;
