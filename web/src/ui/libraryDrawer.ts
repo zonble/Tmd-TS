@@ -337,7 +337,12 @@ export class TMDLibraryDrawerController {
         if (confirm(t("confirmDeleteScore").replace("{title}", score.title))) {
           await TmdStorage.deleteScore(scoreId);
           if (this.currentScoreId === scoreId) {
-            this.loadTemplateIntoEditor("sandiansanye");
+            const remaining = await TmdStorage.listScores();
+            if (remaining.length > 0) {
+              this.loadScoreIntoEditor(remaining[0]);
+            } else {
+              this.loadTemplateIntoEditor("sandiansanye");
+            }
           }
           await this.refreshLibraryScores();
         }

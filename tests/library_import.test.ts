@@ -241,7 +241,161 @@ describe("Library Score File Import (TDD)", () => {
       const scores = await TmdStorage.listScores();
       expect(scores.some((s) => s.title === "Library Canon Test")).toBe(true);
     });
+
+    it("loads next remaining score when deleting current score if other scores exist", async () => {
+      // Mock confirm dialog
+      const originalConfirm = globalThis.confirm;
+      globalThis.confirm = () => true;
+
+      try {
+        const score1 = await TmdStorage.saveScore({ title: "Score 1", content: "::SCORE::\n** Score 1 **\n1 2 3 4 |" });
+        const score2 = await TmdStorage.saveScore({ title: "Score 2", content: "::SCORE::\n** Score 2 **\n5 6 7 1 |" });
+
+        let loadedContent = "";
+        let loadedScoreId: string | null = null;
+        const dummyEditor = {
+          setContent: (c: string) => {
+            loadedContent = c;
+          },
+        } as any;
+
+        const listeners: Record<string, Function[]> = {};
+        const mockScoresList: any = {
+          addEventListener: (event: string, fn: Function) => {
+            if (!listeners[event]) listeners[event] = [];
+            listeners[event].push(fn);
+          },
+        };
+
+        const { TMDLibraryDrawerController } = await import("../web/src/ui/libraryDrawer.js");
+        const controller = new TMDLibraryDrawerController(
+          {
+            libraryDrawer: { classList: { contains: () => false, add: () => {}, remove: () => {} }, addEventListener: () => {} } as any,
+            libraryScoresList: mockScoresList,
+          },
+          () => dummyEditor,
+          (content) => {
+            loadedContent = content;
+          },
+          (id) => {
+            loadedScoreId = id;
+          }
+        );
+        controller.init();
+
+        // Simulate score1 currently loaded in editor
+        controller.loadScoreIntoEditor(score1);
+        expect(controller.getCurrentScoreId()).toBe(score1.id);
+        expect(loadedContent).toContain("Score 1");
+
+        // Simulate click delete button on score1
+        const mockItemElement = {
+          dataset: { id: score1.id },
+        };
+        const mockDeleteBtn = {
+          getAttribute: () => "delete",
+        };
+        const mockClickEvent = {
+          target: {
+            closest: (sel: string) => {
+              if (sel === ".library-item") return mockItemElement;
+              if (sel === "[data-action]") return mockDeleteBtn;
+              return null;
+            },
+          },
+          stopPropagation: () => {},
+        };
+
+        // Dispatch click
+        await (listeners["click"]?.[0]?.(mockClickEvent));
+
+        // Since score2 is remaining, score2 should be loaded, NOT sandiansanye
+        expect(loadedContent).toContain("Score 2");
+        expect(controller.getCurrentScoreId()).toBe(score2.id);
+
+        // Verify score1 is removed from storage
+        const remaining = await TmdStorage.listScores();
+        expect(remaining.length).toBe(1);
+        expect(remaining[0].id).toBe(score2.id);
+      } finally {
+        globalThis.confirm = originalConfirm;
+      }
+    });
+
+    it("falls back to sandiansanye template only when library is completely empty after deletion", async () => {
+      const originalConfirm = globalThis.confirm;
+      globalThis.confirm = () => true;
+
+      try {
+        const onlyScore = await TmdStorage.saveScore({ title: "Lone Score", content: "::SCORE::\n** Lone Score **\n1 2 3 4 |" });
+
+        let loadedContent = "";
+        let loadedScoreId: string | null = null;
+        const dummyEditor = {
+          setContent: (c: string) => {
+            loadedContent = c;
+          },
+        } as any;
+
+        const listeners: Record<string, Function[]> = {};
+        const mockScoresList: any = {
+          addEventListener: (event: string, fn: Function) => {
+            if (!listeners[event]) listeners[event] = [];
+            listeners[event].push(fn);
+          },
+        };
+
+        const { TMDLibraryDrawerController } = await import("../web/src/ui/libraryDrawer.js");
+        const controller = new TMDLibraryDrawerController(
+          {
+            libraryDrawer: { classList: { contains: () => false, add: () => {}, remove: () => {} }, addEventListener: () => {} } as any,
+            libraryScoresList: mockScoresList,
+          },
+          () => dummyEditor,
+          (content) => {
+            loadedContent = content;
+          },
+          (id) => {
+            loadedScoreId = id;
+          }
+        );
+        controller.init();
+
+        controller.loadScoreIntoEditor(onlyScore);
+        expect(controller.getCurrentScoreId()).toBe(onlyScore.id);
+
+        // Click delete on onlyScore
+        const mockItemElement = {
+          dataset: { id: onlyScore.id },
+        };
+        const mockDeleteBtn = {
+          getAttribute: () => "delete",
+        };
+        const mockClickEvent = {
+          target: {
+            closest: (sel: string) => {
+              if (sel === ".library-item") return mockItemElement;
+              if (sel === "[data-action]") return mockDeleteBtn;
+              return null;
+            },
+          },
+          stopPropagation: () => {},
+        };
+
+        await (listeners["click"]?.[0]?.(mockClickEvent));
+
+        // Now library is empty, it should load sandiansanye template
+        expect(loadedContent).toContain("三天三夜");
+        expect(controller.getCurrentScoreId()).toBeNull();
+
+        const remaining = await TmdStorage.listScores();
+        expect(remaining.length).toBe(0);
+      } finally {
+        globalThis.confirm = originalConfirm;
+      }
+    });
   });
 });
+
 
 
