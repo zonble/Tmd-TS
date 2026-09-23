@@ -44,6 +44,7 @@ export class TMDMidiPlayer {
   private currentBytes: Uint8Array | null = null;
   private callbacks: TMDPlayerCallbacks = {};
   private isPausedState: boolean = false;
+  private isEndedState: boolean = false;
   private progressTimer: any = null;
 
   // Track active notes for soundfont note-off: composite key = (channel << 8) | note
@@ -60,10 +61,14 @@ export class TMDMidiPlayer {
     }
 
     // Load saved synth preference
-    const savedSynth = localStorage.getItem("tmd-synth-pref") as TMDMidiSynthType | null;
-    if (savedSynth && ["gm", "piano", "tiny", "webmidi"].includes(savedSynth)) {
-      this.currentSynthType = savedSynth;
-    }
+    try {
+      if (typeof localStorage !== "undefined" && localStorage) {
+        const savedSynth = localStorage.getItem("tmd-synth-pref") as TMDMidiSynthType | null;
+        if (savedSynth && ["gm", "piano", "tiny", "webmidi"].includes(savedSynth)) {
+          this.currentSynthType = savedSynth;
+        }
+      }
+    } catch (_) {}
   }
 
   private getAudioContext(): AudioContext | null {
@@ -87,7 +92,11 @@ export class TMDMidiPlayer {
   public async setSynthType(type: TMDMidiSynthType): Promise<void> {
     if (this.currentSynthType === type) return;
     this.currentSynthType = type;
-    localStorage.setItem("tmd-synth-pref", type);
+    try {
+      if (typeof localStorage !== "undefined" && localStorage) {
+        localStorage.setItem("tmd-synth-pref", type);
+      }
+    } catch (_) {}
 
     // If currently playing, restart playback at current position with new synth
     if (this.isPlaying() && this.currentBytes) {
@@ -109,11 +118,16 @@ export class TMDMidiPlayer {
   }
 
   public isPlaying(): boolean {
+    if (this.isEndedState) return false;
     return !!(this.currentPlayer && (this.currentPlayer.playing || this.isPausedState));
   }
 
   public isPaused(): boolean {
     return this.isPausedState;
+  }
+
+  public isEnded(): boolean {
+    return this.isEndedState;
   }
 
   public getTitle(): string {
@@ -131,6 +145,9 @@ export class TMDMidiPlayer {
 
   public getPosition(): number {
     if (!this.currentPlayer) return 0;
+    if (this.isEndedState) {
+      return this.getDuration();
+    }
     try {
       return (this.currentPlayer.positionMS() || 0) / 1000;
     } catch {
@@ -144,6 +161,15 @@ export class TMDMidiPlayer {
       this.stopActiveNotes();
       const ms = Math.max(0, seconds * 1000);
       this.currentPlayer.jumpMS(ms);
+      if (this.isEndedState) {
+        if (seconds < this.getDuration() - 0.2) {
+          this.isEndedState = false;
+          this.isPausedState = true;
+          if (this.callbacks.onPause) {
+            this.callbacks.onPause();
+          }
+        }
+      }
       if (this.callbacks.onProgress) {
         this.callbacks.onProgress(this.getPosition(), this.getDuration());
       }
@@ -395,6 +421,7 @@ export class TMDMidiPlayer {
     this.currentTitle = title;
     this.currentBytes = bytes;
     this.isPausedState = false;
+    this.isEndedState = false;
     this.channelPrograms = new Array(16).fill(0);
 
     const ctx = this.getAudioContext();
@@ -470,7 +497,7 @@ export class TMDMidiPlayer {
         this.stopProgressTimer();
         this.stopActiveNotes();
         this.isPausedState = false;
-        this.currentPlayer = null;
+        this.isEndedState = true;
         if (this.callbacks.onEnd) {
           this.callbacks.onEnd();
         }
@@ -494,7 +521,7 @@ export class TMDMidiPlayer {
   }
 
   public pause() {
-    if (this.currentPlayer && !this.isPausedState) {
+    if (this.currentPlayer && !this.isPausedState && !this.isEndedState) {
       try {
         this.currentPlayer.pause();
         this.isPausedState = true;
@@ -509,8 +536,41 @@ export class TMDMidiPlayer {
     }
   }
 
+  public replay() {
+    this.isEndedState = false;
+    this.isPausedState = false;
+    if (this.currentPlayer) {
+      try {
+        this.stopActiveNotes();
+        this.currentPlayer.jumpMS(0);
+        this.currentPlayer.play();
+        this.startProgressTimer();
+        if (this.callbacks.onResume) {
+          this.callbacks.onResume();
+        }
+        if (this.callbacks.onProgress) {
+          this.callbacks.onProgress(0, this.getDuration());
+        }
+        return;
+      } catch (err) {
+        console.warn("[TMDMidiPlayer] Replay with existing player failed, falling back to play():", err);
+      }
+    }
+    if (this.currentBytes) {
+      this.play(this.currentBytes, this.currentTitle, this.callbacks);
+    }
+  }
+
   public resume() {
+    if (this.isEndedState) {
+      this.replay();
+      return;
+    }
     if (this.currentPlayer && this.isPausedState) {
+      if (this.getDuration() > 0 && this.getPosition() >= this.getDuration() - 0.2) {
+        this.replay();
+        return;
+      }
       try {
         this.currentPlayer.resume();
         this.isPausedState = false;
@@ -525,10 +585,22 @@ export class TMDMidiPlayer {
   }
 
   public togglePause() {
-    if (this.isPausedState) {
-      this.resume();
+    if (this.isEndedState) {
+      this.replay();
+    } else if (this.isPausedState) {
+      if (this.getDuration() > 0 && this.getPosition() >= this.getDuration() - 0.2) {
+        this.replay();
+      } else {
+        this.resume();
+      }
+    } else if (this.isPlaying()) {
+      if (this.getDuration() > 0 && this.getPosition() >= this.getDuration() - 0.2) {
+        this.replay();
+      } else {
+        this.pause();
+      }
     } else {
-      this.pause();
+      this.replay();
     }
   }
 
@@ -546,6 +618,7 @@ export class TMDMidiPlayer {
       this.currentPlayer = null;
     }
     this.isPausedState = false;
+    this.isEndedState = false;
     if (notifyCallback && this.callbacks.onStop) {
       this.callbacks.onStop();
     }

@@ -281,7 +281,7 @@ export class TMDPlayerController {
       onStop: () => {
         if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
         if (playerBtnPause) {
-          playerBtnPause.textContent = "⏸";
+          playerBtnPause.textContent = "▶";
           playerBtnPause.disabled = false;
         }
         if (playerProgress) {
@@ -291,15 +291,19 @@ export class TMDPlayerController {
         }
       },
       onEnd: () => {
-        if (tmdPlayerBar) tmdPlayerBar.style.display = "none";
+        // Keep tmdPlayerBar visible so user can see it ended and hit play to replay from start
         if (playerBtnPause) {
-          playerBtnPause.textContent = "⏸";
+          playerBtnPause.textContent = "▶";
           playerBtnPause.disabled = false;
         }
         if (playerProgress) {
           playerProgress.classList.remove("loading");
           playerProgress.disabled = false;
-          playerProgress.value = "0";
+          playerProgress.value = playerProgress.max;
+        }
+        if (playerTime) {
+          const totalSec = tmdPlayer.getDuration();
+          playerTime.textContent = `${formatPlaybackTime(totalSec)} / ${formatPlaybackTime(totalSec)}`;
         }
       },
     });
