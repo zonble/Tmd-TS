@@ -103,6 +103,8 @@ export class TMDLilyPondGenerator {
         const keyTonic = PitchMapping.lilyPondNames[semitone];
         return `\\key ${keyTonic} \\major `;
       }
+      case "fixedPitch":
+        return `\\key c \\major `;
     }
   }
 

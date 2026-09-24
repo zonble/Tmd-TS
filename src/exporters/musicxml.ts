@@ -211,6 +211,8 @@ export class TMDMusicXMLGenerator {
         const fifths = TMDMusicXMLGenerator.semitoneOffsetToFifths(directive.state.keyOffset);
         return `      <attributes><key><fifths>${fifths}</fifths></key></attributes>\n`;
       }
+      case "fixedPitch":
+        return `      <attributes><key><fifths>0</fifths></key></attributes>\n`;
     }
   }
 

@@ -473,4 +473,11 @@ export class TMDOutlineGenerator {
 
     return result;
   }
+
+  public static extractSectionNames(source: string): string[] {
+    const nodes = this.generate(source);
+    const sectionsNode = nodes.find((n) => n.name === "Sections");
+    if (!sectionsNode || !sectionsNode.children) return [];
+    return sectionsNode.children.map((c) => c.name);
+  }
 }

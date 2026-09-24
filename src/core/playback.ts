@@ -243,6 +243,8 @@ export class TMDPlaybackRenderer {
         return { ...state, keyOffset: KeySignature.parse(kind.key).semitoneOffset };
       case "relativeKey":
         return { ...state, keyOffset: state.keyOffset + kind.semitones };
+      case "fixedPitch":
+        return { ...state, keyOffset: 0 };
       case "timeSignature":
         return { ...state, timeSignature: kind.beat };
     }

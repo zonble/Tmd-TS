@@ -88,6 +88,8 @@ export class TMDABCGenerator {
         const key = TMDABCGenerator.keyInfo(directive.state.keyOffset).name;
         return `K:${key} `;
       }
+      case "fixedPitch":
+        return `K:C `;
     }
   }
 

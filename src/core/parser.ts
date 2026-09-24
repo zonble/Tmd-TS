@@ -1059,9 +1059,14 @@ export class TmdParser {
           val += t.text;
         }
       }
-      const num = parseInt(val, 10);
-      if (!isNaN(num)) {
-        result = { position, kind: { type: "relativeKey", semitones: num } };
+      const trimmed = val.trim().toLowerCase();
+      if (trimmed === "fixed") {
+        result = { position, kind: { type: "fixedPitch" } };
+      } else {
+        const num = parseInt(val, 10);
+        if (!isNaN(num)) {
+          result = { position, kind: { type: "relativeKey", semitones: num } };
+        }
       }
     } else if (type === "absoluteOrderPrefix" || type === "keySignaturePrefix") {
       this.advance();
@@ -1078,7 +1083,12 @@ export class TmdParser {
           val += t.text;
         }
       }
-      result = { position, kind: { type: "absoluteKey", key: val } };
+      const trimmed = val.trim().toLowerCase();
+      if (trimmed === "fixed") {
+        result = { position, kind: { type: "fixedPitch" } };
+      } else {
+        result = { position, kind: { type: "absoluteKey", key: val } };
+      }
     } else if ((this.current.type as string) === "openAngle") {
       this.advance();
       let count = 4;

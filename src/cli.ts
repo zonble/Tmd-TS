@@ -25,6 +25,7 @@ import {
 import { TMDWAVRenderer } from "./audio.js";
 import { TmdSkill } from "./skill.js";
 import { TmdMcpServer, TmdMcpInstaller } from "./mcp/index.js";
+import { TMDLSPServer, TMDJSONRPCCodec } from "./lsp/index.js";
 import { TMD_VERSION } from "./version.js";
 
 export function printHelp(): void {
@@ -38,6 +39,7 @@ SUBCOMMANDS:
   outline [--json] <input-path> Generate a document symbol outline of a TMD score.
   inspect [--json] <input-path> Inspect full song musical profile, vocal tessitura, and arrangement density.
   refactor <subcommand>    Refactor TMD score (rename-instrument, rename-section, extract-instrument).
+  lsp                      Run Language Server Protocol (LSP) daemon over stdio (JSON-RPC).
 
 OPTIONS:
   -p, --parse-only        Parse and display the score summary.
@@ -57,12 +59,53 @@ OPTIONS:
   -w, --wav-output PATH   Render portable 16-bit stereo WAV.
       --pdf-output PATH   Render PDF through lilypond.
       --play              Render and play through afplay/aplay.
+      --lsp               Run Language Server Protocol (LSP) daemon over stdio.
       --mcp               Run as a stdio Model Context Protocol (MCP) server.
       --install-mcp       Register TMD MCP server in Claude, Cursor, and Gemini configs.
       --install-skills    Install the TMD AI-agent skill.
       --version           Show the version.
   -h, --help              Show this help.
 `);
+}
+
+function handleLSPCommand(argv: string[]): number {
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "-h" || arg === "--help") {
+      console.log(`USAGE: tmd lsp
+
+Run the TMD Language Server Protocol (LSP) daemon communicating over standard I/O (JSON-RPC).
+`);
+      return 0;
+    }
+  }
+  return runLSPServer();
+}
+
+function runLSPServer(): number {
+  const server = new TMDLSPServer((data) => {
+    process.stdout.write(data);
+  });
+
+  let buffer = Buffer.alloc(0);
+
+  process.stdin.on("data", (chunk: Buffer) => {
+    buffer = Buffer.concat([buffer, chunk]);
+    const { frames, remaining } = TMDJSONRPCCodec.decodeBuffer(buffer);
+    buffer = Buffer.from(remaining);
+    for (const frame of frames) {
+      server.handle(frame);
+    }
+    if (!server.isRunning) {
+      process.exit(0);
+    }
+  });
+
+  process.stdin.on("end", () => {
+    process.exit(0);
+  });
+
+  return 0;
 }
 
 function handleCheckCommand(argv: string[]): number {
@@ -961,6 +1004,9 @@ export function main(argv = process.argv.slice(2)): number {
     if (first === "refactor") {
       return handleRefactorCommand(argv.slice(1));
     }
+    if (first === "lsp") {
+      return handleLSPCommand(argv.slice(1));
+    }
   }
 
   let input: string | undefined,
@@ -970,6 +1016,7 @@ export function main(argv = process.argv.slice(2)): number {
     installSkills = false,
     installMcp = false,
     runMcp = false,
+    runLsp = false,
     singer = "Miku";
   const outputs: Record<string, string | undefined> = {};
 
@@ -997,6 +1044,10 @@ export function main(argv = process.argv.slice(2)): number {
     }
     if (arg === "--mcp") {
       runMcp = true;
+      continue;
+    }
+    if (arg === "--lsp") {
+      runLsp = true;
       continue;
     }
     if (arg === "--install-mcp") {
@@ -1045,6 +1096,9 @@ export function main(argv = process.argv.slice(2)): number {
     }
   }
 
+  if (runLsp) {
+    return runLSPServer();
+  }
   if (runMcp) {
     TmdMcpServer.run().catch((err) => {
       console.error("Fatal error running TMD MCP Server:", err);

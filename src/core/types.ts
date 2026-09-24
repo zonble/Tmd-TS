@@ -281,6 +281,7 @@ export type SectionDirectiveKind =
   | { type: "relativeTempo"; deltaBpm: number }
   | { type: "absoluteKey"; key: string }
   | { type: "relativeKey"; semitones: number }
+  | { type: "fixedPitch" }
   | { type: "timeSignature"; beat: Beat };
 
 export interface SectionDirective {

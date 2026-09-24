@@ -58,6 +58,8 @@ export function formatSectionDirective(dir: SectionDirective): string {
       return `{?=${k.key}}`;
     case "relativeKey":
       return `{?${k.semitones >= 0 ? "+" + k.semitones : k.semitones}}`;
+    case "fixedPitch":
+      return "{?=fixed}";
     case "timeSignature":
       return `{<${k.beat.count}/${k.beat.noteValue}>}`;
   }
