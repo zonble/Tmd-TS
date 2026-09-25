@@ -1,8 +1,10 @@
 import { Sheet, scaleDegreeLetter, accidentalToSemitone, DEFAULT_INSTRUMENT } from "../../../src/core/types.js";
 import { SheetInstrumentHelper } from "../../../src/core/instruments.js";
 import { TMDOutlineGenerator } from "../../../src/core/outline.js";
-import { TMDSongInspector } from "../../../src/core/inspector.js";
-import { t } from "../i18n.js";
+import { TmdParser } from "../../../src/core/parser.js";
+import { TMDSongInspector, TMDSongProfile } from "../../../src/core/inspector.js";
+import { TMDTonalityVisualizer } from "../../../src/core/tonality_visualizer.js";
+import { t, getCurrentLocale } from "../i18n.js";
 import { escapeHtml } from "../html.js";
 
 export interface InspectorElements {
@@ -20,6 +22,11 @@ export interface InspectorElements {
   inspectorVocalDetails?: HTMLElement;
   inspectorHarmony?: HTMLElement;
   inspectorModulations?: HTMLElement;
+  inspectorTonalityCard?: HTMLElement;
+  inspectorTonalitySummary?: HTMLElement;
+  inspectorTonalityViz?: HTMLElement;
+  btnInspectorDownloadSvg?: HTMLButtonElement;
+  btnInspectorOpenHtml?: HTMLButtonElement;
   inspectorOrders: HTMLElement;
   inspectorTracks: HTMLElement;
   sbStatus: HTMLElement;
@@ -48,6 +55,11 @@ export function renderInspectorView(
     inspectorVocalDetails,
     inspectorHarmony,
     inspectorModulations,
+    inspectorTonalityCard,
+    inspectorTonalitySummary,
+    inspectorTonalityViz,
+    btnInspectorDownloadSvg,
+    btnInspectorOpenHtml,
     inspectorOrders,
     inspectorTracks,
     sbStatus,
@@ -218,6 +230,35 @@ export function renderInspectorView(
         inspectorModulations.innerHTML = `<span class="stat-label">${escapeHtml(t("noModulations") || "No modulations")}</span>`;
       }
     }
+
+    // Tonality & Visualizer
+    if (inspectorTonalityViz) {
+      if (profile.tonality) {
+        const locale = getCurrentLocale() === "zh-TW" ? "zh-Hant" : "en";
+        const svg = TMDTonalityVisualizer.generateSVG(profile, locale);
+        inspectorTonalityViz.innerHTML = svg;
+
+        if (inspectorTonalitySummary) {
+          const tonality = profile.tonality;
+          const corrStr = tonality.globalCorrelation.declaredKeyCorrelation.toFixed(2);
+          const purityStr = `${(tonality.globalPitchClasses.diatonicRatio * 100).toFixed(1)}%`;
+          inspectorTonalitySummary.innerHTML = `
+            <div style="margin-bottom: 4px;"><strong>${escapeHtml(tonality.summaryText)}</strong></div>
+            <div style="color: var(--text-secondary); line-height: 1.4;">
+              ${escapeHtml(tonality.moodDescription)}<br>
+              ${escapeHtml(tonality.modulationStory)}<br>
+              <span style="color: var(--accent-blue);">r: ${corrStr} · Diatonic: ${purityStr} · Key: ${escapeHtml(tonality.globalCorrelation.declaredKey)}</span>
+            </div>
+          `;
+        }
+        if (inspectorTonalityCard) {
+          inspectorTonalityCard.style.display = "";
+        }
+      } else {
+        inspectorTonalityViz.innerHTML = `<div style="padding: 12px; color: var(--text-secondary); font-size: 11px; text-align: center;">${escapeHtml(t("tonalityNoData") || "No tonality data")}</div>`;
+        if (inspectorTonalitySummary) inspectorTonalitySummary.innerHTML = "";
+      }
+    }
   } catch (inspectErr) {
     console.warn("Inspector analysis error:", inspectErr);
   }
@@ -381,6 +422,8 @@ export function setupInspectorPanelEvents(
     inspectorOrders: HTMLElement;
     btnJumpOrders?: HTMLButtonElement;
     inspectorPitchInstSelect?: HTMLSelectElement;
+    btnInspectorDownloadSvg?: HTMLButtonElement;
+    btnInspectorOpenHtml?: HTMLButtonElement;
   },
   editor: any,
   onSavePanelsState: () => void,
@@ -396,7 +439,51 @@ export function setupInspectorPanelEvents(
     inspectorOrders,
     btnJumpOrders,
     inspectorPitchInstSelect,
+    btnInspectorDownloadSvg,
+    btnInspectorOpenHtml,
   } = elements;
+
+  btnInspectorDownloadSvg?.addEventListener("click", () => {
+    try {
+      const content = typeof editor.getContent === "function" ? editor.getContent() : "";
+      if (!content) return;
+      const sheet = TmdParser.parse(content);
+      if (!sheet) return;
+      const locale = getCurrentLocale() === "zh-TW" ? "zh-Hant" : "en";
+      const profile = TMDSongInspector.inspect(sheet, undefined, locale);
+      const svg = TMDTonalityVisualizer.generateSVG(profile, locale);
+      const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(sheet.name || "score").replace(/[^a-zA-Z0-9_\-\u4e00-\u9fa5]/g, "_")}_tonality.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.warn("Failed to download tonality SVG:", err);
+    }
+  });
+
+  btnInspectorOpenHtml?.addEventListener("click", () => {
+    try {
+      const content = typeof editor.getContent === "function" ? editor.getContent() : "";
+      if (!content) return;
+      const sheet = TmdParser.parse(content);
+      if (!sheet) return;
+      const locale = getCurrentLocale() === "zh-TW" ? "zh-Hant" : "en";
+      const profile = TMDSongInspector.inspect(sheet, undefined, locale);
+      const html = TMDTonalityVisualizer.generateHTML(profile, locale);
+      const newWin = window.open("", "_blank");
+      if (newWin) {
+        newWin.document.write(html);
+        newWin.document.close();
+      }
+    } catch (err) {
+      console.warn("Failed to open tonality HTML report:", err);
+    }
+  });
 
   inspectorPitchInstSelect?.addEventListener("change", () => {
     const selected = inspectorPitchInstSelect.value;

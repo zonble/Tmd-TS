@@ -424,6 +424,25 @@
               <div id="inspector-modulations" class="tags-list"></div>
             </div>
 
+            <!-- Tonality Analysis & Visualizer -->
+            <div class="card" id="inspector-tonality-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div class="card-title" data-i18n="inspectorTonalityTitle" style="margin: 0;">Tonality Analysis</div>
+                <div style="display: flex; gap: 4px;">
+                  <button type="button" id="btn-inspector-download-svg" class="btn btn-sm" style="font-size: 11px; padding: 1px 6px;" title="Download SVG Visualizer" data-i18n-title="tonalityDownloadSvg">
+                    <span>📊</span> <span data-i18n="tonalityDownloadSvg">SVG</span>
+                  </button>
+                  <button type="button" id="btn-inspector-open-html" class="btn btn-sm" style="font-size: 11px; padding: 1px 6px;" title="Open HTML Tonality Report in new window" data-i18n-title="tonalityOpenHtml">
+                    <span>📑</span> <span data-i18n="tonalityOpenHtml">Report</span>
+                  </button>
+                </div>
+              </div>
+              <div id="inspector-tonality-summary" class="track-meta" style="font-size: 11px; margin-bottom: 8px;"></div>
+              <div id="inspector-tonality-viz" style="width: 100%; border-radius: 6px; overflow: hidden; background: #0f172a; border: 1px solid var(--border-subtle); line-height: 0;">
+                <!-- SVG inserted dynamically -->
+              </div>
+            </div>
+
             <!-- Playback Flow / Orders -->
             <div class="card">
               <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">

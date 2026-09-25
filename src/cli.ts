@@ -10,6 +10,7 @@ import {
   TMDOutlineGenerator,
   TMDOutlineNode,
   TMDSongInspector,
+  TMDTonalityVisualizer,
 } from "./core/index.js";
 import {
   TMDABCGenerator,
@@ -228,21 +229,33 @@ OPTIONS:
 function handleInspectCommand(argv: string[]): number {
   let inputPath: string | undefined;
   let json = false;
+  let svg = false;
+  let html = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "-h" || arg === "--help") {
-      console.log(`USAGE: tmd inspect [--json] <input-path>
+      console.log(`USAGE: tmd inspect [--json | --svg | --html] <input-path>
 
 Inspect full song musical profile, vocal tessitura, key modulations, and arrangement density.
 
 OPTIONS:
   --json                  Output song profile as JSON.
+  --svg                   Output tonality visualizer dashboard as SVG.
+  --html                  Output tonality report and dashboard as HTML.
 `);
       return 0;
     }
     if (arg === "--json") {
       json = true;
+      continue;
+    }
+    if (arg === "--svg") {
+      svg = true;
+      continue;
+    }
+    if (arg === "--html") {
+      html = true;
       continue;
     }
     if (!arg.startsWith("-")) {
@@ -283,6 +296,10 @@ OPTIONS:
 
   if (json) {
     console.log(JSON.stringify(profile, null, 2));
+  } else if (svg) {
+    console.log(TMDTonalityVisualizer.generateSVG(profile));
+  } else if (html) {
+    console.log(TMDTonalityVisualizer.generateHTML(profile));
   } else {
     console.log(TMDSongInspector.generateReport(profile));
   }

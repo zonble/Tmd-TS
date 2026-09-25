@@ -138,7 +138,7 @@ chorus:Bass@|0|{
     expect(report).toContain("TMD Song Profile: [ Inspector Test Song ]");
     expect(report).toContain("Duration:");
     expect(report).toContain("Vocal Range:");
-    expect(report).toContain("Harmony:");
+    expect(report).toMatch(/(和聲:|Harmony:)/);
   });
 
   it("expands macro orders into concrete instruments and avoids empty instruments in pitch analysis", () => {
@@ -235,6 +235,20 @@ intro:Piano@|0|{
       expect(parsed.initialTempo).toBe(100);
       expect(parsed.initialKey).toBe("G");
       expect(parsed.timing).toBeDefined();
+
+      // 3. SVG report
+      output = "";
+      exitCode = main(["inspect", "--svg", tmpFile]);
+      expect(exitCode).toBe(0);
+      expect(output).toContain("<svg");
+      expect(output).toContain("Circle of Fifths");
+
+      // 4. HTML report
+      output = "";
+      exitCode = main(["inspect", "--html", tmpFile]);
+      expect(exitCode).toBe(0);
+      expect(output).toContain("<!DOCTYPE html>");
+      expect(output).toContain("<svg");
     } finally {
       console.log = originalLog;
       fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -290,5 +304,239 @@ chorus:Vocal@|0|{
     expect(report).toContain("in [verse #1 @ m.1, 0:00]");
     expect(report).toContain("in [chorus #2 @ m.7, 0:13]");
     expect(report).toContain("/ 1.8 octaves");
+  });
+
+  it("inspects song tonality and key profile accurately using K-S correlation", () => {
+    const tmd = `::SCORE::
+** Tonality Test Song **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    1 3 5 1^
+    [C] - [G] -
+}
+
+chorus:Piano@|0|{
+    <4*>
+    1 4 5 1^
+    [D] - [A] -
+}
+
+-> verse -> {?+2} -> chorus ->#
+`;
+
+    const sheet = TmdParser.parse(tmd);
+    expect(sheet).toBeDefined();
+    const profile = TMDSongInspector.inspect(sheet!);
+
+    expect(profile.tonality).toBeDefined();
+    const tonality = profile.tonality!;
+
+    // 1. Sections Tonality
+    expect(tonality.sections.length).toBe(2);
+
+    const verseSec = tonality.sections[0];
+    expect(verseSec.sectionName).toBe("verse");
+    expect(verseSec.declaredKey).toBe("C");
+    expect(verseSec.keyOffset).toBe(0);
+    expect(verseSec.fifthsPosition).toBe(0);
+    expect(verseSec.pitchClasses.diatonicRatio).toBeGreaterThan(0.99);
+    expect(verseSec.correlation.declaredKeyCorrelation).toBeGreaterThan(0.8);
+    expect(verseSec.correlation.stability).toBe("high");
+    expect(verseSec.nonDiatonicNotes).toEqual([]);
+
+    const chorusSec = tonality.sections[1];
+    expect(chorusSec.sectionName).toBe("chorus");
+    expect(chorusSec.declaredKey).toBe("D");
+    expect(chorusSec.keyOffset).toBe(2);
+    expect(chorusSec.fifthsPosition).toBe(2);
+    expect(chorusSec.pitchClasses.diatonicRatio).toBeGreaterThan(0.99);
+    expect(chorusSec.correlation.declaredKeyCorrelation).toBeGreaterThan(0.8);
+
+    // 2. Global Fifths Path
+    expect(tonality.circleOfFifthsPath).toEqual([0, 2]);
+
+    // 3. Human-readable Producer Report
+    const report = TMDSongInspector.generateReport(profile);
+    expect(report).toContain("調性診斷：");
+    expect(report).toContain("目前以大調分析為主；建議優先支援大調與小調");
+    expect(report).toContain("五度圈歷程:");
+    expect(report).toContain("+0 -> +2");
+    expect(tonality.modulationStory).toContain("轉至 D 大調");
+    expect(tonality.moodDescription).toContain("大調");
+  });
+
+  it("evaluates chromaticism, non-diatonic notes, and ambiguous tonality in blues progression", () => {
+    const tmd = `::SCORE::
+** Blues Chromatic Song **
+!= 100
+?= C
+<4/4>
+
+verse:Vocal@|0|{
+    <4*>
+    1 3, 4 4' 5 7,
+    [C7] - [F7] -
+}
+
+-> verse ->#
+`;
+
+    const sheet = TmdParser.parse(tmd);
+    expect(sheet).toBeDefined();
+    const profile = TMDSongInspector.inspect(sheet!);
+
+    expect(profile.tonality).toBeDefined();
+    const tonality = profile.tonality!;
+    const verseSec = tonality.sections[0];
+
+    // Contains flat-3 (Eb/D#), sharp-4 (F#), flat-7 (Bb/A#)
+    expect(verseSec.nonDiatonicNotes.length).toBeGreaterThan(0);
+    const hasAccidentals =
+      verseSec.nonDiatonicNotes.includes("D#") ||
+      verseSec.nonDiatonicNotes.includes("F#") ||
+      verseSec.nonDiatonicNotes.includes("A#");
+    expect(hasAccidentals).toBe(true);
+    expect(verseSec.pitchClasses.chromaticRatio).toBeGreaterThan(0.1);
+
+    const report = TMDSongInspector.generateReport(profile);
+    expect(report).toContain("調外音:");
+  });
+
+  it("applies initial key offset only once during tonality section inspection", () => {
+    const tmd = `::SCORE::
+** Initial D Tonality **
+!= 120
+?= D
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    1 3 5 1^
+    [D] - [A] -
+}
+
+-> verse ->#
+`;
+
+    const sheet = TmdParser.parse(tmd);
+    expect(sheet).toBeDefined();
+    const profile = TMDSongInspector.inspect(sheet!);
+    expect(profile.tonality).toBeDefined();
+    const tonality = profile.tonality!;
+    const section = tonality.sections[0];
+
+    expect(section.declaredKey).toBe("D");
+    expect(section.keyOffset).toBe(2);
+    expect(section.fifthsPosition).toBe(2);
+    expect(section.nonDiatonicNotes).toEqual([]);
+    expect(tonality.modulationStory).toBe("全曲維持單一調性（未轉調）");
+  });
+
+  it("reports relative modulation from non-C initial key correctly", () => {
+    const tmd = `::SCORE::
+** D To E Tonality **
+!= 120
+?= D
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    1 3 5 1^
+    [D] - [A] -
+}
+
+chorus:Piano@|0|{
+    <4*>
+    1 3 5 1^
+    [E] - [B] -
+}
+
+-> verse -> {?+2} -> chorus ->#
+`;
+
+    const sheet = TmdParser.parse(tmd);
+    expect(sheet).toBeDefined();
+    const profile = TMDSongInspector.inspect(sheet!);
+    expect(profile.tonality).toBeDefined();
+    const tonality = profile.tonality!;
+
+    expect(tonality.sections.map(s => s.declaredKey)).toEqual(["D", "E"]);
+    expect(tonality.sections.map(s => s.keyOffset)).toEqual([2, 4]);
+    expect(tonality.modulationStory).toContain("D 大調起奏");
+    expect(tonality.modulationStory).toContain("轉至 E 大調 (+2 半音");
+  });
+
+  it("generates standalone SVG and HTML visualizer reports using TMDTonalityVisualizer", async () => {
+    const tmd = `::SCORE::
+** Visualizer Test Song **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    1 3 5 1^
+    [C] - [G] -
+}
+
+chorus:Piano@|0|{
+    <4*>
+    1 4 5 1^
+    [D] - [A] -
+}
+
+-> verse -> {?+2} -> chorus ->#
+`;
+
+    const sheet = TmdParser.parse(tmd);
+    expect(sheet).toBeDefined();
+    const profile = TMDSongInspector.inspect(sheet!);
+
+    const { TMDTonalityVisualizer } = await import("../src/core/tonality_visualizer.js");
+
+    // 1. SVG Generation
+    const svg = TMDTonalityVisualizer.generateSVG(profile, "en");
+    expect(svg).toContain("<svg");
+    expect(svg).toContain("Circle of Fifths Trajectory");
+    expect(svg).toContain("12-Tone Pitch Class Distribution");
+    expect(svg).toContain("Timeline Keyscape Ribbon");
+    expect(svg).toContain("Visualizer Test Song");
+
+    // 2. HTML Generation
+    const html = TMDTonalityVisualizer.generateHTML(profile, "en");
+    expect(html).toContain("<!DOCTYPE html>");
+    expect(html).toContain("<svg");
+    expect(html).toContain("Detailed Text Analysis");
+  });
+
+  it("supports English locale for SongInspector report", () => {
+    const tmd = `::SCORE::
+** Localized Inspector **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    1 3 5 1^
+}
+
+-> verse ->#
+`;
+
+    const sheet = TmdParser.parse(tmd);
+    expect(sheet).toBeDefined();
+    const profile = TMDSongInspector.inspect(sheet!, undefined, "en");
+    const report = TMDSongInspector.generateReport(profile);
+
+    expect(profile.locale).toBe("en");
+    expect(report).toContain("TMD Song Profile");
+    expect(report).toContain("Analysis scope");
+    expect(report).toContain("Major and minor are the recommended first scope");
+    expect(report).not.toContain("調性診斷");
   });
 });

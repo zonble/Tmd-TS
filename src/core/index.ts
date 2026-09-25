@@ -10,3 +10,4 @@ export * from './instruments.js';
 export * from './inspector.js';
 export * from './macro.js';
 export * from './canon_gen.js';
+export * from './tonality_visualizer.js';

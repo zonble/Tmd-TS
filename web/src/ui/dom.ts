@@ -86,6 +86,11 @@ export interface AppDOMElements {
   inspectorVocalDetails: HTMLElement;
   inspectorHarmony: HTMLElement;
   inspectorModulations: HTMLElement;
+  inspectorTonalityCard?: HTMLElement;
+  inspectorTonalitySummary?: HTMLElement;
+  inspectorTonalityViz?: HTMLElement;
+  btnInspectorDownloadSvg?: HTMLButtonElement;
+  btnInspectorOpenHtml?: HTMLButtonElement;
   inspectorOrders: HTMLElement;
   btnJumpOrders: HTMLButtonElement;
   inspectorTracks: HTMLElement;
@@ -340,6 +345,11 @@ export function initAppDOMElements(): AppDOMElements {
     inspectorVocalDetails: getElement("inspector-vocal-details"),
     inspectorHarmony: getElement("inspector-harmony"),
     inspectorModulations: getElement("inspector-modulations"),
+    inspectorTonalityCard: getElement("inspector-tonality-card"),
+    inspectorTonalitySummary: getElement("inspector-tonality-summary"),
+    inspectorTonalityViz: getElement("inspector-tonality-viz"),
+    btnInspectorDownloadSvg: getElement<HTMLButtonElement>("btn-inspector-download-svg"),
+    btnInspectorOpenHtml: getElement<HTMLButtonElement>("btn-inspector-open-html"),
     inspectorOrders: getElement("inspector-orders"),
     btnJumpOrders: getElement("btn-jump-orders"),
     inspectorTracks: getElement("inspector-tracks"),

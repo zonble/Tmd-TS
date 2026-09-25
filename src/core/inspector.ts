@@ -6,10 +6,135 @@ import {
   scaleDegreeLetter,
   scaleDegreeSemitoneOffset,
   Sheet,
+  ChordSymbol,
+  chordQualityIntervals,
 } from "./types.js";
 import { SheetInstrumentHelper } from "./instruments.js";
 import { TMDPlaybackRenderer, PlaybackState, PlaybackEvent, PlaybackDirectiveEvent } from "./playback.js";
 import { TMDMacroEvaluator } from "./macro.js";
+
+/**
+ * Supported locales for TMD inspector report and analysis narratives.
+ */
+export type TMDLocale = "zh-Hant" | "en" | string;
+
+/**
+ * Localization strings catalog for song inspection narratives and reports.
+ */
+const LOCALIZATION_DICTIONARY: Record<string, Record<string, string>> = {
+  "zh-Hant": {
+    "report.title": "TMD Song Profile",
+    "report.duration": "Duration",
+    "report.measuresTotal": "measures total",
+    "report.keyAndTempo": "Key & Tempo",
+    "report.analysisScope": "分析範圍：      目前以大調分析為主；建議優先支援大調與小調，其他調式列為延伸",
+    "report.structure": "結構",
+    "report.density": "編曲密度",
+    "report.tracksConcurrently": "軌道同時演奏",
+    "report.harmony": "和聲",
+    "report.tonalityDiagnosis": "調性診斷：",
+    "report.mood": "風格氣質",
+    "report.modulationJourney": "轉調歷程",
+    "report.tonalCore": "核心骨幹音",
+    "report.tonalMetrics": "調性數值",
+    "report.correlation": "相關度",
+    "report.stability": "穩定度",
+    "report.diatonicPurity": "自然音純度",
+    "report.candidateKeys": "候選調性 (K-S)",
+    "report.circleOfFifths": "五度圈歷程",
+    "report.sectionDetails": "各段落調性細節",
+    "report.nonDiatonic": "調外音",
+    "report.instrumentRanges": "樂器軌道音域：",
+    "report.notes": "個音符",
+    "report.semitones": "個半音",
+    "report.octaves": "個八度",
+    "key.major": "大調",
+    "tonality.modulation.none": "全曲維持單一調性（未轉調）",
+    "tonality.modulation.start": "{0} 大調起奏",
+    "tonality.modulation.step": "[{0}] 轉至 {1} 大調 ({2} 半音 / 五度圈 {3} 步)",
+    "tonality.summary.stable": "{0} 大調（{1}，全曲無轉調）",
+    "tonality.summary.modulating": "{0} 大調（轉調推進情緒，經歷 {1} 次轉調）",
+    "tonality.summary.clean": "純淨自然大調",
+    "tonality.summary.color": "流行色彩大調",
+    "tonality.mood.cleanMajor": "純淨自然大調（陽光明朗、易唱易記，無明顯調外色彩）",
+    "tonality.mood.contemporaryMajor": "流行大調（略帶和弦色彩音與裝飾副屬和弦）",
+    "tonality.mood.modal": "調式色彩／藍調前衛（調外音豐富，張力強烈）",
+    "visualizer.circleOfFifths": "五度圈游移軌跡",
+    "visualizer.pitchClassDistribution": "十二半音累積音高分佈",
+    "visualizer.timeline": "時間線調性帶",
+    "visualizer.htmlTitle": "TMD 調性報告",
+    "visualizer.htmlSong": "歌曲",
+    "visualizer.htmlTempo": "速度",
+    "visualizer.htmlKey": "調性",
+    "visualizer.htmlDetailedReport": "詳細文字分析",
+  },
+  en: {
+    "report.title": "TMD Song Profile",
+    "report.duration": "Duration",
+    "report.measuresTotal": "measures total",
+    "report.keyAndTempo": "Key & Tempo",
+    "report.analysisScope": "Analysis scope:     Major-key analysis is the current baseline; Major and minor are the recommended first scope, with other modes as future extensions",
+    "report.structure": "Structure",
+    "report.density": "Density",
+    "report.tracksConcurrently": "tracks concurrently",
+    "report.harmony": "Harmony",
+    "report.tonalityDiagnosis": "Tonality diagnosis:",
+    "report.mood": "Mood",
+    "report.modulationJourney": "Modulation journey",
+    "report.tonalCore": "Tonal core",
+    "report.tonalMetrics": "Tonality metrics",
+    "report.correlation": "correlation",
+    "report.stability": "stability",
+    "report.diatonicPurity": "diatonic purity",
+    "report.candidateKeys": "Best-fit keys (K-S)",
+    "report.circleOfFifths": "Circle of fifths trajectory",
+    "report.sectionDetails": "Section tonality details",
+    "report.nonDiatonic": "non-diatonic",
+    "report.instrumentRanges": "Instrument Track Ranges:",
+    "report.notes": "notes",
+    "report.semitones": "semitones",
+    "report.octaves": "octaves",
+    "key.major": "Major",
+    "tonality.modulation.none": "The song stays in one tonality (no modulation)",
+    "tonality.modulation.start": "Starts in {0} Major",
+    "tonality.modulation.step": "[{0}] to {1} Major ({2} semitones / {3} fifths)",
+    "tonality.summary.stable": "{0} Major ({1}, no modulation)",
+    "tonality.summary.modulating": "{0} Major (emotional progression through {1} modulation(s))",
+    "tonality.summary.clean": "clean major tonality",
+    "tonality.summary.color": "contemporary major color",
+    "tonality.mood.cleanMajor": "Clean major tonality (bright, singable, and memorable)",
+    "tonality.mood.contemporaryMajor": "Contemporary major tonality (with chord tones and secondary-dominant color)",
+    "tonality.mood.modal": "Modal or blues-influenced color (rich chromatic tension)",
+    "visualizer.circleOfFifths": "Circle of Fifths Trajectory",
+    "visualizer.pitchClassDistribution": "12-Tone Pitch Class Distribution",
+    "visualizer.timeline": "Timeline Keyscape Ribbon",
+    "visualizer.htmlTitle": "TMD Tonality Report",
+    "visualizer.htmlSong": "Song",
+    "visualizer.htmlTempo": "Tempo",
+    "visualizer.htmlKey": "Key",
+    "visualizer.htmlDetailedReport": "Detailed Text Analysis",
+  },
+};
+
+/**
+ * Localizer helper for TMD reports and visualizers.
+ */
+export class TMDLocalizer {
+  public readonly locale: TMDLocale;
+  public readonly fallbackLocale: TMDLocale;
+
+  constructor(locale: TMDLocale = "zh-Hant", fallbackLocale: TMDLocale = "en") {
+    this.locale = locale;
+    this.fallbackLocale = fallbackLocale;
+  }
+
+  public text(key: string, args: string[] = []): string {
+    const dict = LOCALIZATION_DICTIONARY[this.locale] || LOCALIZATION_DICTIONARY[this.fallbackLocale] || {};
+    const fallbackDict = LOCALIZATION_DICTIONARY[this.fallbackLocale] || {};
+    const template = dict[key] || fallbackDict[key] || key;
+    return args.reduce((res, val, idx) => res.replace(new RegExp(`\\{${idx}\\}`, "g"), val), template);
+  }
+}
 
 /**
  * Pitch descriptor with MIDI note number, canonical note name (e.g. "C4", "A5"), and source section context.
@@ -109,6 +234,71 @@ export interface TMDArrangementDensityProfile {
 }
 
 /**
+ * Distribution of the 12 chromatic pitch classes across a section or entire score.
+ */
+export interface TMDPitchClassDistribution {
+  /** Accumulated quarter-note duration weights for each pitch class (0: C, 1: C#, ..., 11: B). */
+  weights: number[];
+  /** Ratio of diatonic notes to total pitch weight (0.0 ~ 1.0). */
+  diatonicRatio: number;
+  /** Ratio of non-diatonic (chromatic) notes to total pitch weight (0.0 ~ 1.0). */
+  chromaticRatio: number;
+  /** Prominent pitch classes ordered by descending weight (e.g. ["C", "G", "E"]). */
+  topPitchClasses: string[];
+}
+
+/**
+ * A candidate key match and its Pearson correlation score from K-S analysis.
+ */
+export interface TMDKeyFitCandidate {
+  keyName: string;
+  correlation: number;
+}
+
+/**
+ * Qualitative stability assessment of tonality.
+ */
+export type TMDKeyStability = "high" | "moderate" | "ambiguous";
+
+/**
+ * Key correlation and best-fit prediction results from Krumhansl-Schmuckler analysis.
+ */
+export interface TMDKeyCorrelation {
+  declaredKey: string;
+  declaredKeyCorrelation: number;
+  topCandidateKeys: TMDKeyFitCandidate[];
+  stability: TMDKeyStability;
+}
+
+/**
+ * Tonality and pitch-class distribution metrics for an individual section.
+ */
+export interface TMDSectionTonalityProfile {
+  sectionName: string;
+  occurrenceIndex: number;
+  declaredKey: string;
+  keyOffset: number;
+  fifthsPosition: number;
+  pitchClasses: TMDPitchClassDistribution;
+  correlation: TMDKeyCorrelation;
+  nonDiatonicNotes: string[];
+}
+
+/**
+ * Holistic tonality profile across sections and the full song.
+ */
+export interface TMDTonalityProfile {
+  globalPitchClasses: TMDPitchClassDistribution;
+  globalCorrelation: TMDKeyCorrelation;
+  circleOfFifthsPath: number[];
+  sections: TMDSectionTonalityProfile[];
+  summaryText: string;
+  moodDescription: string;
+  modulationStory: string;
+  locale: TMDLocale;
+}
+
+/**
  * Complete structural, vocal range, harmonic, and temporal profile of a TMD score.
  */
 export interface TMDSongProfile {
@@ -121,6 +311,8 @@ export interface TMDSongProfile {
   instrumentRanges: TMDPitchRangeProfile[];
   harmony: TMDHarmonyProfile;
   density: TMDArrangementDensityProfile;
+  tonality?: TMDTonalityProfile;
+  locale?: TMDLocale;
 }
 
 /**
@@ -128,10 +320,22 @@ export interface TMDSongProfile {
  * Ported faithfully from TmdSwift.
  */
 export class TMDSongInspector {
+  // Krumhansl-Schmuckler 12-pitch-class profiles for Major and Minor
+  private static readonly KS_MAJOR_PROFILE: number[] = [
+    6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88
+  ];
+  private static readonly KS_MINOR_PROFILE: number[] = [
+    6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17
+  ];
+
   /**
    * Inspects a parsed TMD Sheet and produces an in-depth TMDSongProfile.
    */
-  public static inspect(sheet: Sheet, targetInstrument?: string): TMDSongProfile {
+  public static inspect(
+    sheet: Sheet,
+    targetInstrument?: string,
+    locale: TMDLocale = "zh-Hant"
+  ): TMDSongProfile {
     const effectiveSheet = TMDMacroEvaluator.expand(sheet);
     const title = effectiveSheet.name || "Untitled";
     const initialTempo = effectiveSheet.speed && effectiveSheet.speed > 0 ? effectiveSheet.speed : 120.0;
@@ -164,6 +368,9 @@ export class TMDSongInspector {
     // 5. Arrangement & Density Profile
     const densityProfile = this.buildDensityProfile(effectiveSheet);
 
+    // 6. Tonality & Pitch-Class Profile
+    const tonality = this.buildTonalityProfile(effectiveSheet, timingProfile, locale);
+
     return {
       title,
       initialTempo,
@@ -174,6 +381,8 @@ export class TMDSongInspector {
       instrumentRanges,
       harmony: harmonyProfile,
       density: densityProfile,
+      tonality,
+      locale,
     };
   }
 
@@ -257,7 +466,7 @@ export class TMDSongInspector {
         currentSeconds += secDurationSeconds;
         currentMeasure += secMeasures;
         totalMeasures += secMeasures;
-        state = { ...state, tempo, timeSignature: meter };
+        state = { tempo, keyOffset: state.keyOffset, timeSignature: meter };
       }
     }
 
@@ -292,8 +501,6 @@ export class TMDSongInspector {
       if (event.content.type !== "note") continue;
       const note = event.content.note;
 
-      // Note MIDI pitch calculation:
-      // 60 (Middle C) + keyOffset + degreeOffset + accidental + octave * 12
       let pitch = 60 + event.state.keyOffset + scaleDegreeSemitoneOffset(note.degree);
       if (note.accidental === "sharp") pitch += 1;
       else if (note.accidental === "flat") pitch -= 1;
@@ -355,17 +562,17 @@ export class TMDSongInspector {
     let highest = hits[0];
     let sumPitch = 0;
 
-    for (const hit of hits) {
-      if (hit.midi < lowest.midi) lowest = hit;
-      if (hit.midi > highest.midi) highest = hit;
-      sumPitch += hit.midi;
+    for (const h of hits) {
+      if (h.midi < lowest.midi) lowest = h;
+      if (h.midi > highest.midi) highest = h;
+      sumPitch += h.midi;
     }
 
     const avgPitch = sumPitch / hits.length;
     const spanSemitones = highest.midi - lowest.midi;
     const spanOctaves = spanSemitones / 12.0;
-    const difficulty = TMDSongInspector.evaluateDifficulty(spanSemitones);
-    const suitableVoiceTypes = TMDSongInspector.evaluateSuitableVoiceTypes(lowest.midi, highest.midi);
+    const difficulty = this.evaluateDifficulty(spanSemitones);
+    const suitableVoiceTypes = this.evaluateSuitableVoiceTypes(lowest.midi, highest.midi);
 
     return {
       instrument,
@@ -414,13 +621,6 @@ export class TMDSongInspector {
     return Math.max(1, beat.count) * 4 / Math.max(1, beat.noteValue);
   }
 
-  /**
-   * Evaluates pitch span difficulty based on semitones range.
-   * <= 12: easy (within an octave)
-   * 13 ~ 16: moderate (approx 1 octave to 1 octave + major 3rd)
-   * 17 ~ 20: challenging (approx 1.5 octaves)
-   * >= 21: difficult (> 1.5 octaves)
-   */
   public static evaluateDifficulty(spanSemitones: number): PitchRangeDifficulty {
     if (spanSemitones <= 12) return "easy";
     if (spanSemitones <= 16) return "moderate";
@@ -428,21 +628,7 @@ export class TMDSongInspector {
     return "difficult";
   }
 
-  /**
-   * Classical standard vocal ranges (with standard amateur/popular margins):
-   * Soprano (女高音): C4 (60) - A5/C6 (81/84)
-   * Mezzo-Soprano (女中音): A3 (57) - F5/A5 (77/81)
-   * Contralto (女低音): F3 (53) - D5/F5 (74/77)
-   * Tenor (男高音): C3 (48) - A4/C5 (69/72) (or falsetto up to G5/A5)
-   * Baritone (男中音): A2 (45) - F4/G4 (65/67)
-   * Bass (男低音): E2 (40) - E4 (64)
-   *
-   * A voice type is considered suitable if the song's pitch range has substantial overlap
-   * or comfortably fits within the standard practical tessitura of that voice type.
-   */
   public static evaluateSuitableVoiceTypes(lowestMidi: number, highestMidi: number): VocalClassification[] {
-    // Reference standard singing ranges [practicalMin, practicalMax]
-    // Considering vocal displacement (octave transpose for male vs female notation when singing pop/choral)
     const voiceRanges: { type: VocalClassification; min: number; max: number }[] = [
       { type: "soprano", min: 57, max: 86 },       // A3 - D6
       { type: "mezzo-soprano", min: 53, max: 81 }, // F3 - A5
@@ -461,7 +647,7 @@ export class TMDSongInspector {
       }
     }
 
-    // Also check standard male octave transpose (many vocal melodies written in treble clef C4-C5 are sung an octave lower C3-C4 by male voices)
+    // Male octave transpose check
     const transposedLow = lowestMidi - 12;
     const transposedHigh = highestMidi - 12;
     const maleVoiceTypes: VocalClassification[] = ["tenor", "baritone", "bass"];
@@ -552,22 +738,416 @@ export class TMDSongInspector {
     }
   }
 
+  // MARK: - Tonality & Key Profile Analysis Engine
+
+  private static buildTonalityProfile(
+    sheet: Sheet,
+    timingProfile: TMDTimingProfile,
+    locale: TMDLocale
+  ): TMDTonalityProfile {
+    const localizer = new TMDLocalizer(locale);
+    const distinctInsts = SheetInstrumentHelper.distinctInstruments(sheet, true);
+    const allEvents: PlaybackEvent[] = [];
+    for (const inst of distinctInsts) {
+      const timeline = TMDPlaybackRenderer.render(sheet, inst);
+      allEvents.push(...timeline.events);
+    }
+
+    const globalWeights = new Array<number>(12).fill(0.0);
+    const sectionWeights: Record<number, number[]> = {};
+    for (let idx = 0; idx < timingProfile.sections.length; idx++) {
+      sectionWeights[idx] = new Array<number>(12).fill(0.0);
+    }
+
+    // 1. Accumulate melody notes
+    for (const event of allEvents) {
+      if (event.content.type !== "note") continue;
+      const note = event.content.note;
+      let pitch = 60 + event.state.keyOffset + scaleDegreeSemitoneOffset(note.degree);
+      if (note.accidental === "sharp") pitch += 1;
+      else if (note.accidental === "flat") pitch -= 1;
+      pitch += note.octave * 12;
+
+      const pc = ((pitch % 12) + 12) % 12;
+      const dur = event.duration;
+
+      globalWeights[pc] += dur;
+
+      for (let secIdx = 0; secIdx < timingProfile.sections.length; secIdx++) {
+        const sec = timingProfile.sections[secIdx];
+        const overlap = this.overlapDuration(
+          event.position,
+          dur,
+          sec.startPositionQuarterNotes,
+          sec.durationQuarterNotes
+        );
+        if (overlap > 0.0) {
+          sectionWeights[secIdx][pc] += overlap;
+        }
+      }
+    }
+
+    // 2. Accumulate chord symbol constituents
+    for (const event of allEvents) {
+      if (event.content.type !== "chord") continue;
+      const chord = event.content.chord;
+      const dur = event.duration;
+      const chordPCs = this.chordPitchClasses(chord, event.state.keyOffset);
+      for (const item of chordPCs) {
+        const w = dur * item.weight;
+        globalWeights[item.pc] += w;
+
+        for (let secIdx = 0; secIdx < timingProfile.sections.length; secIdx++) {
+          const sec = timingProfile.sections[secIdx];
+          const overlap = this.overlapDuration(
+            event.position,
+            dur,
+            sec.startPositionQuarterNotes,
+            sec.durationQuarterNotes
+          );
+          if (overlap > 0.0) {
+            sectionWeights[secIdx][item.pc] += item.weight * overlap;
+          }
+        }
+      }
+    }
+
+    const pitchClassNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const baseKey = sheet.keySignature ? sheet.keySignature.toString() : "C";
+    const initialTonicOffset = sheet.keySignature ? sheet.keySignature.semitoneOffset : 0;
+
+    // Global distribution & K-S correlation
+    const globalDist = this.makePitchClassDistribution(globalWeights, initialTonicOffset);
+    const globalCorr = this.evaluateKeyCorrelation(globalWeights, baseKey, initialTonicOffset);
+
+    // Sections
+    const sectionProfiles: TMDSectionTonalityProfile[] = [];
+    const circleOfFifthsPath: number[] = [];
+
+    for (let secIdx = 0; secIdx < timingProfile.sections.length; secIdx++) {
+      const sec = timingProfile.sections[secIdx];
+      const weights = sectionWeights[secIdx] || new Array<number>(12).fill(0.0);
+      const secTonicOffset = ((sec.keyOffset % 12) + 12) % 12;
+      const secKeyName = this.keyName(secTonicOffset);
+      const secDist = this.makePitchClassDistribution(weights, secTonicOffset);
+      const secCorr = this.evaluateKeyCorrelation(weights, secKeyName, secTonicOffset);
+
+      const diatonicMask = this.diatonicPitchClassMask(secTonicOffset);
+      const nonDiatonic: string[] = [];
+      for (let pc = 0; pc < 12; pc++) {
+        if (!diatonicMask.has(pc) && weights[pc] > 0.001) {
+          nonDiatonic.push(pitchClassNames[pc]);
+        }
+      }
+
+      const fifthsStep = this.circleOfFifthsStep(secTonicOffset);
+      circleOfFifthsPath.push(fifthsStep);
+
+      sectionProfiles.push({
+        sectionName: sec.name,
+        occurrenceIndex: sec.occurrenceIndex,
+        declaredKey: secKeyName,
+        keyOffset: sec.keyOffset,
+        fifthsPosition: fifthsStep,
+        pitchClasses: secDist,
+        correlation: secCorr,
+        nonDiatonicNotes: nonDiatonic,
+      });
+    }
+
+    // Human-friendly producer narrative synthesis
+    const diatonicRatio = globalDist.diatonicRatio;
+    let moodKey: string;
+    if (diatonicRatio >= 0.95) {
+      moodKey = "tonality.mood.cleanMajor";
+    } else if (diatonicRatio >= 0.80) {
+      moodKey = "tonality.mood.contemporaryMajor";
+    } else {
+      moodKey = "tonality.mood.modal";
+    }
+    const moodDescription = localizer.text(moodKey);
+
+    // Modulation story
+    const modTransitions: string[] = [];
+    let prevKey = baseKey;
+    let prevOffset = initialTonicOffset;
+    let prevFifths = this.circleOfFifthsStep(prevOffset);
+
+    for (const sec of sectionProfiles) {
+      if (sec.keyOffset !== prevOffset || sec.declaredKey !== prevKey) {
+        const diff = sec.keyOffset - prevOffset;
+        const semitoneDiff = diff >= 0 ? `+${diff}` : `${diff}`;
+        let stepDiff = sec.fifthsPosition - prevFifths;
+        if (stepDiff > 6) stepDiff -= 12;
+        if (stepDiff < -6) stepDiff += 12;
+        const stepStr = stepDiff >= 0 ? `+${stepDiff}` : `${stepDiff}`;
+        modTransitions.push(
+          localizer.text("tonality.modulation.step", [
+            sec.sectionName,
+            sec.declaredKey,
+            semitoneDiff,
+            stepStr,
+          ])
+        );
+        prevKey = sec.declaredKey;
+        prevOffset = sec.keyOffset;
+        prevFifths = sec.fifthsPosition;
+      }
+    }
+
+    let modulationStory: string;
+    if (modTransitions.length === 0) {
+      modulationStory = localizer.text("tonality.modulation.none");
+    } else {
+      modulationStory =
+        localizer.text("tonality.modulation.start", [baseKey]) +
+        " ➔ " +
+        modTransitions.join(" ➔ ");
+    }
+
+    let summaryText: string;
+    if (modTransitions.length === 0) {
+      const moodSummary =
+        diatonicRatio >= 0.95
+          ? localizer.text("tonality.summary.clean")
+          : localizer.text("tonality.summary.color");
+      summaryText = localizer.text("tonality.summary.stable", [baseKey, moodSummary]);
+    } else {
+      summaryText = localizer.text("tonality.summary.modulating", [
+        baseKey,
+        String(modTransitions.length),
+      ]);
+    }
+
+    return {
+      globalPitchClasses: globalDist,
+      globalCorrelation: globalCorr,
+      circleOfFifthsPath,
+      sections: sectionProfiles,
+      summaryText,
+      moodDescription,
+      modulationStory,
+      locale,
+    };
+  }
+
+  private static overlapDuration(
+    eventPosition: number,
+    eventDuration: number,
+    sectionStart: number,
+    sectionDuration: number
+  ): number {
+    const eventEnd = eventPosition + Math.max(0.0, eventDuration);
+    const sectionEnd = sectionStart + Math.max(0.0, sectionDuration);
+    return Math.max(0.0, Math.min(eventEnd, sectionEnd) - Math.max(eventPosition, sectionStart));
+  }
+
+  private static chordPitchClasses(
+    chord: ChordSymbol,
+    keyOffset: number
+  ): { pc: number; weight: number }[] {
+    const rootOffset = chord.root.isScaleDegree
+      ? (keyOffset + chord.root.semitoneOffset) % 12
+      : chord.root.semitoneOffset % 12;
+    const tonic = ((rootOffset % 12) + 12) % 12;
+    const result: { pc: number; weight: number }[] = [];
+
+    const intervals = chordQualityIntervals(chord.quality);
+    for (let i = 0; i < intervals.length; i++) {
+      const interval = intervals[i];
+      const pc = (tonic + interval) % 12;
+      let w = 0.6;
+      if (i === 0) w = 1.0;      // Root
+      else if (i === 1) w = 0.8; // Third
+      else if (i === 2) w = 0.8; // Fifth
+      result.push({ pc, weight: w });
+    }
+
+    if (chord.bass) {
+      const bassOffset = chord.bass.isScaleDegree
+        ? (keyOffset + chord.bass.semitoneOffset) % 12
+        : chord.bass.semitoneOffset % 12;
+      const bassPC = ((bassOffset % 12) + 12) % 12;
+      result.push({ pc: bassPC, weight: 0.8 });
+    }
+
+    return result;
+  }
+
+  private static diatonicPitchClassMask(tonicOffset: number): Set<number> {
+    // Major scale diatonic intervals: [0, 2, 4, 5, 7, 9, 11]
+    const majorSteps = [0, 2, 4, 5, 7, 9, 11];
+    const mask = new Set<number>();
+    for (const step of majorSteps) {
+      mask.add((tonicOffset + step) % 12);
+    }
+    return mask;
+  }
+
+  private static makePitchClassDistribution(
+    weights: number[],
+    tonicOffset: number
+  ): TMDPitchClassDistribution {
+    const pitchClassNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const total = weights.reduce((acc, w) => acc + w, 0.0);
+    if (total <= 0.0001) {
+      return {
+        weights,
+        diatonicRatio: 1.0,
+        chromaticRatio: 0.0,
+        topPitchClasses: [],
+      };
+    }
+
+    const diatonicMask = this.diatonicPitchClassMask(tonicOffset);
+    let diatonicSum = 0.0;
+    for (let pc = 0; pc < 12; pc++) {
+      if (diatonicMask.has(pc)) {
+        diatonicSum += weights[pc];
+      }
+    }
+
+    const diatonicRatio = diatonicSum / total;
+    const chromaticRatio = Math.max(0.0, 1.0 - diatonicRatio);
+
+    const indexed: { name: string; weight: number }[] = [];
+    for (let i = 0; i < 12; i++) {
+      if (weights[i] > 0.0001) {
+        indexed.push({ name: pitchClassNames[i], weight: weights[i] });
+      }
+    }
+    indexed.sort((a, b) => b.weight - a.weight);
+    const topNames = indexed.map((item) => item.name);
+
+    return {
+      weights,
+      diatonicRatio,
+      chromaticRatio,
+      topPitchClasses: topNames,
+    };
+  }
+
+  private static pearsonCorrelation(x: number[], y: number[]): number {
+    if (x.length !== y.length || x.length === 0) return 0.0;
+    const n = x.length;
+    const meanX = x.reduce((acc, v) => acc + v, 0.0) / n;
+    const meanY = y.reduce((acc, v) => acc + v, 0.0) / n;
+
+    let num = 0.0;
+    let denomX = 0.0;
+    let denomY = 0.0;
+
+    for (let i = 0; i < n; i++) {
+      const dx = x[i] - meanX;
+      const dy = y[i] - meanY;
+      num += dx * dy;
+      denomX += dx * dx;
+      denomY += dy * dy;
+    }
+
+    const denom = Math.sqrt(denomX * denomY);
+    if (denom < 1e-9) return 0.0;
+    return num / denom;
+  }
+
+  private static evaluateKeyCorrelation(
+    weights: number[],
+    declaredKeyName: string,
+    declaredTonicOffset: number
+  ): TMDKeyCorrelation {
+    const pitchClassNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const candidates: TMDKeyFitCandidate[] = [];
+
+    // Evaluate all 12 Major and 12 Minor keys
+    for (let tonic = 0; tonic < 12; tonic++) {
+      const rotWeights = new Array<number>(12).fill(0.0);
+      for (let i = 0; i < 12; i++) {
+        rotWeights[i] = weights[(tonic + i) % 12];
+      }
+
+      const rMajor = this.pearsonCorrelation(rotWeights, this.KS_MAJOR_PROFILE);
+      candidates.push({ keyName: `${pitchClassNames[tonic]} Major`, correlation: rMajor });
+
+      const rMinor = this.pearsonCorrelation(rotWeights, this.KS_MINOR_PROFILE);
+      candidates.push({ keyName: `${pitchClassNames[tonic]} Minor`, correlation: rMinor });
+    }
+
+    candidates.sort((a, b) => b.correlation - a.correlation);
+
+    // Find correlation of declared key (Major profile)
+    const declaredRot = new Array<number>(12).fill(0.0);
+    for (let i = 0; i < 12; i++) {
+      declaredRot[i] = weights[(declaredTonicOffset + i) % 12];
+    }
+    const declaredR = this.pearsonCorrelation(declaredRot, this.KS_MAJOR_PROFILE);
+
+    const diatonicMask = this.diatonicPitchClassMask(declaredTonicOffset);
+    const total = weights.reduce((acc, w) => acc + w, 0.0);
+    const diatonicSum = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+      .filter((pc) => diatonicMask.has(pc))
+      .map((pc) => weights[pc])
+      .reduce((acc, w) => acc + w, 0.0);
+    const diatonicRatio = total > 0 ? diatonicSum / total : 1.0;
+
+    let stability: TMDKeyStability;
+    if (declaredR >= 0.70 && diatonicRatio >= 0.85) {
+      stability = "high";
+    } else if (declaredR >= 0.40 && diatonicRatio >= 0.65) {
+      stability = "moderate";
+    } else {
+      stability = "ambiguous";
+    }
+
+    return {
+      declaredKey: declaredKeyName,
+      declaredKeyCorrelation: declaredR,
+      topCandidateKeys: candidates.slice(0, 3),
+      stability,
+    };
+  }
+
+  private static keyName(tonic: number): string {
+    const names = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+    return names[((tonic % 12) + 12) % 12];
+  }
+
+  private static circleOfFifthsStep(tonicOffset: number): number {
+    switch (((tonicOffset % 12) + 12) % 12) {
+      case 0: return 0;   // C
+      case 7: return 1;   // G
+      case 2: return 2;   // D
+      case 9: return 3;   // A
+      case 4: return 4;   // E
+      case 11: return 5;  // B
+      case 6: return 6;   // F# / Gb
+      case 1: return -5;  // Db / C#
+      case 8: return -4;  // Ab / G#
+      case 3: return -3;  // Eb
+      case 10: return -2; // Bb
+      case 5: return -1;  // F
+      default: return 0;
+    }
+  }
+
   /**
    * Generates a human-readable plain text / ASCII inspection report.
    */
-  public static generateReport(profile: TMDSongProfile): string {
+  public static generateReport(profile: TMDSongProfile, locale?: TMDLocale): string {
+    const activeLocale = locale || profile.locale || "zh-Hant";
+    const localizer = new TMDLocalizer(activeLocale);
     const mins = Math.floor(profile.timing.totalDurationSeconds / 60);
     const secs = Math.floor(profile.timing.totalDurationSeconds % 60);
     const timeFormatted = `${mins}:${secs.toString().padStart(2, "0")} (${profile.timing.totalDurationSeconds.toFixed(1)}s)`;
 
     const lines: string[] = [];
     lines.push("================================================================================");
-    lines.push(`📊 TMD Song Profile: [ ${profile.title} ]`);
+    lines.push(`📊 ${localizer.text("report.title")}: [ ${profile.title} ]`);
     lines.push("================================================================================");
-    lines.push(`⏱  Duration:       ${timeFormatted}, ${profile.timing.totalMeasures} measures total`);
+    lines.push(`⏱  ${localizer.text("report.duration")}:       ${timeFormatted}, ${profile.timing.totalMeasures} ${localizer.text("report.measuresTotal")}`);
     lines.push(
-      `🎼 Key & Tempo:    ${profile.initialKey} Major, != ${profile.initialTempo} BPM, <${profile.initialTimeSignature}>`
+      `🎼 ${localizer.text("report.keyAndTempo")}:    ${profile.initialKey} ${localizer.text("key.major")}, != ${profile.initialTempo} BPM, <${profile.initialTimeSignature}>`
     );
+    lines.push(`   - ${localizer.text("report.analysisScope")}`);
 
     if (profile.vocalRange) {
       const vocal = profile.vocalRange;
@@ -583,19 +1163,72 @@ export class TMDSongInspector {
     }
 
     lines.push(
-      "🏛  Structure:      " +
+      `🏛  ${localizer.text("report.structure")}:      ` +
         profile.timing.sections
           .map((s) => `${s.name} (${s.durationSeconds.toFixed(1)}s)`)
           .join(" -> ")
     );
-    lines.push(`⚡ Density:        Peak ${profile.density.maxConcurrentTracks} tracks concurrently`);
+    lines.push(`⚡ ${localizer.text("report.density")}:        Peak ${profile.density.maxConcurrentTracks} ${localizer.text("report.tracksConcurrently")}`);
 
     if (profile.harmony.distinctChords.length > 0) {
-      lines.push("🎹 Harmony:        " + profile.harmony.distinctChords.join(" "));
+      lines.push(`🎹 ${localizer.text("report.harmony")}:        ` + profile.harmony.distinctChords.join(" "));
+    }
+
+    if (profile.tonality) {
+      const tonality = profile.tonality;
+      const stabStr = tonality.globalCorrelation.stability.charAt(0).toUpperCase() + tonality.globalCorrelation.stability.slice(1);
+      const corrStr = tonality.globalCorrelation.declaredKeyCorrelation.toFixed(2);
+      const diatonicPct = `${(tonality.globalPitchClasses.diatonicRatio * 100.0).toFixed(1)}%`;
+      const topPitches = tonality.globalPitchClasses.topPitchClasses.slice(0, 5).join(", ");
+
+      lines.push(`🗝  ${localizer.text("report.tonalityDiagnosis")}       ${tonality.summaryText}`);
+      lines.push(`   - ${localizer.text("report.mood")}:    ${tonality.moodDescription}`);
+      lines.push(`   - ${localizer.text("report.modulationJourney")}:    ${tonality.modulationStory}`);
+      lines.push(`   - ${localizer.text("report.tonalCore")}:  ${topPitches}`);
+      lines.push(
+        `   - ${localizer.text("report.tonalMetrics")}:    ${tonality.globalCorrelation.declaredKey} [${localizer.text("report.correlation")}: ${corrStr}, ${localizer.text("report.stability")}: ${stabStr}, ${localizer.text("report.diatonicPurity")}: ${diatonicPct}]`
+      );
+
+      const candidateStr = tonality.globalCorrelation.topCandidateKeys
+        .slice(0, 3)
+        .map((c) => `${c.keyName} (${c.correlation.toFixed(2)})`)
+        .join(", ");
+      if (candidateStr.length > 0) {
+        lines.push(`   - ${localizer.text("report.candidateKeys")}: ${candidateStr}`);
+      }
+
+      const pathStr = tonality.circleOfFifthsPath
+        .map((step) => `${step >= 0 ? "+" : ""}${step}`)
+        .join(" -> ");
+      if (pathStr.length > 0) {
+        lines.push(`   - ${localizer.text("report.circleOfFifths")}:   ${pathStr}`);
+      }
+
+      if (tonality.sections.length > 0) {
+        lines.push(`   - ${localizer.text("report.sectionDetails")}:`);
+        for (const sec of tonality.sections) {
+          const secCorr = sec.correlation.declaredKeyCorrelation.toFixed(2);
+          const secDiatonic = `${(sec.pitchClasses.diatonicRatio * 100.0).toFixed(1)}%`;
+          let secLine = `     • [${sec.sectionName} #${sec.occurrenceIndex}]: ${sec.declaredKey} (r: ${secCorr}, ${localizer.text("report.diatonicPurity")}: ${secDiatonic}`;
+          if (sec.nonDiatonicNotes.length > 0) {
+            secLine += `, ${localizer.text("report.nonDiatonic")}: ${sec.nonDiatonicNotes.join(", ")}`;
+          }
+          secLine += ")";
+          lines.push(secLine);
+        }
+      }
+
+      // ASCII Visualizations
+      lines.push("");
+      lines.push("  [ Circle of Fifths Trajectory ]");
+      lines.push(this.renderAsciiCircleOfFifths(tonality));
+      lines.push("");
+      lines.push("  [ Pitch Class Weight Distribution ]");
+      lines.push(this.renderPitchClassHistogram(tonality));
     }
 
     lines.push("--------------------------------------------------------------------------------");
-    lines.push("Instrument Track Ranges:");
+    lines.push(localizer.text("report.instrumentRanges"));
     for (const inst of profile.instrumentRanges) {
       const padded = inst.instrument.padEnd(14, " ");
       const octaves = inst.spanOctaves.toFixed(1);
@@ -605,6 +1238,60 @@ export class TMDSongInspector {
     }
     lines.push("================================================================================");
 
+    return lines.join("\n");
+  }
+
+  private static renderAsciiCircleOfFifths(tonality: TMDTonalityProfile): string {
+    const activeSteps = new Set<number>(tonality.sections.map((sec) => sec.fifthsPosition));
+
+    function node(name: string, step: number): string {
+      const padded = name.padEnd(2, " ");
+      return activeSteps.has(step) ? `[${padded}]*` : ` ${padded} `;
+    }
+
+    const c = node("C", 0);
+    const g = node("G", 1);
+    const d = node("D", 2);
+    const a = node("A", 3);
+    const e = node("E", 4);
+    const b = node("B", 5);
+    const fs = node("F#", 6);
+    const db = node("Db", -5);
+    const ab = node("Ab", -4);
+    const eb = node("Eb", -3);
+    const bb = node("Bb", -2);
+    const f = node("F", -1);
+
+    const lines: string[] = [];
+    lines.push(`              ${c}`);
+    lines.push(`        ${f}         ${g}`);
+    lines.push(`     ${bb}             ${d}`);
+    lines.push(`     ${eb}             ${a}`);
+    lines.push(`        ${ab}         ${e}`);
+    lines.push(`           ${db}     ${b}`);
+    lines.push(`              ${fs}`);
+    lines.push("     (* = active key center)");
+    return lines.join("\n");
+  }
+
+  private static renderPitchClassHistogram(tonality: TMDTonalityProfile): string {
+    const pitchClassNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const weights = tonality.globalPitchClasses.weights;
+    const maxWeight = Math.max(...weights);
+    if (maxWeight <= 0.0001) return "     (no pitch data)";
+
+    const barMaxWidth = 24;
+    const totalWeight = weights.reduce((acc, w) => acc + w, 0.0) + 1e-9;
+    const lines: string[] = [];
+    for (let pc = 0; pc < 12; pc++) {
+      const w = weights[pc];
+      const ratio = w / maxWeight;
+      const barLen = Math.round(ratio * barMaxWidth);
+      const bar = "█".repeat(barLen).padEnd(barMaxWidth, " ");
+      const name = pitchClassNames[pc].padEnd(3, " ");
+      const pct = `${((w / totalWeight) * 100.0).toFixed(1)}%`.padStart(6, " ");
+      lines.push(`     ${name}: ${bar} ${pct}`);
+    }
     return lines.join("\n");
   }
 }
