@@ -26,7 +26,9 @@ export class TMDABCGenerator {
     abc += `C:${sheet.metadata["composer"] || "TMD (Chen, Chih-Han / aguai)"}\n`;
     abc += `M:${sheet.beat.count}/${sheet.beat.noteValue}\n`;
     abc += "L:1/16\n";
-    abc += `Q:1/4=${Math.round(sheet.speed > 0 ? sheet.speed : 120)}\n`;
+    const speed = sheet.speed > 0 ? sheet.speed : 120;
+    const tempoField = TMDABCGenerator.resolveTempo(sheet.beat, speed);
+    abc += `${tempoField}\n`;
     abc += `K:${TMDABCGenerator.abcKey(sheet.keySignature.toString())}\n\n`;
 
     const instruments = SheetInstrumentHelper.distinctInstruments(sheet);
@@ -50,6 +52,33 @@ export class TMDABCGenerator {
     return abc;
   }
 
+  public static resolveTempo(beat: { count: number; noteValue: number }, quarterBPM: number): string {
+    // Compound meter: denominator is 8 and numerator is a multiple of 3 (> 3, e.g. 6/8, 9/8, 12/8)
+    if (beat.noteValue === 8 && beat.count > 3 && beat.count % 3 === 0) {
+      // Beat unit is a dotted-quarter note (in ABC represented as 3/8)
+      const bpm = Math.round(quarterBPM / 1.5);
+      return `Q:3/8=${bpm}`;
+    }
+    switch (beat.noteValue) {
+      case 2: {
+        const bpm = Math.round(quarterBPM / 2.0);
+        return `Q:1/2=${bpm}`;
+      }
+      case 8: {
+        const bpm = Math.round(quarterBPM * 2.0);
+        return `Q:1/8=${bpm}`;
+      }
+      case 16: {
+        const bpm = Math.round(quarterBPM * 4.0);
+        return `Q:1/16=${bpm}`;
+      }
+      default: {
+        const bpm = Math.round(quarterBPM);
+        return `Q:1/4=${bpm}`;
+      }
+    }
+  }
+
   private static generateTrackMusic(instrument: string, sheet: Sheet): string {
     const measures = TMDMeasureRenderer.renderMeasures(sheet, instrument);
     let result = "";
@@ -59,8 +88,19 @@ export class TMDABCGenerator {
       for (const directive of measure.directives) {
         result += TMDABCGenerator.formatDirective(directive);
       }
+
+      // Group simultaneous events sharing the same startOffset
+      const groups: MeasureEvent[][] = [];
       for (const event of measure.events) {
-        result += TMDABCGenerator.formatMeasureEvent(event);
+        if (groups.length > 0 && Math.abs(event.startOffset - groups[groups.length - 1][0].startOffset) < 1e-4) {
+          groups[groups.length - 1].push(event);
+        } else {
+          groups.push([event]);
+        }
+      }
+
+      for (const group of groups) {
+        result += TMDABCGenerator.formatEventGroup(group);
         result += " ";
       }
       result += "|";
@@ -78,8 +118,10 @@ export class TMDABCGenerator {
     const k = directive.kind;
     switch (k.type) {
       case "tempo":
-      case "relativeTempo":
-        return `Q:1/4=${Math.round(directive.state.tempo)} `;
+      case "relativeTempo": {
+        const cmd = TMDABCGenerator.resolveTempo(directive.state.timeSignature, directive.state.tempo);
+        return `${cmd} `;
+      }
       case "timeSignature":
         return `M:${k.beat.count}/${k.beat.noteValue} `;
       case "absoluteKey":
@@ -91,6 +133,30 @@ export class TMDABCGenerator {
       case "fixedPitch":
         return `K:C `;
     }
+  }
+
+  private static formatEventGroup(group: MeasureEvent[]): string {
+    if (group.length === 1) {
+      return TMDABCGenerator.formatMeasureEvent(group[0]);
+    }
+
+    // Check if group is composed of multiple simultaneous notes (polyphonic chord/multi-note)
+    const noteEvents = group.filter((ev) => ev.content.type === "note");
+    if (noteEvents.length === group.length) {
+      // Form an ABC chord: [c4e4g4] or [ceg]4
+      const duration = group[0].duration;
+      const multiplier = Math.max(1, Math.round(duration * 4));
+      const suffix = multiplier > 1 ? String(multiplier) : "";
+      const pitches = noteEvents.map((ev) => {
+        const note = (ev.content as { type: "note"; note: any }).note;
+        return TMDABCGenerator.noteToABCPitch(note, ev.state.keyOffset);
+      });
+      const tie = group.some((ev) => ev.tieStart) ? "-" : "";
+      return `[${pitches.join("")}]${suffix}${tie}`;
+    }
+
+    // Otherwise format sequentially
+    return group.map((ev) => TMDABCGenerator.formatMeasureEvent(ev)).join(" ");
   }
 
   private static formatMeasureEvent(event: MeasureEvent): string {

@@ -129,4 +129,29 @@ part1:Vocal@|0|{
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it("handles monophonic degradation for multi-notes in UST export", () => {
+    const multiNoteTmd = `::SCORE::
+** Multi-Note Vocal **
+!= 120
+?= C
+<4/4>
+
+verse:Vocal@|0|{
+    <4*>
+    1+3 2 0 0
+}
+-> verse ->#
+`;
+    const sheet = TmdParser.parse(multiNoteTmd)!;
+    const ust = TMDUSTGenerator.generateUST(sheet);
+
+    // 1+3 (C4=60, E4=64) should pick the highest pitch (64) without creating overlapping notes at the same position
+    expect(ust).toContain("NoteNum=64");
+    // Ensure there are no duplicate notes at [#0000]
+    const noteHeaders = (ust.match(/\[#\d{4}\]/g) || []);
+    // note 0: 1+3 (64), note 1: 2 (62), note 2: 0 (rest), note 3: 0 (rest)
+    expect(noteHeaders.length).toBe(4);
+  });
 });
+

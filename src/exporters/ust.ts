@@ -63,7 +63,35 @@ export class TMDUSTGenerator {
     let noteIndex = 0;
     let lyricIndex = 0;
 
-    for (const event of timeline.events) {
+    // Filter and resolve monophonic degradation: if multiple note events start at the same position, pick the highest pitch
+    const monophonicEvents: typeof timeline.events = [];
+    let i = 0;
+    while (i < timeline.events.length) {
+      const ev = timeline.events[i];
+      if (ev.content.type === "note") {
+        let bestNoteEvent = ev;
+        let bestPitch = TMDMIDIGenerator.noteToMIDIPitch(ev.content.note, ev.state.keyOffset);
+        let j = i + 1;
+        while (j < timeline.events.length && Math.abs(timeline.events[j].position - ev.position) < 1e-4) {
+          const nextEv = timeline.events[j];
+          if (nextEv.content.type === "note") {
+            const p = TMDMIDIGenerator.noteToMIDIPitch(nextEv.content.note, nextEv.state.keyOffset);
+            if (p > bestPitch) {
+              bestPitch = p;
+              bestNoteEvent = nextEv;
+            }
+          }
+          j++;
+        }
+        monophonicEvents.push(bestNoteEvent);
+        i = j;
+      } else {
+        monophonicEvents.push(ev);
+        i++;
+      }
+    }
+
+    for (const event of monophonicEvents) {
       // Fill any timeline gap prior to this event with a Rest (Lyric=R)
       if (event.position > currentPosition) {
         const gapDuration = event.position - currentPosition;
