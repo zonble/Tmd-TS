@@ -208,6 +208,28 @@ verse:Piano@|0|{
     expect(labels).toContain("Am");
   });
 
+  it("matches Swift chord completion with scale-degree, extensions, and inversions", () => {
+    const source = `::SCORE::
+** Chord Completion **
+!= 120
+?= C
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    [`;
+    const lines = source.split("\n");
+    const items = TMDLSPCompletionEngine.complete(source, new TMDLSPPosition(lines.length - 1, lines.at(-1)!.length));
+    const labels = items.map((item) => item.label);
+
+    for (const label of ["1", "2m", "3m", "4", "5", "6m", "7dim", "1maj7", "2m7", "4maj7", "57", "6m7", "5sus4", "5/4", "4/5", "1/3", "5/7", "1/5"]) {
+      expect(labels).toContain(label);
+    }
+    for (const label of ["C", "Dm", "Em", "F", "G", "Am", "Bdim", "Cmaj7", "Dm7", "Em7", "Fmaj7", "G7", "Am7", "Gsus4", "C/E", "G/B", "F/G"]) {
+      expect(labels).toContain(label);
+    }
+  });
+
   it("publishes diagnostics on beat discrepancies in measures", () => {
     const invalidSource = `::SCORE::
 ** Measure Error Score **
