@@ -76,6 +76,24 @@ Theme {
     expect(labels).toContain("Theme");
   });
 
+  it("provides section completions after '->' even with draft score or unclosed braces", () => {
+    const draftSource = `intro:Piano { 1 2 3 4
+verse:Guitar { 5 6 7 1
+Theme { 1 1 5 5
+
+-> `;
+    const lines = draftSource.split("\n");
+    const lastLineIndex = lines.length - 1;
+    const items = TMDLSPCompletionEngine.complete(
+      draftSource,
+      new TMDLSPPosition(lastLineIndex, lines[lastLineIndex].length)
+    );
+    const labels = items.map((i) => i.label);
+    expect(labels).toContain("intro");
+    expect(labels).toContain("verse");
+    expect(labels).toContain("Theme");
+  });
+
   it("provides S-expression macro snippets after '-> (' in playback orders", () => {
     const source = `::SCORE::
 ** Test Score **
@@ -108,6 +126,20 @@ Theme {
     const canonItem = items.find((i) => i.label === "canon");
     expect(canonItem?.insertText?.startsWith("(")).toBe(false);
     expect(canonItem?.insertText?.startsWith("canon")).toBe(true);
+
+    // Also supports ->( without space
+    const itemsNoSpace = TMDLSPCompletionEngine.complete(
+      source.replace("-> (", "->("),
+      new TMDLSPPosition(lastLineIndex, 3)
+    );
+    expect(itemsNoSpace.map((i) => i.label)).toContain("canon");
+
+    // Also supports partial macro prefix -> (ca
+    const itemsPartial = TMDLSPCompletionEngine.complete(
+      source.replace("-> (", "-> (ca"),
+      new TMDLSPPosition(lastLineIndex, 6)
+    );
+    expect(itemsPartial.map((i) => i.label)).toContain("canon");
   });
 
   it("provides General MIDI 128 instrument names after colon in paragraph header", () => {
@@ -130,6 +162,25 @@ verse:`;
     expect(labels).toContain("AcousticGuitar");
     expect(labels).toContain("Timpani");
     expect(labels).toContain("Drums");
+  });
+
+  it("provides completions even when partial prefix is typed (e.g. verse:Pi or [D or {!)", () => {
+    const source1 = "verse:Pi";
+    const items1 = TMDLSPCompletionEngine.complete(source1, new TMDLSPPosition(0, 8));
+    expect(items1.map((i) => i.label)).toContain("Piano");
+
+    const source2 = "[D";
+    const items2 = TMDLSPCompletionEngine.complete(source2, new TMDLSPPosition(0, 2));
+    expect(items2.map((i) => i.label)).toContain("Dm");
+
+    const source3 = "{!";
+    const items3 = TMDLSPCompletionEngine.complete(source3, new TMDLSPPosition(0, 2));
+    expect(items3.map((i) => i.label)).toContain("!= 120");
+
+    const source4 = "-> v";
+    const fullSource4 = `intro:Piano { 1 }\nverse:Piano { 2 }\n-> v`;
+    const items4 = TMDLSPCompletionEngine.complete(fullSource4, new TMDLSPPosition(2, 4));
+    expect(items4.map((i) => i.label)).toContain("verse");
   });
 
   it("provides diatonic chords when opening bracket '[' inside paragraph", () => {

@@ -163,4 +163,47 @@ describe("Web Studio Editor Configuration (TDD)", () => {
     // Cursor context should resolve default track to DEFAULT_INSTRUMENT
     expect(editorContent).toMatch(/instrument\s*=\s*DEFAULT_INSTRUMENT/);
   });
+
+  it("integrates LSP client into TMDWebEditor for diagnostics, completions, and formatting", () => {
+    const editorPath = path.join(__dirname, "../web/src/editor.ts");
+    const editorContent = fs.readFileSync(editorPath, "utf-8");
+
+    // Must import and instantiate TMDWebLSPClient
+    expect(editorContent).toContain("TMDWebLSPClient");
+    expect(editorContent).toContain("lspClient");
+
+    // Must configure CodeMirror linter extension
+    expect(editorContent).toMatch(/import\s*\{[^}]*linter[^}]*\}\s*from\s*["']@codemirror\/lint["']/);
+    expect(editorContent).toContain("linter(");
+
+    // Must configure CodeMirror autocompletion extension
+    expect(editorContent).toMatch(/import\s*\{[^}]*autocompletion[^}]*\}\s*from\s*["']@codemirror\/autocomplete["']/);
+    expect(editorContent).toContain("autocompletion(");
+
+    // TMDWebEditor interface must expose lspClient and formatDocument
+    expect(editorContent).toContain("lspClient: TMDWebLSPClient");
+    expect(editorContent).toContain("formatDocument(): Promise<void>");
+  });
+
+  it("configures autocompletion with hotkeys (Mod-Space, Ctrl-Space) and activateOnTyping", () => {
+    const editorPath = path.join(__dirname, "../web/src/editor.ts");
+    const editorContent = fs.readFileSync(editorPath, "utf-8");
+
+    // Must bind Mod-Space and Ctrl-Space for startCompletion and include completionKeymap
+    expect(editorContent).toContain('"Mod-Space"');
+    expect(editorContent).toContain('"Ctrl-Space"');
+    expect(editorContent).toContain("startCompletion");
+    expect(editorContent).toContain("completionKeymap");
+
+    // Must activate on typing
+    expect(editorContent).toContain("activateOnTyping: true");
+
+    // Must match macro triggers before order triggers
+    expect(editorContent).toContain("macroMatch");
+    expect(editorContent).toContain("orderMatch");
+
+    // Must sync document on change
+    expect(editorContent).toContain("lspClient.changeDocument(");
+  });
 });
+

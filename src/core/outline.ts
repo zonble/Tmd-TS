@@ -475,9 +475,29 @@ export class TMDOutlineGenerator {
   }
 
   public static extractSectionNames(source: string): string[] {
-    const nodes = this.generate(source);
-    const sectionsNode = nodes.find((n) => n.name === "Sections");
-    if (!sectionsNode || !sectionsNode.children) return [];
-    return sectionsNode.children.map((c) => c.name);
+    const names = new Set<string>();
+    try {
+      const nodes = this.generate(source);
+      const sectionsNode = nodes.find((n) => n.name === "Sections");
+      if (sectionsNode && sectionsNode.children) {
+        for (const c of sectionsNode.children) {
+          names.add(c.name);
+        }
+      }
+    } catch {
+      // Fallback to regex below
+    }
+
+    // Fallback: extract section names even if AST parse fails due to incomplete syntax while typing
+    const regex = /^\s*([a-zA-Z0-9_\u4e00-\u9fa5-]+)(?::[a-zA-Z0-9_\u4e00-\u9fa5-]+)?(?:@\|?[+-]?\d+\|?)?\s*\{/gm;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(source)) !== null) {
+      const name = match[1];
+      if (name !== "instruments") {
+        names.add(name);
+      }
+    }
+
+    return Array.from(names);
   }
 }

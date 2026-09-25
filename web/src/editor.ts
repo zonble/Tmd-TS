@@ -1,11 +1,54 @@
-import { EditorView, basicSetup } from "codemirror";
+import {
+  EditorView,
+  lineNumbers,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  drawSelection,
+  dropCursor,
+  rectangularSelection,
+  crosshairCursor,
+  highlightActiveLine,
+  keymap,
+  gutter,
+  GutterMarker,
+  BlockInfo,
+  Decoration,
+  DecorationSet,
+  hoverTooltip,
+  Tooltip,
+} from "@codemirror/view";
 import { EditorState, Compartment, StateEffect, StateField, RangeSetBuilder } from "@codemirror/state";
-import { StreamLanguage, StringStream } from "@codemirror/language";
-import { toggleComment, indentWithTab } from "@codemirror/commands";
+import {
+  StreamLanguage,
+  foldGutter,
+  indentOnInput,
+  syntaxHighlighting,
+  defaultHighlightStyle,
+  bracketMatching,
+  foldKeymap,
+} from "@codemirror/language";
+import {
+  history,
+  defaultKeymap,
+  historyKeymap,
+  toggleComment,
+  indentWithTab,
+} from "@codemirror/commands";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import {
+  autocompletion,
+  startCompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+  CompletionContext,
+  CompletionResult,
+} from "@codemirror/autocomplete";
+import { linter, lintKeymap, Diagnostic as CMDiagnostic } from "@codemirror/lint";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { keymap, gutter, GutterMarker, BlockInfo, Decoration, DecorationSet, hoverTooltip, Tooltip } from "@codemirror/view";
 import type { TMDMeasureIssue } from "../../src/core/measure_check.js";
 import { DEFAULT_INSTRUMENT } from "../../src/core/types.js";
+import { TMDWebLSPClient } from "./lsp/client.js";
 import { t } from "./i18n.js";
 
 import { tmdStreamParser, type TMDParserState } from "./syntax.js";
@@ -13,6 +56,33 @@ export { tmdStreamParser, type TMDParserState };
 
 // Export comment tokens configuration for tests/editor integrations: tmdStreamParser.languageData.commentTokens
 export const tmdLanguage = StreamLanguage.define<TMDParserState>(tmdStreamParser);
+
+export const defaultEditorExtensions = [
+  lineNumbers(),
+  highlightActiveLineGutter(),
+  highlightSpecialChars(),
+  history(),
+  foldGutter(),
+  drawSelection(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  indentOnInput(),
+  syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+  bracketMatching(),
+  closeBrackets(),
+  rectangularSelection(),
+  crosshairCursor(),
+  highlightActiveLine(),
+  highlightSelectionMatches(),
+  keymap.of([
+    ...closeBracketsKeymap,
+    ...defaultKeymap,
+    ...searchKeymap,
+    ...historyKeymap,
+    ...foldKeymap,
+    ...lintKeymap,
+  ]),
+];
 
 export interface CursorContext {
   section?: string;
@@ -23,6 +93,7 @@ export interface CursorContext {
 
 export interface TMDWebEditor {
   view: EditorView;
+  lspClient: TMDWebLSPClient;
   getContent(): string;
   setContent(text: string): void;
   insertAtCursor(text: string): void;
@@ -32,6 +103,7 @@ export interface TMDWebEditor {
   scrollToRange(startLine: number, startCol: number, endLine: number, endCol: number): void;
   getCursorContext(): CursorContext;
   toggleComment(): void;
+  formatDocument(): Promise<void>;
   setMeasureIssues(issues: TMDMeasureIssue[]): void;
   setTheme(theme: "dark" | "light"): void;
   focus(): void;
@@ -61,6 +133,76 @@ class SectionPlayGutterMarker extends GutterMarker {
     });
     return btn;
   }
+}
+
+export function createTmdCompletionSource(lspClient: TMDWebLSPClient) {
+  return async (context: CompletionContext): Promise<CompletionResult | null> => {
+    const pos = context.pos;
+    const doc = context.state.doc;
+    const lineObj = doc.lineAt(pos);
+    const lineIndex = lineObj.number - 1;
+    const charIndex = pos - lineObj.from;
+    const prefix = lineObj.text.slice(0, charIndex);
+
+    // Sync latest document before completion request
+    lspClient.changeDocument(doc.toString());
+
+    // 1. Check trigger scenarios and calculate exact replacement start position `from`
+    // Macro completion after `-> (` or `(` or `(ca` (check before `->` order completion)
+    const macroMatch = prefix.match(/(?:->\s*\(|\()\s*([\w\d_-]*)$/);
+    // Section order completion after `->`
+    const orderMatch = prefix.match(/->\s*([\w\d_-]*)$/);
+    // Instrument completion after `:`
+    const colonMatch = prefix.match(/:([\w\d_-]*)$/);
+    // Chord completion after `[`
+    const bracketMatch = prefix.match(/\[([\w\d#b]*)$/);
+    // Section directive after `{`
+    const braceMatch = prefix.match(/\{([!?<][\w\d+=\s\/]*)$/);
+    const bareBraceMatch = prefix.match(/\{$/);
+
+    let from = pos;
+    let isTriggerMatched = false;
+
+    if (macroMatch) {
+      from = pos - macroMatch[1].length;
+      isTriggerMatched = true;
+    } else if (orderMatch) {
+      from = pos - orderMatch[1].length;
+      isTriggerMatched = true;
+    } else if (colonMatch) {
+      from = pos - colonMatch[1].length;
+      isTriggerMatched = true;
+    } else if (bracketMatch) {
+      from = pos - bracketMatch[1].length;
+      isTriggerMatched = true;
+    } else if (braceMatch) {
+      from = pos - braceMatch[1].length;
+      isTriggerMatched = true;
+    } else if (bareBraceMatch) {
+      from = pos;
+      isTriggerMatched = true;
+    } else {
+      const wordMatch = context.matchBefore(/[\w\d_-]+/);
+      if (wordMatch) {
+        from = wordMatch.from;
+        isTriggerMatched = true;
+      }
+    }
+
+    if (!isTriggerMatched && !context.explicit) {
+      return null;
+    }
+
+    const items = await lspClient.requestCompletions(lineIndex, charIndex);
+    if (!items || items.length === 0) return null;
+
+    const cmItems = lspClient.convertToCMCompletions(items);
+    return {
+      from,
+      options: cmItems,
+      validFor: /^[\w\d#b!+?<=/ -]*$/,
+    };
+  };
 }
 
 export function createTmdEditor(
@@ -102,9 +244,28 @@ export function createTmdEditor(
     },
   }, { dark: false });
 
+  const lspClient = new TMDWebLSPClient();
+  lspClient.openDocument(initialContent);
+
+  const tmdCompletionSource = createTmdCompletionSource(lspClient);
+
   const updateListener = EditorView.updateListener.of((update) => {
-    if (update.docChanged && onChange) {
-      onChange(update.state.doc.toString());
+    if (update.docChanged) {
+      const docStr = update.state.doc.toString();
+      lspClient.changeDocument(docStr);
+      if (onChange) {
+        onChange(docStr);
+      }
+
+      // Automatically trigger completion popup when typing trigger sequences like '->', '(', ':', '[', '{'
+      if (update.transactions.some((tr) => tr.isUserEvent("input.type"))) {
+        const pos = update.state.selection.main.head;
+        const line = update.state.doc.lineAt(pos);
+        const prefix = line.text.slice(0, pos - line.from);
+        if (/(?:->\s*\(?|:\s*|\[\s*|\{\s*|\(\s*)$/.test(prefix)) {
+          startCompletion(update.view);
+        }
+      }
     }
     if ((update.selectionSet || update.docChanged) && onCursorActivity) {
       const pos = update.state.selection.main.head;
@@ -136,6 +297,15 @@ export function createTmdEditor(
       },
     },
     {
+      key: "Mod-Space",
+      run: startCompletion,
+    },
+    {
+      key: "Ctrl-Space",
+      run: startCompletion,
+    },
+    ...completionKeymap,
+    {
       key: "Mod-/",
       run: toggleComment,
     },
@@ -164,6 +334,21 @@ export function createTmdEditor(
       return null;
     },
     initialSpacer: () => new SectionPlayGutterMarker("", ""),
+  });
+
+  const tmdLinter = linter(async (view) => {
+    const docText = view.state.doc.toString();
+    lspClient.changeDocument(docText);
+    const diags = await new Promise<any[]>((resolve) => {
+      // Create a short-lived client listener or trigger diagnose via client
+      const listenerClient = new TMDWebLSPClient({
+        onDiagnostics: (diagnostics) => {
+          resolve(diagnostics);
+        },
+      });
+      listenerClient.openDocument(docText);
+    });
+    return lspClient.convertToCMDiagnostics(docText, diags) as CMDiagnostic[];
   });
 
   const setMeasureIssuesEffect = StateEffect.define<TMDMeasureIssue[]>();
@@ -254,7 +439,12 @@ export function createTmdEditor(
   const state = EditorState.create({
     doc: initialContent,
     extensions: [
-      basicSetup,
+      defaultEditorExtensions,
+      tmdLinter,
+      autocompletion({
+        override: [tmdCompletionSource],
+        activateOnTyping: true,
+      }),
       sectionPlayGutter,
       measureIssuesField,
       measureIssuesTooltip,
@@ -293,6 +483,7 @@ export function createTmdEditor(
 
   return {
     view,
+    lspClient,
     getContent() {
       return view.state.doc.toString();
     },
@@ -398,6 +589,20 @@ export function createTmdEditor(
     toggleComment() {
       toggleComment(view);
       view.focus();
+    },
+    async formatDocument() {
+      lspClient.changeDocument(view.state.doc.toString());
+      const edits = await lspClient.requestFormatting();
+      if (edits && edits.length > 0) {
+        const edit = edits[0];
+        view.dispatch({
+          changes: {
+            from: 0,
+            to: view.state.doc.length,
+            insert: edit.newText,
+          },
+        });
+      }
     },
     setMeasureIssues(issues: TMDMeasureIssue[]) {
       view.dispatch({

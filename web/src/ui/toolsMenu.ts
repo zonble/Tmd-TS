@@ -48,13 +48,17 @@ export class TMDToolsAndContextMenuController {
     }
   }
 
-  public handleFormatDocument(): void {
+  public async handleFormatDocument(): Promise<void> {
     try {
       const editor = this.getEditor();
-      const current = editor.getContent();
-      const formatted = TMDRefactor.format(current);
-      editor.setContent(formatted);
-      this.onScoreUpdated(formatted);
+      if (editor.formatDocument) {
+        await editor.formatDocument();
+      } else {
+        const current = editor.getContent();
+        const formatted = TMDRefactor.format(current);
+        editor.setContent(formatted);
+      }
+      this.onScoreUpdated(editor.getContent());
       this.showToast(t("toastFormatted"));
     } catch (err: any) {
       this.showToast(t("errorRefactor").replace("{error}", err.message || String(err)), "error");

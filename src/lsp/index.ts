@@ -104,6 +104,8 @@ export interface TMDJSONRPCFrame {
   id?: number | string | null;
   method?: string;
   params?: any;
+  result?: any;
+  error?: any;
 }
 
 export interface TMDJSONRPCResponse {
@@ -156,6 +158,8 @@ export class TMDJSONRPCCodec {
           id: obj.id,
           method: obj.method,
           params: obj.params,
+          result: obj.result,
+          error: obj.error,
         });
       } catch (_) {}
     }
@@ -229,21 +233,8 @@ export class TMDLSPCompletionEngine {
     const currentLine = lines[position.line] || "";
     const prefix = currentLine.slice(0, position.character);
 
-    // 1. S-Expression macro completion: inside "-> (" or "(" or "(<word>"
-    const trimmedPrefix = prefix.trim();
-    const isInsideMacro = (() => {
-      if (trimmedPrefix.endsWith("-> (") || trimmedPrefix.endsWith("(")) {
-        return true;
-      }
-      const lastParenIndex = prefix.lastIndexOf("(");
-      if (lastParenIndex !== -1) {
-        const afterParen = prefix.slice(lastParenIndex + 1);
-        if (!afterParen.includes(")") && !afterParen.includes(" ") && afterParen.length > 0) {
-          return true;
-        }
-      }
-      return false;
-    })();
+    // 1. S-Expression macro completion: inside "-> (", "->(", "(", or "(<word>"
+    const isInsideMacro = /(?:->\s*\(|\()\s*([a-zA-Z0-9_-]*)$/.test(prefix);
 
     const remainder = currentLine.slice(position.character);
     const nextChar = remainder.length > 0 ? remainder[0] : "";
@@ -266,7 +257,7 @@ export class TMDLSPCompletionEngine {
     }
 
     // 2. Playback Order section completion: after "->"
-    if (trimmedPrefix.endsWith("->") || trimmedPrefix.includes("->")) {
+    if (prefix.includes("->")) {
       const sectionNames = TMDOutlineGenerator.extractSectionNames(source);
       return sectionNames.map((name) => ({
         label: name,
@@ -276,46 +267,59 @@ export class TMDLSPCompletionEngine {
       }));
     }
 
-    // 3. Instrument completion: after ":"
-    if (trimmedPrefix.endsWith(":")) {
-      return this.standardInstruments.map((inst) => ({
-        label: inst,
-        kind: TMDLSPCompletionItemKind.Keyword,
-        detail: `General MIDI Instrument: ${inst}`,
-        documentation: "Standard instrument sound assignment",
-      }));
+    // 3. Instrument completion: after ":" (e.g. "verse:" or "verse:Pi")
+    const lastColonIndex = prefix.lastIndexOf(":");
+    if (lastColonIndex !== -1) {
+      const afterColon = prefix.slice(lastColonIndex + 1);
+      // Valid if after colon has no space, bracket or brace
+      if (!/[\s\[\{]/.test(afterColon)) {
+        return this.standardInstruments.map((inst) => ({
+          label: inst,
+          kind: TMDLSPCompletionItemKind.Keyword,
+          detail: `General MIDI Instrument: ${inst}`,
+          documentation: "Standard instrument sound assignment",
+        }));
+      }
     }
 
-    // 4. Chord completion: after "["
-    if (trimmedPrefix.endsWith("[")) {
-      let keyStr = "C";
-      try {
-        const sheet = TmdParser.parse(source);
-        if (sheet?.keySignature) {
-          keyStr = sheet.keySignature.toString();
-        }
-      } catch (_) {}
+    // 4. Chord completion: after "[" (e.g. "[" or "[D")
+    const lastBracketIndex = prefix.lastIndexOf("[");
+    if (lastBracketIndex !== -1) {
+      const afterBracket = prefix.slice(lastBracketIndex + 1);
+      if (!afterBracket.includes("]") && !/[\s\{\}]/.test(afterBracket)) {
+        let keyStr = "C";
+        try {
+          const sheet = TmdParser.parse(source);
+          if (sheet?.keySignature) {
+            keyStr = sheet.keySignature.toString();
+          }
+        } catch (_) {}
 
-      const diatonicChords = this.getDiatonicChords(keyStr);
-      const appendClosingBracket = nextChar !== "]";
-      return diatonicChords.map((chord) => ({
-        label: chord,
-        kind: TMDLSPCompletionItemKind.Value,
-        detail: `Diatonic Chord in ${keyStr}`,
-        insertText: appendClosingBracket ? `${chord}]` : chord,
-      }));
+        const diatonicChords = this.getDiatonicChords(keyStr);
+        const appendClosingBracket = nextChar !== "]";
+        return diatonicChords.map((chord) => ({
+          label: chord,
+          kind: TMDLSPCompletionItemKind.Value,
+          detail: `Diatonic Chord in ${keyStr}`,
+          insertText: appendClosingBracket ? `${chord}]` : chord,
+        }));
+      }
     }
 
-    // 5. Section Directives: after "{"
-    if (trimmedPrefix.endsWith("{")) {
-      return [
-        { label: "!= 120", kind: TMDLSPCompletionItemKind.Snippet, detail: "Absolute Tempo (BPM)", insertText: "!= ${1:120}}" },
-        { label: "!+ 10", kind: TMDLSPCompletionItemKind.Snippet, detail: "Relative Tempo Change (+BPM)", insertText: "!+ ${1:10}}" },
-        { label: "?= C", kind: TMDLSPCompletionItemKind.Snippet, detail: "Absolute Key Signature", insertText: "?= ${1:C}}" },
-        { label: "?+ 2", kind: TMDLSPCompletionItemKind.Snippet, detail: "Relative Key Transposition (+semitones)", insertText: "?+ ${1:2}}" },
-        { label: "?= fixed", kind: TMDLSPCompletionItemKind.Value, detail: "Fixed Pitch (Immune to song transpositions)", insertText: "?= fixed}" },
-        { label: "<4/4>", kind: TMDLSPCompletionItemKind.Snippet, detail: "Time Signature Change", insertText: "<${1:4}/${2:4}>}" }
-      ];
+    // 5. Section Directives: after "{" (e.g. "{" or "{!" or "{?")
+    const lastBraceIndex = prefix.lastIndexOf("{");
+    if (lastBraceIndex !== -1) {
+      const afterBrace = prefix.slice(lastBraceIndex + 1);
+      if (!afterBrace.includes("}") && afterBrace.length <= 10) {
+        return [
+          { label: "!= 120", kind: TMDLSPCompletionItemKind.Snippet, detail: "Absolute Tempo (BPM)", insertText: "!= ${1:120}}" },
+          { label: "!+ 10", kind: TMDLSPCompletionItemKind.Snippet, detail: "Relative Tempo Change (+BPM)", insertText: "!+ ${1:10}}" },
+          { label: "?= C", kind: TMDLSPCompletionItemKind.Snippet, detail: "Absolute Key Signature", insertText: "?= ${1:C}}" },
+          { label: "?+ 2", kind: TMDLSPCompletionItemKind.Snippet, detail: "Relative Key Transposition (+semitones)", insertText: "?+ ${1:2}}" },
+          { label: "?= fixed", kind: TMDLSPCompletionItemKind.Value, detail: "Fixed Pitch (Immune to song transpositions)", insertText: "?= fixed}" },
+          { label: "<4/4>", kind: TMDLSPCompletionItemKind.Snippet, detail: "Time Signature Change", insertText: "<${1:4}/${2:4}>}" }
+        ];
+      }
     }
 
     return [];
