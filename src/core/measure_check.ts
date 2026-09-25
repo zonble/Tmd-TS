@@ -330,6 +330,12 @@ export class TMDMeasureChecker {
             case "tie":
             case "percussion":
               advance();
+              if (item.token.type === "note") {
+                while (current()?.token.type === "plus") {
+                  advance();
+                  if (current()?.token.type === "note" || current()?.token.type === "number") advance();
+                }
+              }
               paragraphQuarterNotes += unitQuarterNotes;
               if (insideBar) {
                 currentMeasureUnits += 1;
@@ -353,6 +359,12 @@ export class TMDMeasureChecker {
             case "number": {
               advance();
               const digitCount = Math.max(1, (item.text.match(/\d/g) || []).length);
+              if (digitCount === 1 && /^[1-7]$/.test(item.text)) {
+                while (current()?.token.type === "plus") {
+                  advance();
+                  if (current()?.token.type === "note" || current()?.token.type === "number") advance();
+                }
+              }
               paragraphQuarterNotes += digitCount * unitQuarterNotes;
               if (insideBar) {
                 currentMeasureUnits += digitCount;

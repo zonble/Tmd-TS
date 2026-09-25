@@ -266,6 +266,7 @@ export interface Note {
 
 export type Unit =
   | { type: "note"; note: Note }
+  | { type: "multiNote"; notes: Note[] }
   | { type: "chord"; chord: ChordSymbol }
   | { type: "tie" }
   | { type: "rest" }

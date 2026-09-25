@@ -69,6 +69,8 @@ function transposeSections(sections: Section[], semitones: number): Section[] {
         if (u.type === "note") {
           const currentTotal = noteToTotalSemitones(u.note);
           u.note = totalSemitonesToNote(currentTotal + semitones);
+        } else if (u.type === "multiNote") {
+          u.notes = u.notes.map((note) => totalSemitonesToNote(noteToTotalSemitones(note) + semitones));
         }
       }
     }
@@ -108,6 +110,9 @@ function invertSections(sections: Section[], axisPitchSemitones?: number): Secti
           if (u.type === "note") {
             axis = noteToTotalSemitones(u.note);
             break;
+          } else if (u.type === "multiNote" && u.notes.length > 0) {
+            axis = noteToTotalSemitones(u.notes[0]);
+            break;
           }
         }
         if (axis !== undefined) break;
@@ -126,8 +131,12 @@ function invertSections(sections: Section[], axisPitchSemitones?: number): Secti
         if (u.type === "note") {
           const origSemitones = noteToTotalSemitones(u.note);
           const diff = origSemitones - axis;
-          const invertedSemitones = axis - diff;
-          u.note = totalSemitonesToNote(invertedSemitones);
+          u.note = totalSemitonesToNote(axis - diff);
+        } else if (u.type === "multiNote") {
+          u.notes = u.notes.map((note) => {
+            const diff = noteToTotalSemitones(note) - axis;
+            return totalSemitonesToNote(axis - diff);
+          });
         }
       }
     }
@@ -152,6 +161,13 @@ function toMinorSections(sections: Section[]): Section[] {
           } else if (u.note.degree === ScaleDegree.B && u.note.accidental === Accidental.Natural) {
             u.note.accidental = Accidental.Flat;
           }
+        } else if (u.type === "multiNote") {
+          u.notes = u.notes.map((note) => {
+            if ((note.degree === ScaleDegree.E || note.degree === ScaleDegree.A || note.degree === ScaleDegree.B) && note.accidental === Accidental.Natural) {
+              return { ...note, accidental: Accidental.Flat };
+            }
+            return note;
+          });
         }
       }
     }
@@ -173,6 +189,13 @@ function toMajorSections(sections: Section[]): Section[] {
           } else if (u.note.degree === ScaleDegree.B && u.note.accidental === Accidental.Flat) {
             u.note.accidental = Accidental.Natural;
           }
+        } else if (u.type === "multiNote") {
+          u.notes = u.notes.map((note) => {
+            if ((note.degree === ScaleDegree.E || note.degree === ScaleDegree.A || note.degree === ScaleDegree.B) && note.accidental === Accidental.Flat) {
+              return { ...note, accidental: Accidental.Natural };
+            }
+            return note;
+          });
         }
       }
     }

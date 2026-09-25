@@ -85,35 +85,40 @@ export class TMDPlaybackRenderer {
       } else if (order.type === "absolute") {
         state = { ...state, keyOffset: KeySignature.parse(order.value).semitoneOffset };
       } else if (order.type === "name") {
-        const paragraph = paragraphs.find((p) => p.name === order.name);
-        const paragraphDuration = TMDPlaybackRenderer.durationOf(order.name, sheet);
+        const matchingParagraphs = paragraphs.filter((p) => p.name === order.name);
+        const paragraphDuration = TMDPlaybackRenderer.durationOf(order.name, sheet, state.timeSignature);
         if (i < startIndex) {
           // If before startOrderIndex, accumulate directives and key/tempo/meter state from paragraph
-          if (paragraph) {
+          for (const paragraph of matchingParagraphs) {
             const start = timelinePosition + paragraph.start * TMDPlaybackRenderer.measureDuration(state.timeSignature);
-            const rendered = TMDPlaybackRenderer.renderParagraph(paragraph, start, state);
-            state = rendered.state;
+            state = TMDPlaybackRenderer.renderParagraph(paragraph, start, state).state;
           }
           continue;
         }
 
-        if (!paragraph) {
+        if (matchingParagraphs.length === 0) {
           timelinePosition += paragraphDuration;
           continue;
         }
 
-        const start = timelinePosition + paragraph.start * TMDPlaybackRenderer.measureDuration(state.timeSignature);
-        const rendered = TMDPlaybackRenderer.renderParagraph(paragraph, start, state);
-        events.push(...rendered.events);
-        directives.push(...rendered.directives);
-        state = rendered.state;
-        timelinePosition += Math.max(paragraphDuration, rendered.duration);
+        for (const paragraph of matchingParagraphs) {
+          const start = timelinePosition + paragraph.start * TMDPlaybackRenderer.measureDuration(state.timeSignature);
+          const rendered = TMDPlaybackRenderer.renderParagraph(paragraph, start, state);
+          events.push(...rendered.events);
+          directives.push(...rendered.directives);
+          state = rendered.state;
+        }
+        timelinePosition += paragraphDuration;
       }
     }
 
     const minEventPos = events.length > 0 ? Math.min(...events.map((e) => e.position)) : 0.0;
     const minDirPos = directives.length > 0 ? Math.min(...directives.map((d) => d.position)) : 0.0;
-    const earliestPosition = Math.min(minEventPos, minDirPos);
+    const earliestPosition = Math.min(
+      TMDPlaybackRenderer.globalEarliestPosition(sheet),
+      minEventPos,
+      minDirPos
+    );
     const offset = earliestPosition < 0.0 ? -earliestPosition : 0.0;
 
     const adjustedEvents: PlaybackEvent[] = events.map((e) => ({
@@ -165,13 +170,10 @@ export class TMDPlaybackRenderer {
 
         if (activeUnits.length === 0) {
           if (events.length > 0) {
-            const last = events.pop()!;
-            events.push({
-              position: last.position,
-              duration: last.duration + groupDuration,
-              content: last.content,
-              state: last.state
-            });
+            const lastPosition = events[events.length - 1].position;
+            for (let i = events.length - 1; i >= 0 && Math.abs(events[i].position - lastPosition) < 1e-6; i--) {
+              events[i] = { ...events[i], duration: events[i].duration + groupDuration };
+            }
           } else {
             events.push({ position, duration: groupDuration, content: { type: "rest" }, state });
           }
@@ -179,30 +181,31 @@ export class TMDPlaybackRenderer {
           // If the group contains internal ties (e.g. (1 2 3 -)%(--)), calculate slots based on total units
           // Each slot in the tuplet has baseSlotDuration = groupDuration / group.units.length
           const baseSlotDuration = groupDuration / Math.max(1, group.units.length);
-          let currentEventIndex = -1;
+          let currentEventIndices: number[] = [];
 
           group.units.forEach((unit, idx) => {
             if (unit.type === "tie") {
-              if (currentEventIndex >= 0) {
-                events[currentEventIndex].duration += baseSlotDuration;
+              if (currentEventIndices.length > 0) {
+                for (const index of currentEventIndices) events[index].duration += baseSlotDuration;
               } else if (events.length > 0) {
                 // Leading tie inside group extends last event from preceding group
                 const last = events[events.length - 1];
                 last.duration += baseSlotDuration;
               } else {
                 events.push({ position: position + idx * baseSlotDuration, duration: baseSlotDuration, content: { type: "rest" }, state });
-                currentEventIndex = events.length - 1;
+                currentEventIndices = [events.length - 1];
               }
             } else {
               const content = TMDPlaybackRenderer.contentOf(unit);
-              if (content) {
-                events.push({
-                  position: position + idx * baseSlotDuration,
-                  duration: baseSlotDuration,
-                  content,
-                  state,
-                });
-                currentEventIndex = events.length - 1;
+              if (unit.type === "multiNote") {
+                currentEventIndices = [];
+                for (const note of unit.notes) {
+                  events.push({ position: position + idx * baseSlotDuration, duration: baseSlotDuration, content: { type: "note", note }, state });
+                  currentEventIndices.push(events.length - 1);
+                }
+              } else if (content) {
+                events.push({ position: position + idx * baseSlotDuration, duration: baseSlotDuration, content, state });
+                currentEventIndices = [events.length - 1];
               }
             }
           });
@@ -226,6 +229,7 @@ export class TMDPlaybackRenderer {
   private static contentOf(unit: Unit): PlaybackContent | null {
     switch (unit.type) {
       case "note": return { type: "note", note: unit.note };
+      case "multiNote": return null;
       case "chord": return { type: "chord", chord: unit.chord };
       case "rest": return { type: "rest" };
       case "percussion": return { type: "percussion", pattern: unit.pattern };
@@ -250,13 +254,13 @@ export class TMDPlaybackRenderer {
     }
   }
 
-  public static durationOf(name: string, sheet: Sheet): number {
+  public static durationOf(name: string, sheet: Sheet, beat: Beat = sheet.beat): number {
     const matching = sheet.paragraphs.filter((p) => p.name === name);
     if (matching.length === 0) return 0;
 
     return Math.max(
       ...matching.map((p) => {
-        const lead = Math.max(0, p.start) * TMDPlaybackRenderer.measureDuration(sheet.beat);
+        const lead = p.start * TMDPlaybackRenderer.measureDuration(beat);
         const sectionsDuration = p.sections.reduce((tot, sec) => {
           const unitDuration = 4.0 / Math.max(1, sec.noteLength);
           return tot + sec.unitGroups.reduce((acc, g) => acc + Math.max(0, g.length) * unitDuration, 0);
@@ -264,6 +268,29 @@ export class TMDPlaybackRenderer {
         return lead + sectionsDuration;
       })
     );
+  }
+
+  private static globalEarliestPosition(sheet: Sheet): number {
+    let state: PlaybackState = {
+      tempo: sheet.speed > 0 ? sheet.speed : 120,
+      keyOffset: sheet.keySignature.semitoneOffset,
+      timeSignature: sheet.beat
+    };
+    let timelinePosition = 0;
+    let earliest = 0;
+    const orders = sheet.orders.length > 0
+      ? sheet.orders
+      : Array.from(new Set(sheet.paragraphs.map((p) => p.name))).map((name) => ({ type: "name" as const, name }));
+    for (const order of orders) {
+      if (order.type !== "name") continue;
+      const matching = sheet.paragraphs.filter((p) => p.name === order.name);
+      for (const paragraph of matching) {
+        earliest = Math.min(earliest, timelinePosition + paragraph.start * TMDPlaybackRenderer.measureDuration(state.timeSignature));
+        state = TMDPlaybackRenderer.renderParagraph(paragraph, timelinePosition, state).state;
+      }
+      timelinePosition += TMDPlaybackRenderer.durationOf(order.name, sheet, state.timeSignature);
+    }
+    return earliest;
   }
 
   public static measureDuration(beat: Beat): number {

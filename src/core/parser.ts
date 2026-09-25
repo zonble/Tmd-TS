@@ -43,6 +43,7 @@ export type TokenType =
   | "positiveNumber"
   | "double"
   | "note"
+  | "plus"
   | "chord"
   | "percussion"
   | "metadata"
@@ -86,6 +87,7 @@ export function tokenExpectedDescription(type: TokenType): string {
     case "positiveNumber": return "positive number";
     case "double": return "decimal number";
     case "note": return "note";
+    case "plus": return "+";
     case "chord": return "chord";
     case "percussion": return "percussion";
     case "metadata": return "metadata";
@@ -451,6 +453,14 @@ export class Lexer {
       case "/": this.advance(); return { type: "slash", text: "/", line, column: col };
       case "*": this.advance(); return { type: "asterisk", text: "*", line, column: col };
       case "-": this.advance(); return { type: "tie", text: "-", line, column: col };
+      case "+":
+        // A plus immediately following a pitch is a connected multi-note
+        // separator; otherwise it belongs to a positive number such as +2.
+        if (this.pos > 0 && /[0-7'_,^]/.test(this.input[this.pos - 1])) {
+          this.advance();
+          return { type: "plus", text: "+", line, column: col };
+        }
+        break;
       case "[": {
         this.advance();
         let chordContent = "";
@@ -935,6 +945,21 @@ export class TmdParser {
 
   private parseUnits(): Unit[] {
     this.skipPipes();
+    const first = this.parsePitchUnit();
+    if (first && (this.current.type === "plus")) {
+      const notes = [first];
+      while (this.match("plus")) {
+        const next = this.parsePitchUnit();
+        if (!next) {
+          this.recordFailure(this.pos, ["note"]);
+          return [];
+        }
+        notes.push(next);
+      }
+      return [{ type: "multiNote", notes }];
+    }
+    if (first) return [{ type: "note", note: first }];
+
     if (this.current.type === "number") {
       const text = this.current.text;
       const units: Unit[] = [];
@@ -987,6 +1012,17 @@ export class TmdParser {
     }
     const single = this.parseUnit();
     return single ? [single] : [];
+  }
+
+  private parsePitchUnit(): Note | null {
+    if (this.current.type === "note") {
+      return this.advance().value as Note;
+    }
+    if (this.current.type === "number" && /^[1-7]$/.test(this.current.text)) {
+      const degree = this.advance().value as ScaleDegree;
+      return { degree, accidental: Accidental.Natural, octave: 0 };
+    }
+    return null;
   }
 
   private parseUnit(): Unit | null {

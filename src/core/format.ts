@@ -27,6 +27,8 @@ export function formatUnit(unit: Unit): string {
   switch (unit.type) {
     case "note":
       return formatNote(unit.note);
+    case "multiNote":
+      return unit.notes.map(formatNote).join("+");
     case "chord":
       return `[${unit.chord.toString()}]`;
     case "tie":

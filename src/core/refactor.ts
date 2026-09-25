@@ -371,6 +371,12 @@ export class TMDRefactor {
                 },
               };
             }
+            if (u.type === "multiNote") {
+              return {
+                type: "multiNote" as const,
+                notes: u.notes.map((note) => ({ ...note, octave: note.octave + shift })),
+              };
+            }
             return u;
           }),
         })),
@@ -444,6 +450,19 @@ export class TMDRefactor {
                   accidental: u.note.accidental,
                   octave: u.note.octave + octaveDelta,
                 },
+              };
+            }
+            if (u.type === "multiNote") {
+              return {
+                type: "multiNote" as const,
+                notes: u.notes.map((note) => {
+                  const currentDeg = note.degree as number;
+                  const zeroIndexed = currentDeg - 1;
+                  const newZero = zeroIndexed + steps;
+                  const newDeg = (((newZero % 7) + 7) % 7) + 1;
+                  const octaveDelta = Math.floor(newZero / 7);
+                  return { ...note, degree: newDeg as ScaleDegree, octave: note.octave + octaveDelta };
+                }),
               };
             }
             return u;
