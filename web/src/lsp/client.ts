@@ -184,8 +184,6 @@ export class TMDWebLSPClient {
 
       return {
         label: item.label,
-        detail: item.detail,
-        info: item.documentation,
         apply: applyText,
         type: item.kind === 15 ? "text" : "variable",
       };

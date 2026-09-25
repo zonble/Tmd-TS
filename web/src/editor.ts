@@ -69,6 +69,11 @@ export const defaultEditorExtensions = [
   indentOnInput(),
   syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
   bracketMatching(),
+  // Macro completion owns the closing `)`, so don't insert it while typing
+  // `-> (`. Keep automatic closing for chords, directives, and quotes.
+  EditorState.languageData.of(() => [{
+    closeBrackets: { brackets: ["[", "{", "'", '"'] },
+  }]),
   closeBrackets(),
   rectangularSelection(),
   crosshairCursor(),
@@ -263,7 +268,14 @@ export function createTmdEditor(
         const line = update.state.doc.lineAt(pos);
         const prefix = line.text.slice(0, pos - line.from);
         if (/(?:->\s*\(?|:\s*|\[\s*|\{\s*|\(\s*)$/.test(prefix)) {
-          startCompletion(update.view);
+          // Dispatch after the current update has completed. Dispatching from
+          // inside an update listener can be swallowed by CodeMirror's
+          // completion state before its source is queried.
+          queueMicrotask(() => {
+            if (update.view.dom.isConnected) {
+              startCompletion(update.view);
+            }
+          });
         }
       }
     }
@@ -304,6 +316,8 @@ export function createTmdEditor(
       key: "Ctrl-Space",
       run: startCompletion,
     },
+    { mac: "Alt-i", run: startCompletion },
+    { mac: "Alt-`", run: startCompletion },
     ...completionKeymap,
     {
       key: "Mod-/",

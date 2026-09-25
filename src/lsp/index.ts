@@ -116,20 +116,34 @@ export interface TMDJSONRPCResponse {
 
 export class TMDJSONRPCCodec {
   public static decode(input: string): TMDJSONRPCFrame[] {
-    const res = this.decodeBuffer(Buffer.from(input, "utf-8"));
+    const res = this.decodeBuffer(new TextEncoder().encode(input));
     return res.frames;
   }
 
-  public static decodeBuffer(buffer: Buffer): { frames: TMDJSONRPCFrame[]; remaining: Buffer } {
+  public static decodeBuffer(buffer: Uint8Array): { frames: TMDJSONRPCFrame[]; remaining: Uint8Array } {
     const frames: TMDJSONRPCFrame[] = [];
     let current = buffer;
-    const separator = Buffer.from("\r\n\r\n", "utf-8");
+    const separator = new TextEncoder().encode("\r\n\r\n");
+    const decoder = new TextDecoder();
 
     while (true) {
-      const sepIndex = current.indexOf(separator);
+      let sepIndex = -1;
+      for (let i = 0; i <= current.length - separator.length; i++) {
+        let matches = true;
+        for (let j = 0; j < separator.length; j++) {
+          if (current[i + j] !== separator[j]) {
+            matches = false;
+            break;
+          }
+        }
+        if (matches) {
+          sepIndex = i;
+          break;
+        }
+      }
       if (sepIndex === -1) break;
 
-      const headerStr = current.subarray(0, sepIndex).toString("utf-8");
+      const headerStr = decoder.decode(current.subarray(0, sepIndex));
       let contentLength: number | null = null;
       for (const line of headerStr.split("\r\n")) {
         const parts = line.split(":");
@@ -153,7 +167,7 @@ export class TMDJSONRPCCodec {
       current = current.subarray(bodyEnd);
 
       try {
-        const obj = JSON.parse(bodyBuffer.toString("utf-8"));
+        const obj = JSON.parse(decoder.decode(bodyBuffer));
         frames.push({
           id: obj.id,
           method: obj.method,
@@ -188,7 +202,7 @@ export class TMDJSONRPCCodec {
 
   private static encodePayload(dict: Record<string, any>): string {
     const jsonStr = JSON.stringify(dict);
-    const length = Buffer.byteLength(jsonStr, "utf-8");
+    const length = new TextEncoder().encode(jsonStr).byteLength;
     return `Content-Length: ${length}\r\n\r\n${jsonStr}`;
   }
 }

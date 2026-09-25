@@ -54,6 +54,21 @@ verse:Piano {
     expect(canonItem?.detail).toContain("Polyphonic Canon");
   });
 
+  it("works in a browser runtime without the Node Buffer global", async () => {
+    const nodeBuffer = (globalThis as any).Buffer;
+    try {
+      (globalThis as any).Buffer = undefined;
+
+      const client = new TMDWebLSPClient();
+      client.openDocument("-> (ca");
+      const completions = await client.requestCompletions(0, 6);
+
+      expect(completions.some((item) => item.label === "canon")).toBe(true);
+    } finally {
+      (globalThis as any).Buffer = nodeBuffer;
+    }
+  });
+
   it("requests document formatting", async () => {
     const client = new TMDWebLSPClient();
     const unformatted = `::SCORE::
@@ -144,9 +159,9 @@ verse:Piano {
     const cmItems = client.convertToCMCompletions(lspItems);
     expect(cmItems.length).toBe(2);
     expect(cmItems[0].label).toBe("canon");
-    expect(cmItems[0].detail).toBe("Polyphonic Canon");
+    expect(cmItems[0].detail).toBeUndefined();
+    expect(cmItems[0].info).toBeUndefined();
     expect(cmItems[0].type).toBe("text");
     expect(cmItems[1].label).toBe("Piano");
   });
 });
-

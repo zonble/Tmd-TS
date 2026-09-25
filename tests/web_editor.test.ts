@@ -205,5 +205,14 @@ describe("Web Studio Editor Configuration (TDD)", () => {
     // Must sync document on change
     expect(editorContent).toContain("lspClient.changeDocument(");
   });
-});
 
+  it("does not auto-close macro parentheses before completion", () => {
+    const editorPath = path.join(__dirname, "../web/src/editor.ts");
+    const editorContent = fs.readFileSync(editorPath, "utf-8");
+
+    // `-> (` must remain open so macro completion can own the closing `)`.
+    expect(editorContent).toMatch(/closeBrackets:\s*\{\s*brackets:\s*\[[^\]]*\]/);
+    expect(editorContent).not.toMatch(/closeBrackets:\s*\{\s*brackets:\s*\[[^\]]*"\("/);
+    expect(editorContent).toContain('{ mac: "Alt-i", run: startCompletion }');
+  });
+});
