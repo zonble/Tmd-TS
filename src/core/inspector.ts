@@ -8,7 +8,7 @@ import {
   Sheet,
 } from "./types.js";
 import { SheetInstrumentHelper } from "./instruments.js";
-import { TMDPlaybackRenderer, PlaybackState, PlaybackEvent } from "./playback.js";
+import { TMDPlaybackRenderer, PlaybackState, PlaybackEvent, PlaybackDirectiveEvent } from "./playback.js";
 import { TMDMacroEvaluator } from "./macro.js";
 
 /**
@@ -139,13 +139,14 @@ export class TMDSongInspector {
     const initialMeter = effectiveSheet.beat ? `${effectiveSheet.beat.count}/${effectiveSheet.beat.noteValue}` : "4/4";
 
     // 1. Timing Profile
-    const timingProfile = this.buildTimingProfile(effectiveSheet);
+    const timelineDirectives = this.collectTimelineDirectives(effectiveSheet);
+    const timingProfile = this.buildTimingProfile(effectiveSheet, timelineDirectives);
 
     // 2. Instrument Ranges
     const distinctInsts = SheetInstrumentHelper.distinctInstruments(effectiveSheet, false);
     const instrumentRanges: TMDPitchRangeProfile[] = [];
     for (const inst of distinctInsts) {
-      const profile = this.buildPitchProfile(inst, effectiveSheet, timingProfile);
+      const profile = this.buildPitchProfile(inst, effectiveSheet, timingProfile, timelineDirectives);
       if (profile) {
         instrumentRanges.push(profile);
       }
@@ -176,7 +177,7 @@ export class TMDSongInspector {
     };
   }
 
-  private static buildTimingProfile(sheet: Sheet): TMDTimingProfile {
+  private static buildTimingProfile(sheet: Sheet, timelineDirectives: PlaybackDirectiveEvent[]): TMDTimingProfile {
     const orders: Order[] =
       sheet.orders.length > 0
         ? sheet.orders
@@ -210,10 +211,30 @@ export class TMDSongInspector {
         state = { ...state, keyOffset: offset };
       } else if (order.type === "name") {
         const durQuarterNotes = TMDPlaybackRenderer.durationOf(order.name, sheet);
-        const nominalMeasureDur =
-          (Math.max(1, state.timeSignature.count) * 4.0) / Math.max(1, state.timeSignature.noteValue);
-        const secMeasures = Math.max(1, Math.round(durQuarterNotes / nominalMeasureDur));
-        const secDurationSeconds = durQuarterNotes / (state.tempo / 60.0);
+        const startPosition = currentQuarterPosition;
+        const endPosition = startPosition + durQuarterNotes;
+        let cursor = startPosition;
+        let tempo = state.tempo;
+        let meter = state.timeSignature;
+        let secDurationSeconds = 0;
+        let measureCount = 0;
+        for (const directive of timelineDirectives) {
+          if (directive.position < startPosition || directive.position >= endPosition) continue;
+          if (directive.position > cursor) {
+            const segment = directive.position - cursor;
+            secDurationSeconds += segment * 60 / tempo;
+            measureCount += segment / this.measureDuration(meter);
+            cursor = directive.position;
+          }
+          tempo = directive.state.tempo;
+          meter = directive.state.timeSignature;
+        }
+        if (endPosition > cursor) {
+          const segment = endPosition - cursor;
+          secDurationSeconds += segment * 60 / tempo;
+          measureCount += segment / this.measureDuration(meter);
+        }
+        const secMeasures = Math.max(1, Math.round(measureCount));
 
         const occurrence = (sectionOccurrences[order.name] || 0) + 1;
         sectionOccurrences[order.name] = occurrence;
@@ -236,6 +257,7 @@ export class TMDSongInspector {
         currentSeconds += secDurationSeconds;
         currentMeasure += secMeasures;
         totalMeasures += secMeasures;
+        state = { ...state, tempo, timeSignature: meter };
       }
     }
 
@@ -249,7 +271,8 @@ export class TMDSongInspector {
   private static buildPitchProfile(
     instrument: string,
     sheet: Sheet,
-    timingProfile: TMDTimingProfile
+    timingProfile: TMDTimingProfile,
+    timelineDirectives: PlaybackDirectiveEvent[]
   ): TMDPitchRangeProfile | null {
     const timeline = TMDPlaybackRenderer.render(sheet, instrument);
 
@@ -284,17 +307,33 @@ export class TMDSongInspector {
       );
       const sectionName = matchedSection ? matchedSection.name : "";
       const sectionOccurrence = matchedSection ? matchedSection.occurrenceIndex : 1;
-      const nominalMeasureDur =
-        (Math.max(1, event.state.timeSignature.count) * 4.0) / Math.max(1, event.state.timeSignature.noteValue);
       let measure: number;
       let timeSeconds: number;
       if (matchedSection) {
-        const offsetInSec = Math.max(0.0, event.position - matchedSection.startPositionQuarterNotes);
-        const measureOffset = Math.floor(offsetInSec / nominalMeasureDur);
-        measure = matchedSection.startMeasure + measureOffset;
-        const secTimeOffset = offsetInSec / (matchedSection.tempo / 60.0);
-        timeSeconds = matchedSection.startSeconds + secTimeOffset;
+        const position = Math.max(matchedSection.startPositionQuarterNotes, event.position);
+        let cursor = matchedSection.startPositionQuarterNotes;
+        let tempo = matchedSection.tempo;
+        let meter = event.state.timeSignature;
+        let elapsedSeconds = 0;
+        let elapsedMeasures = 0;
+        for (const directive of timelineDirectives) {
+          if (directive.position <= cursor || directive.position >= position) continue;
+          const segment = directive.position - cursor;
+          elapsedSeconds += segment * 60 / tempo;
+          elapsedMeasures += segment / this.measureDuration(meter);
+          cursor = directive.position;
+          tempo = directive.state.tempo;
+          meter = directive.state.timeSignature;
+        }
+        if (position > cursor) {
+          const segment = position - cursor;
+          elapsedSeconds += segment * 60 / tempo;
+          elapsedMeasures += segment / this.measureDuration(meter);
+        }
+        measure = matchedSection.startMeasure + Math.floor(elapsedMeasures + 1e-9);
+        timeSeconds = matchedSection.startSeconds + elapsedSeconds;
       } else {
+        const nominalMeasureDur = this.measureDuration(event.state.timeSignature);
         measure = 1 + Math.floor(event.position / nominalMeasureDur);
         timeSeconds = event.position / (event.state.tempo / 60.0);
       }
@@ -355,6 +394,24 @@ export class TMDSongInspector {
       difficulty,
       suitableVoiceTypes,
     };
+  }
+
+  private static collectTimelineDirectives(sheet: Sheet): PlaybackDirectiveEvent[] {
+    const instruments = new Set(sheet.paragraphs.map((paragraph) => paragraph.instrument || "Piano"));
+    const directives: PlaybackDirectiveEvent[] = [];
+    for (const instrument of instruments) {
+      directives.push(...TMDPlaybackRenderer.render(sheet, instrument).directives);
+    }
+    return directives
+      .sort((a, b) => a.position - b.position)
+      .filter((directive, index, all) => {
+        const previous = all[index - 1];
+        return !previous || previous.position !== directive.position || previous.state.tempo !== directive.state.tempo || previous.state.timeSignature.count !== directive.state.timeSignature.count || previous.state.timeSignature.noteValue !== directive.state.timeSignature.noteValue;
+      });
+  }
+
+  private static measureDuration(beat: { count: number; noteValue: number }): number {
+    return Math.max(1, beat.count) * 4 / Math.max(1, beat.noteValue);
   }
 
   /**

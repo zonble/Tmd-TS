@@ -3,6 +3,29 @@ import { TmdParser } from "../src/core/parser.js";
 import { TMDSongInspector } from "../src/core/inspector.js";
 
 describe("TMDSongInspector (TDD port from TmdSwift)", () => {
+  it("uses section tempo directives for timing duration and note timestamps", () => {
+    const sheet = TmdParser.parse(`::SCORE::
+** Inspector Tempo **
+!= 60
+?= C
+<4/4>
+
+A:Vocal@|0|{
+    <4*>
+    1 2 3 4
+    {!=120}
+    5 6 7 1^
+}
+
+-> A ->#
+`);
+
+    const profile = TMDSongInspector.inspect(sheet, "Vocal");
+    expect(profile.timing.totalDurationSeconds).toBeCloseTo(6, 5);
+    expect(profile.timing.sections[0].durationSeconds).toBeCloseTo(6, 5);
+    expect(profile.vocalRange?.highestNote.timeSeconds).toBeCloseTo(5.5, 5);
+  });
+
   it("inspects song basic profile, timing, pitch ranges, harmony, and density", () => {
     const tmd = `::SCORE::
 ** Inspector Test Song **
@@ -269,4 +292,3 @@ chorus:Vocal@|0|{
     expect(report).toContain("/ 1.8 octaves");
   });
 });
-
