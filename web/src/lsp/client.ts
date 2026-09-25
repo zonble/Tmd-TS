@@ -18,6 +18,7 @@ export class TMDWebLSPClient {
   private nextId: number = 1;
   private pendingRequests: Map<number | string, (response: any) => void> = new Map();
   private onDiagnostics?: (diagnostics: TMDLSPDiagnostic[]) => void;
+  private diagnosticWaiters: Array<(diagnostics: TMDLSPDiagnostic[]) => void> = [];
 
   constructor(options?: TMDWebLSPClientOptions) {
     this.uri = options?.uri || "inmemory://score.tmd";
@@ -42,6 +43,11 @@ export class TMDWebLSPClient {
       if (frame.method === "textDocument/publishDiagnostics") {
         if (frame.params?.uri === this.uri && this.onDiagnostics) {
           this.onDiagnostics(frame.params.diagnostics || []);
+        }
+        if (frame.params?.uri === this.uri) {
+          const waiters = this.diagnosticWaiters.splice(0);
+          const diagnostics = frame.params.diagnostics || [];
+          for (const resolve of waiters) resolve(diagnostics);
         }
         continue;
       }
@@ -80,6 +86,13 @@ export class TMDWebLSPClient {
           text,
         },
       ],
+    });
+  }
+
+  public diagnose(text: string, version: number = 1): Promise<TMDLSPDiagnostic[]> {
+    return new Promise((resolve) => {
+      this.diagnosticWaiters.push(resolve);
+      this.changeDocument(text, version);
     });
   }
 

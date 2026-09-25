@@ -352,16 +352,7 @@ export function createTmdEditor(
 
   const tmdLinter = linter(async (view) => {
     const docText = view.state.doc.toString();
-    lspClient.changeDocument(docText);
-    const diags = await new Promise<any[]>((resolve) => {
-      // Create a short-lived client listener or trigger diagnose via client
-      const listenerClient = new TMDWebLSPClient({
-        onDiagnostics: (diagnostics) => {
-          resolve(diagnostics);
-        },
-      });
-      listenerClient.openDocument(docText);
-    });
+    const diags = await lspClient.diagnose(docText);
     return lspClient.convertToCMDiagnostics(docText, diags) as CMDiagnostic[];
   });
 

@@ -185,6 +185,14 @@ describe("Web Studio Editor Configuration (TDD)", () => {
     expect(editorContent).toContain("formatDocument(): Promise<void>");
   });
 
+  it("reuses the editor LSP client for lint diagnostics", () => {
+    const editorPath = path.join(__dirname, "../web/src/editor.ts");
+    const editorContent = fs.readFileSync(editorPath, "utf-8");
+    const linterBody = editorContent.slice(editorContent.indexOf("const tmdLinter"), editorContent.indexOf("const setMeasureIssuesEffect"));
+    expect(linterBody).not.toContain("new TMDWebLSPClient");
+    expect(linterBody).toContain("lspClient.diagnose");
+  });
+
   it("configures autocompletion with hotkeys (Mod-Space, Ctrl-Space) and activateOnTyping", () => {
     const editorPath = path.join(__dirname, "../web/src/editor.ts");
     const editorContent = fs.readFileSync(editorPath, "utf-8");
