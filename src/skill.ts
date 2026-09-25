@@ -197,7 +197,7 @@ intro:Drums@|0|{
 > **Note on Timpani vs. Drum Kit**:
 > Timpani (Program 47) is a **pitched melodic instrument**, NOT General MIDI Channel 10 percussion.
 > - Acoustic Timpani kettle drums operate in the pitch range \`D2\` to \`A3\` (MIDI 38–57).
-> - In standard TMD soundfonts, Timpani produces its deepest, resonant orchestral thunder ("咚！咚！咚！") when written in the lower octave: \`2__\` (D2, MIDI 38) to \`1_\` (C3, MIDI 48).
+> - In standard TMD soundfonts (e.g., Apple DLS \`gs_instruments.dls\`), Timpani produces its deepest, resonant orchestral thunder ("咚！咚！咚！") when written in the lower octave: \`2__\` (D2, MIDI 38) to \`1_\` (C3, MIDI 48).
 > - Since Timpani is tuned to specific harmonic fundamental pitches, use \`{?= fixed}\` inside Timpani sections so global order transpositions (e.g. \`-> {?+3} -> C\`) do not shift kettle pitches unexpectedly.
 
 ### 5.8 Tuplets and Rhythmic Groupings
@@ -245,6 +245,13 @@ Rules:
   - \`{?+3}\`: Modulate up 3 semitones.
   - \`{?-2}\`: Modulate down 2 semitones.
   - \`{?=G}\`: Modulate to absolute key G.
+- Supports S-Expression macro combinators:
+  - \`(play <Theme> <Instrument>)\`: Bind abstract theme to an instrument track.
+  - \`(loop <Theme> <Instrument> <times>)\`: Repeat theme sequentially.
+  - \`(canon <Theme> (<Inst1> <Inst2> ...) <bar_offset>)\`: Auto-stagger voices in strict canon.
+  - \`(layer <expr1> <expr2> ...)\`: Concurrently play multiple voices/sections.
+  - \`(seq <expr1> <expr2> ...)\`: Sequentially chain multiple expressions.
+  - \`(vary <Theme> <modifiers...>)\`: Transform motives with pitch transposition (\`+7\`), inversion (\`flip\`), retrograde (\`reverse\`), or modal shift (\`minor\`/\`major\`).
 - Ends with \`->#\` (terminator).
 
 ---

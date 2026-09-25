@@ -147,6 +147,28 @@ Each section begins with `<n*>`:
 
 The barline symbol `|` can be used within sections for visual formatting. It is ignored by the parser.
 
+### 6.1 Inline Section Directives
+
+Directives can be placed anywhere between musical units inside a section:
+
+```tmd
+<4*>
+1 2 {!=140} 3 4
+{!+10}
+{?+2}
+{?=D}
+{?=fixed}
+{<3/4>}
+```
+
+Supported directives include:
+- Absolute tempo changes (`{!=140}`) and relative tempo changes (`{!+10}`) in BPM.
+- Absolute key changes (`{?=D}`) and relative transpositions (`{?+2}`, `{?-2}`) in semitones.
+- **Fixed Pitch directive (`{?=fixed}` or `{?fixed}`)**: Locks this track section to fixed pitch (`keyOffset = 0`), making it immune to global order-level transpositions (e.g. `-> {?+3} -> ...`). Ideal for Timpani, Sound FX, or non-transposing percussion.
+- Inline time signature / meter changes (`{<3/4>}`).
+
+MIDI encoders write tempo and meter changes to the conductor track, while MusicXML, LilyPond, and ABC exporters output corresponding score directives.
+
 ## 7. Musical Units
 
 ### 7.1 Numbered Musical Notation (Jianpu)
@@ -187,7 +209,20 @@ Chords are delimited by square brackets:
 [6m]
 ```
 
-### 7.3 Ties and Sustained Notes
+### 7.3 Multi-Notes and Simultaneous Dyads
+
+Two or more notes can be connected with `+` to denote simultaneous polyphonic notes or dyads played on the same beat that are not named harmonic chords (e.g. violin double stops, piano dyads):
+
+```text
+1+3        /* 1 and 3 played simultaneously */
+1+5--      /* 1 and 5 sustained across ties */
+1^+3       /* Octave and accidental modifiers supported */
+(1+3 2+4)%(--) /* Multi-notes inside tuplets */
+```
+
+In `TMDMeasureChecker` and playback duration accounting, each `+`-connected multi-note is treated as 1 single base unit.
+
+### 7.4 Ties and Sustained Notes
 
 A single `-` represents a tie extending duration by one base unit:
 
@@ -196,7 +231,7 @@ A single `-` represents a tie extending duration by one base unit:
 [Cmaj7] -
 ```
 
-### 7.4 Tuplets and Rhythmic Groupings
+### 7.5 Tuplets and Rhythmic Groupings
 
 Parentheses group multiple units into a subdivision, followed by `%(...)` defining the base duration:
 
