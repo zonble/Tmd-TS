@@ -1,6 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
+vi.mock("jzz", () => {
+  const fn: any = () => ({
+    synth: { Tiny: () => ({}) },
+    openMidiOut: () => Promise.resolve({}),
+  });
+  fn.synth = { Tiny: () => ({}) };
+  fn.MIDI = { SMF: () => ({}) };
+  return { default: fn };
+});
+vi.mock("jzz-synth-tiny", () => ({ default: () => {} }));
+vi.mock("jzz-midi-smf", () => ({ default: () => {} }));
+vi.mock("soundfont-player", () => ({ default: {} }));
+
 import { tmdPlayer } from "../web/src/midi-player.js";
 
 describe("TMD Player Replay & End-of-Track Invariants (TDD)", () => {
