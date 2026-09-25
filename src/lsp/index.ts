@@ -309,12 +309,12 @@ export class TMDLSPCompletionEngine {
           }
         } catch (_) {}
 
-        const diatonicChords = this.getDiatonicChords(keyStr);
+        const chords = [...this.scaleDegreeChords, ...this.getDiatonicChords(keyStr)];
         const appendClosingBracket = nextChar !== "]";
-        return diatonicChords.map((chord) => ({
+        return chords.map((chord) => ({
           label: chord,
           kind: TMDLSPCompletionItemKind.Value,
-          detail: `Diatonic Chord in ${keyStr}`,
+          detail: this.scaleDegreeChords.includes(chord) ? `Scale Degree Chord: [${chord}]` : `Diatonic Chord in ${keyStr}`,
           insertText: appendClosingBracket ? `${chord}]` : chord,
         }));
       }
@@ -341,17 +341,23 @@ export class TMDLSPCompletionEngine {
 
   private static getDiatonicChords(keyStr: string): string[] {
     if (keyStr.includes("m")) {
-      return ["Am", "Bdim", "C", "Dm", "Em", "F", "G", "E7"];
+      return ["Am", "Bdim", "C", "Dm", "Em", "F", "G", "Am7", "Dm7", "E7", "Cmaj7", "Fmaj7"];
     }
     switch (keyStr) {
-      case "G": return ["G", "Am", "Bm", "C", "D", "Em", "F#dim", "D7"];
-      case "D": return ["D", "Em", "F#m", "G", "A", "Bm", "C#dim", "A7"];
-      case "A": return ["A", "Bm", "C#m", "D", "E", "F#m", "G#dim", "E7"];
-      case "F": return ["F", "Gm", "Am", "Bb", "C", "Dm", "Edim", "C7"];
-      case "Bb": return ["Bb", "Cm", "Dm", "Eb", "F", "Gm", "Adim", "F7"];
-      default: return ["C", "Dm", "Em", "F", "G", "Am", "Bdim", "G7", "Cmaj7", "Am7"];
+      case "G": return ["G", "Am", "Bm", "C", "D", "Em", "F#dim", "Gmaj7", "Am7", "Bm7", "Cmaj7", "D7", "Em7", "Dsus4", "G/B", "D/F#", "C/D"];
+      case "D": return ["D", "Em", "F#m", "G", "A", "Bm", "C#dim", "Dmaj7", "Em7", "F#m7", "Gmaj7", "A7", "Bm7", "Asus4"];
+      case "A": return ["A", "Bm", "C#m", "D", "E", "F#m", "G#dim", "Amaj7", "Bm7", "C#m7", "Dmaj7", "E7", "F#m7", "Esus4"];
+      case "F": return ["F", "Gm", "Am", "Bb", "C", "Dm", "Edim", "Fmaj7", "Gm7", "Am7", "Bbmaj7", "C7", "Dm7", "Csus4", "F/A", "C/E", "Bb/C"];
+      case "Bb": return ["Bb", "Cm", "Dm", "Eb", "F", "Gm", "Adim", "Bbmaj7", "Cm7", "Dm7", "Ebmaj7", "F7", "Gm7", "Fsus4"];
+      default: return ["C", "Dm", "Em", "F", "G", "Am", "Bdim", "Cmaj7", "Dm7", "Em7", "Fmaj7", "G7", "Am7", "Gsus4", "C/E", "G/B", "F/G"];
     }
   }
+
+  private static readonly scaleDegreeChords: string[] = [
+    "1", "2m", "3m", "4", "5", "6m", "7dim",
+    "1maj7", "2m7", "3m7", "4maj7", "57", "6m7", "5sus4",
+    "5/4", "4/5", "1/3", "5/7", "1/5",
+  ];
 }
 
 // MARK: - Diagnostic Engine

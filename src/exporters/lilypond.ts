@@ -27,7 +27,7 @@ export class TMDLilyPondGenerator {
     ly += `\\paper {\n  indent = 1.5\\cm\n  short-indent = 0.5\\cm\n}\n\n`;
     ly += `global = {\n`;
     ly += `  \\time ${sheet.beat.count}/${sheet.beat.noteValue}\n`;
-    ly += `  \\tempo 4 = ${Math.round(sheet.speed > 0 ? sheet.speed : 120)}\n`;
+    ly += `  ${TMDLilyPondGenerator.resolveTempo(sheet.beat, sheet.speed > 0 ? sheet.speed : 120)}\n`;
     ly += `  \\key ${TMDLilyPondGenerator.lilyPondKey(sheet.keySignature.toString())}\n`;
     ly += `}\n\n`;
 
@@ -88,12 +88,41 @@ export class TMDLilyPondGenerator {
     return result.trim() + "\n";
   }
 
+  public static resolveTempo(beat: { count: number; noteValue: number }, quarterBPM: number): string {
+    // Compound meter: denominator is 8 and numerator is a multiple of 3 (> 3, e.g. 6/8, 9/8, 12/8)
+    if (beat.noteValue === 8 && beat.count > 3 && beat.count % 3 === 0) {
+      // Beat unit is a dotted-quarter note (4.)
+      const bpm = Math.round(quarterBPM / 1.5);
+      return `\\tempo 4. = ${bpm}`;
+    }
+    switch (beat.noteValue) {
+      case 2: {
+        const bpm = Math.round(quarterBPM / 2.0);
+        return `\\tempo 2 = ${bpm}`;
+      }
+      case 8: {
+        const bpm = Math.round(quarterBPM * 2.0);
+        return `\\tempo 8 = ${bpm}`;
+      }
+      case 16: {
+        const bpm = Math.round(quarterBPM * 4.0);
+        return `\\tempo 16 = ${bpm}`;
+      }
+      default: {
+        const bpm = Math.round(quarterBPM);
+        return `\\tempo 4 = ${bpm}`;
+      }
+    }
+  }
+
   private static formatDirective(directive: PlaybackDirectiveEvent): string {
     const k = directive.kind;
     switch (k.type) {
       case "tempo":
-      case "relativeTempo":
-        return `\\tempo 4 = ${Math.round(directive.state.tempo)} `;
+      case "relativeTempo": {
+        const cmd = TMDLilyPondGenerator.resolveTempo(directive.state.timeSignature, directive.state.tempo);
+        return `${cmd} `;
+      }
       case "timeSignature":
         return `\\time ${k.beat.count}/${k.beat.noteValue} `;
       case "absoluteKey":

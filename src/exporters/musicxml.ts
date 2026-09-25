@@ -73,6 +73,7 @@ export class TMDMusicXMLGenerator {
 
       measure.events.forEach((event, idx) => {
         const duration = durations[idx];
+        const isChord = idx > 0 && Math.abs(event.startOffset - measure.events[idx - 1].startOffset) < 1e-4;
         switch (event.content.type) {
           case "note":
             content += TMDMusicXMLGenerator.generateNoteXML(
@@ -81,7 +82,8 @@ export class TMDMusicXMLGenerator {
               divisions,
               event.state.keyOffset,
               event.tieStart,
-              event.tieStop
+              event.tieStop,
+              isChord
             );
             break;
           case "chord":
@@ -101,6 +103,7 @@ export class TMDMusicXMLGenerator {
 
     return xml;
   }
+
 
   private static durationInfo(duration: number, divisions: number): { type: string; dots: number; timeModification?: { actualNotes: number; normalNotes: number } } | null {
     const d = divisions;
@@ -198,11 +201,38 @@ export class TMDMusicXMLGenerator {
     }
   }
 
+  public static resolveMetronome(beat: { count: number; noteValue: number }, quarterBPM: number): { beatUnit: string; isDotted: boolean; perMinute: number } {
+    // Compound meter: denominator is 8 and numerator is a multiple of 3 (> 3, e.g. 6/8, 9/8, 12/8)
+    if (beat.noteValue === 8 && beat.count > 3 && beat.count % 3 === 0) {
+      // Beat unit is a dotted-quarter note (value = 1.5 quarters)
+      const bpm = quarterBPM / 1.5;
+      return { beatUnit: "quarter", isDotted: true, perMinute: Math.round(bpm) };
+    }
+    // Beat unit based on time signature denominator
+    switch (beat.noteValue) {
+      case 2:
+        // Half note (value = 2.0 quarters)
+        return { beatUnit: "half", isDotted: false, perMinute: Math.round(quarterBPM / 2.0) };
+      case 8:
+        // Eighth note (value = 0.5 quarters)
+        return { beatUnit: "eighth", isDotted: false, perMinute: Math.round(quarterBPM * 2.0) };
+      case 16:
+        // 16th note (value = 0.25 quarters)
+        return { beatUnit: "16th", isDotted: false, perMinute: Math.round(quarterBPM * 4.0) };
+      default:
+        // Default: quarter note
+        return { beatUnit: "quarter", isDotted: false, perMinute: Math.round(quarterBPM) };
+    }
+  }
+
   private static generatePlaybackDirectiveXML(directive: PlaybackDirectiveEvent): string {
     switch (directive.kind.type) {
       case "tempo":
-      case "relativeTempo":
-        return `      <direction placement="above">\n        <direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>${Math.round(directive.state.tempo)}</per-minute></metronome></direction-type>\n        <sound tempo="${directive.state.tempo}"/>\n      </direction>\n`;
+      case "relativeTempo": {
+        const metronome = TMDMusicXMLGenerator.resolveMetronome(directive.state.timeSignature, directive.state.tempo);
+        const dotTag = metronome.isDotted ? "<beat-unit-dot/>" : "";
+        return `      <direction placement="above">\n        <direction-type><metronome><beat-unit>${metronome.beatUnit}</beat-unit>${dotTag}<per-minute>${metronome.perMinute}</per-minute></metronome></direction-type>\n        <sound tempo="${directive.state.tempo}"/>\n      </direction>\n`;
+      }
       case "timeSignature":
         return `      <attributes><time><beats>${directive.kind.beat.count}</beats><beat-type>${directive.kind.beat.noteValue}</beat-type></time></attributes>\n`;
       case "absoluteKey":
@@ -243,7 +273,10 @@ export class TMDMusicXMLGenerator {
   }
 
   private static generateAttributesXML(sheet: Sheet, instrument: string, divisions: number): string {
-    return `      <attributes>\n        <divisions>${divisions}</divisions>\n        <key>\n          <fifths>${TMDMusicXMLGenerator.keySignatureToFifths(sheet.keySignature.toString())}</fifths>\n        </key>\n        <time>\n          <beats>${sheet.beat.count}</beats>\n          <beat-type>${sheet.beat.noteValue}</beat-type>\n        </time>\n${TMDMusicXMLGenerator.generateClefXML(instrument, sheet)}      </attributes>\n      <direction placement="above">\n        <direction-type>\n          <metronome>\n            <beat-unit>quarter</beat-unit>\n            <per-minute>${Math.round(sheet.speed > 0 ? sheet.speed : 120)}</per-minute>\n          </metronome>\n        </direction-type>\n        <sound tempo="${Math.round(sheet.speed > 0 ? sheet.speed : 120)}"/>\n      </direction>\n`;
+    const speed = sheet.speed > 0 ? sheet.speed : 120;
+    const initialMetronome = TMDMusicXMLGenerator.resolveMetronome(sheet.beat, speed);
+    const dotTag = initialMetronome.isDotted ? "\n            <beat-unit-dot/>" : "";
+    return `      <attributes>\n        <divisions>${divisions}</divisions>\n        <key>\n          <fifths>${TMDMusicXMLGenerator.keySignatureToFifths(sheet.keySignature.toString())}</fifths>\n        </key>\n        <time>\n          <beats>${sheet.beat.count}</beats>\n          <beat-type>${sheet.beat.noteValue}</beat-type>\n        </time>\n${TMDMusicXMLGenerator.generateClefXML(instrument, sheet)}      </attributes>\n      <direction placement="above">\n        <direction-type>\n          <metronome>\n            <beat-unit>${initialMetronome.beatUnit}</beat-unit>${dotTag}\n            <per-minute>${initialMetronome.perMinute}</per-minute>\n          </metronome>\n        </direction-type>\n        <sound tempo="${Math.round(speed)}"/>\n      </direction>\n`;
   }
 
   private static generateNoteXML(
@@ -252,10 +285,15 @@ export class TMDMusicXMLGenerator {
     divisions: number,
     keyOffset: number,
     tieStart = false,
-    tieStop = false
+    tieStop = false,
+    isChord = false
   ): string {
     const { step, alter, octave } = TMDMusicXMLGenerator.pitchToStepAlterOctave(note, keyOffset);
-    let xml = `      <note>\n        <pitch>\n          <step>${step}</step>\n`;
+    let xml = `      <note>\n`;
+    if (isChord) {
+      xml += `        <chord/>\n`;
+    }
+    xml += `        <pitch>\n          <step>${step}</step>\n`;
     if (alter !== 0) {
       xml += `          <alter>${alter}</alter>\n`;
     }

@@ -410,5 +410,118 @@ A:Piano@|0|{
     expect(ly).toContain("c,4");
     expect(ly).toContain("c'''4");
   });
+
+  describe('Tempo and Metronome Resolution for non-quarter meters (Issue #5)', () => {
+    it('resolves compound meters (6/8) to dotted quarter metronomes and tempo marks', () => {
+      const tmd = `
+::SCORE::
+** 6/8 Compound Meter Test **
+!= 120
+?= C
+<6/8>
+
+A:Piano@|0|{
+    <8*>
+    1 2 3 4 5 6
+    {!=90}
+    1 2 3 4 5 6
+}
+-> A ->#
+`;
+      const sheet = TmdParser.parse(tmd)!;
+
+      // MusicXML: 6/8 with quarterBPM 120 -> 120 / 1.5 = 80 bpm with dotted-quarter
+      const xml = TMDMusicXMLGenerator.generateMusicXML(sheet);
+      expect(xml).toContain('<beat-unit>quarter</beat-unit>\n            <beat-unit-dot/>\n            <per-minute>80</per-minute>');
+      // Directive {!=90} -> 90 / 1.5 = 60 bpm
+      expect(xml).toContain('<beat-unit>quarter</beat-unit><beat-unit-dot/><per-minute>60</per-minute>');
+
+      // LilyPond: \tempo 4. = 80 and \tempo 4. = 60
+      const ly = TMDLilyPondGenerator.generateLilyPond(sheet);
+      expect(ly).toContain('\\tempo 4. = 80');
+      expect(ly).toContain('\\tempo 4. = 60');
+
+      // ABC: Q:3/8=80 and Q:3/8=60
+      const abc = TMDABCGenerator.generateABC(sheet);
+      expect(abc).toContain('Q:3/8=80');
+      expect(abc).toContain('Q:3/8=60');
+    });
+
+    it('resolves cut time / half-note meters (2/2) correctly', () => {
+      const tmd = `
+::SCORE::
+** Cut Time Test **
+!= 120
+?= C
+<2/2>
+
+A:Piano@|0|{
+    <2*>
+    1 2
+}
+-> A ->#
+`;
+      const sheet = TmdParser.parse(tmd)!;
+
+      // MusicXML: half note beat-unit, 120 / 2 = 60 bpm
+      const xml = TMDMusicXMLGenerator.generateMusicXML(sheet);
+      expect(xml).toContain('<beat-unit>half</beat-unit>\n            <per-minute>60</per-minute>');
+
+      // LilyPond: \tempo 2 = 60
+      const ly = TMDLilyPondGenerator.generateLilyPond(sheet);
+      expect(ly).toContain('\\tempo 2 = 60');
+
+      // ABC: Q:1/2=60
+      const abc = TMDABCGenerator.generateABC(sheet);
+      expect(abc).toContain('Q:1/2=60');
+    });
+  });
+
+  describe('Multi-Notes Polyphonic Support in Exporters (Issue #5)', () => {
+    it('outputs <chord/> tag for simultaneous notes in MusicXML', () => {
+      const tmd = `
+::SCORE::
+** Multi-Note MusicXML Test **
+!= 120
+?= C
+<4/4>
+
+A:Piano@|0|{
+    <4*>
+    1+3 2+4 3+5 4+6
+}
+-> A ->#
+`;
+      const sheet = TmdParser.parse(tmd)!;
+      const xml = TMDMusicXMLGenerator.generateMusicXML(sheet);
+
+      // Must have <chord/> elements for the second note of each dyad
+      expect(xml).toContain('<chord/>');
+      const chordTags = (xml.match(/<chord\/>/g) || []).length;
+      expect(chordTags).toBe(4);
+    });
+
+    it('outputs chord bracket notation [...] for simultaneous notes in ABC', () => {
+      const tmd = `
+::SCORE::
+** Multi-Note ABC Test **
+!= 120
+?= C
+<4/4>
+
+A:Piano@|0|{
+    <4*>
+    1+3 2 0 0
+}
+-> A ->#
+`;
+      const sheet = TmdParser.parse(tmd)!;
+      const abc = TMDABCGenerator.generateABC(sheet);
+
+      // 1+3 in C major is C4 and E4, 1 beat = 4 16ths -> [CE]4 or [C4E4]
+      expect(abc).toMatch(/\[[A-Ga-g\^=_0-9]+\]/);
+    });
+  });
 });
+
 

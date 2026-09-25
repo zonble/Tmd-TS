@@ -229,16 +229,35 @@ export class TMDVSQGenerator {
     }
 
     const noteItems: NoteItem[] = [];
-    for (const event of timeline.events) {
-      if (event.content.type !== 'note') continue;
-      const note = event.content.note;
-      const tick = preMeasureTicks + this.midiTick(event.position);
-      const dur = Math.max(1, this.midiTick(event.duration));
-      const pitch = TMDMIDIGenerator.noteToMIDIPitch(note, event.state.keyOffset);
-      if (pitch < 0 || pitch > 127) continue;
+    let i = 0;
+    while (i < timeline.events.length) {
+      const event = timeline.events[i];
+      if (event.content.type !== 'note') {
+        i++;
+        continue;
+      }
+      let bestEvent = event;
+      let bestPitch = TMDMIDIGenerator.noteToMIDIPitch(event.content.note, event.state.keyOffset);
+      let j = i + 1;
+      while (j < timeline.events.length && Math.abs(timeline.events[j].position - event.position) < 1e-4) {
+        const nextEv = timeline.events[j];
+        if (nextEv.content.type === 'note') {
+          const p = TMDMIDIGenerator.noteToMIDIPitch(nextEv.content.note, nextEv.state.keyOffset);
+          if (p > bestPitch) {
+            bestPitch = p;
+            bestEvent = nextEv;
+          }
+        }
+        j++;
+      }
+      i = j;
+
+      if (bestPitch < 0 || bestPitch > 127) continue;
+      const tick = preMeasureTicks + this.midiTick(bestEvent.position);
+      const dur = Math.max(1, this.midiTick(bestEvent.duration));
       const lyric = defaultLyric;
       const phoneme = VocaloidPhoneme.resolvePhoneme(lyric);
-      noteItems.push({ tick, dur, pitch, lyric, phoneme });
+      noteItems.push({ tick, dur, pitch: bestPitch, lyric, phoneme });
     }
 
     // Build INI content
@@ -408,16 +427,35 @@ export class TMDVSQXGenerator {
 
     const notes: VSQXNote[] = [];
     let maxTick = 0;
-    for (const event of timeline.events) {
-      if (event.content.type !== 'note') continue;
-      const note = event.content.note;
-      const tick = preMeasureTicks + Math.round(event.position * this.ticksPerQuarter);
-      const dur = Math.max(1, Math.round(event.duration * this.ticksPerQuarter));
-      const pitch = TMDMIDIGenerator.noteToMIDIPitch(note, event.state.keyOffset);
-      if (pitch < 0 || pitch > 127) continue;
+    let i = 0;
+    while (i < timeline.events.length) {
+      const event = timeline.events[i];
+      if (event.content.type !== 'note') {
+        i++;
+        continue;
+      }
+      let bestEvent = event;
+      let bestPitch = TMDMIDIGenerator.noteToMIDIPitch(event.content.note, event.state.keyOffset);
+      let j = i + 1;
+      while (j < timeline.events.length && Math.abs(timeline.events[j].position - event.position) < 1e-4) {
+        const nextEv = timeline.events[j];
+        if (nextEv.content.type === 'note') {
+          const p = TMDMIDIGenerator.noteToMIDIPitch(nextEv.content.note, nextEv.state.keyOffset);
+          if (p > bestPitch) {
+            bestPitch = p;
+            bestEvent = nextEv;
+          }
+        }
+        j++;
+      }
+      i = j;
+
+      if (bestPitch < 0 || bestPitch > 127) continue;
+      const tick = preMeasureTicks + Math.round(bestEvent.position * this.ticksPerQuarter);
+      const dur = Math.max(1, Math.round(bestEvent.duration * this.ticksPerQuarter));
       const lyric = defaultLyric;
       const phnm = VocaloidPhoneme.resolvePhoneme(lyric);
-      notes.push({ posTick: tick, durTick: dur, noteNum: pitch, lyric, phnm });
+      notes.push({ posTick: tick, durTick: dur, noteNum: bestPitch, lyric, phnm });
       maxTick = Math.max(maxTick, tick + dur);
     }
 
