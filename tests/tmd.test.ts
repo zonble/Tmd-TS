@@ -100,6 +100,13 @@ describe('TmdParser and Format', () => {
     expect(summary).toContain('KeySignature: C');
     expect(summary).toContain('Paragraphs:   4');
   });
+
+  it('includes an explicit declared key separately from the key signature', () => {
+    const sheet = TmdParser.parse(sampleTMD.replace('?= C', '?= D\nkey= Bm'));
+    const summary = formatSummary(sheet);
+    expect(summary).toContain('DeclaredKey:  Bm');
+    expect(summary).toContain('KeySignature: D');
+  });
 });
 
 describe('TMDPlaybackRenderer', () => {

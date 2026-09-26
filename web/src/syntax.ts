@@ -55,6 +55,12 @@ export const tmdStreamParser = {
     if (stream.match(/^\{\?=[A-Ga-g0-9',#b]+\}|^\{\?[+-]\d+\}/)) {
       return "operator";
     }
+    if (stream.match(/^\{(?:key|Key)\s*=\s*[A-Ga-g][',#b]*(?:m|min|minor)?\}/)) {
+      return "operator";
+    }
+    if (stream.match(/^\{(?:ppp|pp|p|mp|mf|f|ff|fff)\}/)) {
+      return "operator";
+    }
     if (stream.match(/^\{<\d+\/\d+>\}/)) {
       return "operator";
     }
@@ -67,6 +73,9 @@ export const tmdStreamParser = {
       return "number";
     }
     if (stream.match(/^\?\s*=\s*[A-Ga-g][',#b]*/)) {
+      return "atom";
+    }
+    if (stream.match(/^key\s*=\s*[A-Ga-g][',#b]*(?:m|min|minor)?/i)) {
       return "atom";
     }
     if (stream.match(/^<\d+\/\d+>|^<\d+\*>/)) {

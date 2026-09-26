@@ -21,12 +21,14 @@ TitleContent            = { ? any character except newline or "**" ? } ;
 
 HeaderDirective         = TempoDirective
                         | KeySignatureDirective
+                        | DeclaredKeyDirective
                         | TimeSignatureDirective
                         | MetadataDirective
                         | Comment ;
 
 TempoDirective          = "!=" , Whitespace , Number ;
 KeySignatureDirective   = "?=" , Whitespace , KeySignature ;
+DeclaredKeyDirective    = ( "key=" | "Key=" ) , Whitespace , Tonality ;
 TimeSignatureDirective  = "<" , Number , "/" , Number , ">" ;
 
 MetadataDirective       = CreditDirective | NamedMetadataDirective ;
@@ -57,16 +59,21 @@ ParagraphDirective      = DirectiveBrace
                         | RelativeTempoDirective
                         | TempoChangeDirective
                         | RelativeKeyDirective
-                        | AbsoluteKeyDirective
+                        | MovableDoDirective
+                        | ExplicitKeyDirective
+                        | DynamicDirective
                         | FixedPitchDirective
                         | InlineTimeSignature ;
 
-DirectiveBrace          = "{" , ( RelativeTempoDirective | TempoChangeDirective | RelativeKeyDirective | AbsoluteKeyDirective | FixedPitchDirective | InlineTimeSignature ) , "}" ;
+DirectiveBrace          = "{" , ( RelativeTempoDirective | TempoChangeDirective | RelativeKeyDirective | MovableDoDirective | ExplicitKeyDirective | DynamicDirective | FixedPitchDirective | InlineTimeSignature ) , "}" ;
 
 RelativeTempoDirective  = "!+" , Number ;
 TempoChangeDirective    = "!=" , Number ;
 RelativeKeyDirective    = "{?" , [ "+" | "-" ] , Number , "}" ;
-AbsoluteKeyDirective    = "{?=" , KeySignature , "}" ;
+MovableDoDirective      = "{?=" , KeySignature , "}" ;
+ExplicitKeyDirective    = "{" , ( "key=" | "Key=" ) , Tonality , "}" ;
+DynamicDirective        = "{" , ( "ppp" | "pp" | "p" | "mp" | "mf" | "f" | "ff" | "fff" ) , "}" ;
+Tonality                = KeySignature , [ "m" | "M" ] ;
 FixedPitchDirective     = "{?=fixed}" | "{?fixed}" ;
 InlineTimeSignature     = "{" , "<" , Number , "/" , Number , ">" , "}" ;
 
@@ -120,11 +127,11 @@ DrumStroke              = "D" | "d"   (* Bass Drum / Kick: MIDI 36 *)
 PlaybackFlow            = "->" , FlowItem , { "->" , FlowItem } , "->#" ;
 FlowItem                = SectionName
                         | RelativeKeyFlowDirective
-                        | AbsoluteKeyFlowDirective
+                        | MovableDoFlowDirective
                         | MacroSExpr ;
 
 RelativeKeyFlowDirective = "{?" , [ "+" | "-" ] , Number , "}" ;
-AbsoluteKeyFlowDirective = "{?=" , KeySignature , "}" ;
+MovableDoFlowDirective   = "{?=" , KeySignature , "}" ;
 
 MacroSExpr              = "(" , MacroOperator , { MacroArgument } , ")" ;
 MacroOperator           = Identifier ;
@@ -155,7 +162,8 @@ Whitespace              = { " " | "\t" | "\r" | "\n" } ;
 - **Header**: Every TMD score begins with `::SCORE::`.
 - **Title**: Enclosed in `** ... **` (e.g. `** Song Title **`).
 - **Tempo (`!=`)**: Sets beats per minute (e.g. `!= 120` or `!= 85.5`).
-- **Key Signature (`?=`)**: Movable-do tonic letter with optional accidental (e.g. `?= C`, `?= F#`, `?= Bb`, `?= A'm`).
+- **Movable-do base (`?=`)**: Sets the pitch of numbered degree `1` with an optional accidental (e.g. `?= C`, `?= F#`, `?= Bb`). It is playback context, not a major/minor declaration.
+- **Explicit tonality (`key=` or `Key=`)**: Declares the actual musical key and mode (e.g. `key= Bm`, `key= C`, `key= F#m`) independently from `?=`.
 - **Time Signature (`<N/D>`)**: Default meter, e.g. `<4/4>`, `<3/4>`, `<6/8>`.
 - **Credits & Metadata**:
   - Direct credit: `~ "lyrics: aguai"`, `~ "詞：阿怪"`
@@ -200,8 +208,10 @@ Strokes can be written individually (`D - S -`), grouped in beats (`(xxxx)`), or
 Directives can be placed anywhere between notes inside a section:
 - `{!= 140}`: Absolute tempo change (BPM).
 - `{!+ 10}`: Relative tempo change (+10 BPM).
-- `{?= D}`: Absolute key change to D.
+- `{?= D}`: Absolute movable-do base change to D.
 - `{?+ 2}` / `{?- 2}`: Relative key transposition (+/- semitones).
+- `{key= Bm}` / `{Key= F#m}`: Explicit tonality change, including major/minor mode.
+- `{ppp}`, `{pp}`, `{p}`, `{mp}`, `{mf}`, `{f}`, `{ff}`, `{fff}`: Dynamics marks applied to subsequent playback and notation output.
 - `{?= fixed}` (or `{? fixed}`): Forces **Fixed Pitch** for this track section (`keyOffset = 0`), locking its pitches against global song order transpositions (`-> {?+3} -> ...`). Ideal for Timpani, Sound FX, or non-transposing instruments.
 - `{<3/4>}`: Inline time signature change.
 
@@ -210,5 +220,6 @@ Directives can be placed anywhere between notes inside a section:
 - Terminated strictly with `->#`.
 - Supports inline transposition directives:
   - `{?+2}`: Transpose up 2 semitones.
-  - `{?=D}`: Modulate tonic to D.
+  - `{?=D}`: Change the movable-do playback base to D.
+  - `{key= Bm}`: Declare an explicit B-minor tonality change.
   - S-expression macros: `(repeat 2 (A B))`, `(layer A (loop B 4))`, etc.

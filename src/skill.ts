@@ -244,10 +244,11 @@ The playback arrangement directs the performance flow and modulations from begin
 Rules:
 - Starts with \`->\`.
 - References section names defined in paragraphs: \`-> intro -> verse -> chorus\`.
-- Supports key modulations during playback:
-  - \`{?+3}\`: Modulate up 3 semitones.
-  - \`{?-2}\`: Modulate down 2 semitones.
-  - \`{?=G}\`: Modulate to absolute key G.
+- Supports movable-do playback transposition:
+  - \`{?+3}\`: Transpose playback up 3 semitones.
+  - \`{?-2}\`: Transpose playback down 2 semitones.
+  - \`{?=G}\`: Change the movable-do playback base to G.
+  - \`{key= Bm}\`: Declare an explicit B-minor tonality change.
 - Supports S-Expression macro combinators:
   - \`(play <Theme> <Instrument>)\`: Bind abstract theme to an instrument track.
   - \`(loop <Theme> <Instrument> <times>)\`: Repeat theme sequentially.

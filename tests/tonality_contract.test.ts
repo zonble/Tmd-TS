@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import { TmdParser } from "../src/core/parser.js";
 import { TMDSongInspector } from "../src/core/inspector.js";
 
-const inferentialScore = (movableDoBase: string, playback = "") => TmdParser.parse(`::SCORE::
+const inferentialScore = (movableDoBase: string, playback = "", declaredKey = "") => TmdParser.parse(`::SCORE::
 ** Inference Contract **
 != 120
 ?= ${movableDoBase}
+${declaredKey ? `key= ${declaredKey}` : ""}
 <4/4>
 
 verse:Vocal@|0|{
@@ -35,6 +36,14 @@ describe("tonality inference contract", () => {
     expect(tonality.globalInference.mode).toBe("minor");
     expect(tonality.globalInference.confidence).toBeGreaterThan(0);
     expect("declaredKey" in tonality).toBe(false);
+  });
+
+  it("preserves an explicit key declaration separately from playback context", () => {
+    const sheet = inferentialScore("D", "", "Bm");
+    const tonality = TMDSongInspector.inspect(sheet).tonality!;
+
+    expect(tonality.playbackContext.movableDoBase).toBe("D");
+    expect(tonality.declaredKey).toBe("Bm");
   });
 
   it("reports insufficient evidence instead of forcing a major key", () => {

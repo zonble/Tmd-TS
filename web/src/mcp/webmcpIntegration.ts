@@ -98,6 +98,7 @@ export const buildTmdWebMcpTools = (ctx: TmdWebMcpContext): WebMcpTool[] => [
               name: sheet.name || "Untitled",
               speed: sheet.speed || 120,
               tonic,
+              declaredKey: sheet.declaredKey ?? null,
               timeSignature: sheet.beat
                 ? `${sheet.beat.count}/${sheet.beat.noteValue}`
                 : "4/4",

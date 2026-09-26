@@ -9,7 +9,7 @@ Your primary goal is to write or modify TMD musical scores.
 
 CRITICAL SYNTAX RULES:
 1. Every score MUST start with '::SCORE::' on line 1.
-2. The score-level header must specify Title (** Name **), Speed (!= 120), Key Signature (?= C), and Meter (<4/4>).
+2. The score-level header must specify Title (** Name **), Speed (!= 120), movable-do base (?= C), and Meter (<4/4>). Use optional key= Bm / key= C when declaring the actual musical tonality.
 3. Every track paragraph MUST follow: 'name:instrument@|offset|{ ... }'
    - Always close every opened paragraph '{' with a matching '}'.
 4. Every section inside a paragraph MUST start with a note length grid like '<4*>', '<8*>', or '<16*>'.
@@ -148,4 +148,3 @@ ${options.scoreContent}
 3. Keep the overall musical arrangement, melodies, chords, and section structures intact.
 4. Return ONLY the complete, corrected score inside a single \`\`\`tmd ... \`\`\` code block.`;
 }
-

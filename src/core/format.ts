@@ -199,6 +199,9 @@ export function formatSummary(sheet: Sheet): string {
   lines.push(`Name:         ${sheet.name}`);
   lines.push(`Speed:        ${sheet.speed} BPM`);
   lines.push(`KeySignature: ${sheet.keySignature.toString()}`);
+  if (sheet.declaredKey) {
+    lines.push(`DeclaredKey:  ${sheet.declaredKey}`);
+  }
   lines.push(`Beat:         ${sheet.beat.count}/${sheet.beat.noteValue}`);
   lines.push(`Paragraphs:   ${sheet.paragraphs.length}`);
 

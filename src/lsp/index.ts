@@ -329,8 +329,15 @@ export class TMDLSPCompletionEngine {
           { label: "!= 120", kind: TMDLSPCompletionItemKind.Snippet, detail: "Absolute Tempo (BPM)", insertText: "!= ${1:120}}" },
           { label: "!+ 10", kind: TMDLSPCompletionItemKind.Snippet, detail: "Relative Tempo Change (+BPM)", insertText: "!+ ${1:10}}" },
           { label: "?= C", kind: TMDLSPCompletionItemKind.Snippet, detail: "Absolute Key Signature", insertText: "?= ${1:C}}" },
+          { label: "key= Bm", kind: TMDLSPCompletionItemKind.Snippet, detail: "Explicit Tonality (B minor)", insertText: "key= ${1:Bm}}" },
           { label: "?+ 2", kind: TMDLSPCompletionItemKind.Snippet, detail: "Relative Key Transposition (+semitones)", insertText: "?+ ${1:2}}" },
           { label: "?= fixed", kind: TMDLSPCompletionItemKind.Value, detail: "Fixed Pitch (Immune to song transpositions)", insertText: "?= fixed}" },
+          ...["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"].map((mark) => ({
+            label: mark,
+            kind: TMDLSPCompletionItemKind.Value,
+            detail: `Dynamics (${mark})`,
+            insertText: `${mark}}`,
+          })),
           { label: "<4/4>", kind: TMDLSPCompletionItemKind.Snippet, detail: "Time Signature Change", insertText: "<${1:4}/${2:4}>}" }
         ];
       }

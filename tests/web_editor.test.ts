@@ -152,6 +152,52 @@ describe("Web Studio Editor Configuration (TDD)", () => {
     expect(mTokens.some(t => t.text === "2" && t.type === "number")).toBe(true);
   });
 
+  it("highlights explicit tonality and dynamics directives", async () => {
+    const { tmdStreamParser } = await import("../web/src/syntax.js");
+    const tokenize = (line: string) => {
+      const state = tmdStreamParser.startState();
+      const tokens: { text: string; type: string | null }[] = [];
+      let pos = 0;
+      while (pos < line.length) {
+        const stream = {
+          string: line,
+          pos,
+          start: pos,
+          eatSpace: () => {
+            const match = line.slice(pos).match(/^[ \t]+/);
+            if (!match) return false;
+            pos += match[0].length;
+            return true;
+          },
+          match: (pattern: RegExp | string) => {
+            const rest = line.slice(pos);
+            if (typeof pattern === "string") {
+              if (!rest.startsWith(pattern)) return null;
+              pos += pattern.length;
+              return [pattern];
+            }
+            const match = rest.match(pattern);
+            if (!match || match.index !== 0) return null;
+            pos += match[0].length;
+            return match;
+          },
+          next: () => pos < line.length ? line[pos++] : null,
+        };
+        const before = pos;
+        const type = tmdStreamParser.token(stream as any, state as any);
+        if (pos === before) break;
+        tokens.push({ text: line.slice(before, pos), type });
+      }
+      return tokens;
+    };
+
+    const tokens = tokenize("key= Bm {key= F#m} {p} {fff}");
+    expect(tokens.some((token) => token.text.startsWith("key=") && token.type === "atom")).toBe(true);
+    expect(tokens.filter((token) => token.type === "operator").map((token) => token.text)).toEqual([
+      "{key= F#m}", "{p}", "{fff}",
+    ]);
+  });
+
   it("supports gutter play button and cursor context for default track without instrument", () => {
     const editorPath = path.join(__dirname, "../web/src/editor.ts");
     const editorContent = fs.readFileSync(editorPath, "utf-8");

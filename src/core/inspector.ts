@@ -195,6 +195,8 @@ export interface TMDTonalityNarrative {
 export interface TMDTonalityProfile {
   globalPitchClasses: TMDPitchClassDistribution;
   globalInference: TMDTonalityInference;
+  /** Explicit `key=` declaration, distinct from movable-do playback context. */
+  declaredKey?: string;
   playbackContext: TMDPlaybackContext;
   playbackTranspositionPath: number[];
   inferredModulationPath: TMDTonalityNarrative["transitions"];
@@ -872,6 +874,7 @@ export class TMDSongInspector {
     return {
       globalPitchClasses: globalDist,
       globalInference,
+      ...(sheet.declaredKey ? { declaredKey: sheet.declaredKey } : {}),
       playbackContext: {
         movableDoBase: baseKey,
         transpositionOffset: initialTonicOffset,

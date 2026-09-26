@@ -183,6 +183,17 @@ verse:`;
     expect(items4.map((i) => i.label)).toContain("verse");
   });
 
+  it("offers explicit tonality and dynamics directives inside a section", () => {
+    const source = `::SCORE::\n** Completion **\n!= 120\n?= C\n<4/4>\n\nA:Piano@|0|{\n  <4*>\n  {\n`;
+    const items = TMDLSPCompletionEngine.complete(source, new TMDLSPPosition(6, source.split("\n")[6].length));
+    const labels = items.map((item) => item.label);
+
+    expect(labels).toContain("key= Bm");
+    expect(labels).toContain("p");
+    expect(labels).toContain("mf");
+    expect(labels).toContain("fff");
+  });
+
   it("provides diatonic chords when opening bracket '[' inside paragraph", () => {
     const source = `::SCORE::
 ** Test Score **

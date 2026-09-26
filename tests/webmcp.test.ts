@@ -106,6 +106,22 @@ verse:Piano@|0|{
     expect(parsed.paragraphCount).toBe(1);
   });
 
+  it('parseTmd exposes explicit tonality separately from movable-do', async () => {
+    const mockContext = {
+      getCurrentScore: () => '',
+      loadScoreToEditor: vi.fn(),
+      startPlayback: vi.fn(),
+    };
+    const tools = buildTmdWebMcpTools(mockContext);
+    const parseTool = tools.find((t) => t.name === 'parseTmd');
+    const text = sampleTmd.replace('?= C', '?= D\nkey= Bm');
+
+    const res = await parseTool!.handler({ text });
+    const parsed = JSON.parse(res.content[0].text);
+    expect(parsed.tonic).toBe('D');
+    expect(parsed.declaredKey).toBe('Bm');
+  });
+
   it('parseTmd returns error details for invalid syntax', async () => {
     const mockContext = {
       getCurrentScore: () => '',

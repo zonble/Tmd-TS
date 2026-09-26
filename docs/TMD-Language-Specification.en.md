@@ -248,7 +248,7 @@ Parentheses group multiple units into a subdivision, followed by `%(...)` defini
 (7, 1)%(--)
 ```
 
-## 8. Playback Flow, Modulation, and S-Expression Macros
+## 8. Playback Flow, Transposition, and S-Expression Macros
 
 Playback orders begin with `->` and terminate strictly with `->#`:
 
@@ -263,20 +263,22 @@ Section names are stored in `Order.name`:
 -> intro
 ```
 
-### 8.2 Modulation Directives
-Relative key modulation:
+### 8.2 Playback Transposition Directives
+Relative movable-do transposition:
 
 ```text
 -> {?-3}
 -> {?+3}
 ```
 
-Absolute key modulation:
+Absolute movable-do base change:
 
 ```text
 -> {?=C}
 -> {?=A'}
 ```
+
+These `?` directives change playback context; they are not explicit musical key declarations and must not by themselves be reported as inferred modulation. Use `key=` in the score header or `{key=...}` inline when the actual musical tonality changes.
 
 ### 8.3 S-Expression Macro Directives
 The playback flow natively supports S-expression macros for deterministic multi-track scheduling without manual measure bookkeeping:
