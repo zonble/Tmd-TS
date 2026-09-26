@@ -29,14 +29,9 @@ export class TMDReaperGenerator {
     ppq: number = TMDReaperGenerator.defaultPPQ
   ): string {
     const sheet = TMDMacroEvaluator.expand(rawSheet);
-    const distinctInstruments = SheetInstrumentHelper.distinctInstruments(sheet);
+    const distinctInstruments = SheetInstrumentHelper.distinctInstruments(sheet, false);
 
-    const timelineInstrument =
-      sheet.paragraphs.find(p => p.sections.some(s => s.directives.length > 0))
-        ?.instrument ??
-      distinctInstruments[0];
-
-    const conductorTimeline = TMDPlaybackRenderer.render(sheet, timelineInstrument);
+    const conductorTimeline = TMDPlaybackRenderer.renderConductor(sheet);
 
     // Build timeline tempo segments
     const initialBpm = sheet.speed > 0 ? sheet.speed : 120;
@@ -100,10 +95,22 @@ export class TMDReaperGenerator {
     let currentQuarter = 0.0;
     let markerId = 1;
     const markerLines: string[] = [];
+    let markerTimeSignature = sheet.beat;
+    let markerDirectiveIndex = 0;
 
     for (const order of orders) {
       if (order.type === 'name') {
-        const paragraphDuration = TMDPlaybackRenderer.durationOf(order.name, sheet);
+        while (
+          markerDirectiveIndex < sortedDirectives.length &&
+          sortedDirectives[markerDirectiveIndex].position <= currentQuarter
+        ) {
+          const directive = sortedDirectives[markerDirectiveIndex];
+          if (directive.kind.type === 'timeSignature') {
+            markerTimeSignature = directive.kind.beat;
+          }
+          markerDirectiveIndex++;
+        }
+        const paragraphDuration = TMDPlaybackRenderer.durationOf(order.name, sheet, markerTimeSignature);
         const secondPos = quarterToSeconds(currentQuarter);
         markerLines.push(`  MARKER ${markerId} ${secondPos.toFixed(8)} "${order.name}" 0`);
         markerId++;

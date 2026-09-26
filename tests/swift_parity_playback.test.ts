@@ -4,6 +4,31 @@ import { formatSheet } from "../src/core/format.js";
 import { TMDPlaybackRenderer } from "../src/core/playback.js";
 
 describe("Swift playback parity", () => {
+  it("merges conductor directives from all instruments", () => {
+    const sheet = TmdParser.parse(`::SCORE::
+** Conductor Directives **
+!= 120
+?= C
+<4/4>
+
+A:Piano@|0|{
+<4*>
+1 {!=90}
+}
+A:Violin@|0|{
+<4*>
+3 {<3/4>}
+}
+-> A ->#
+`);
+
+    const timeline = TMDPlaybackRenderer.renderConductor(sheet);
+    expect(timeline.directives.map((d) => d.kind)).toEqual([
+      { type: "tempo", bpm: 90 },
+      { type: "timeSignature", beat: { count: 3, noteValue: 4 } },
+    ]);
+  });
+
   it("parses and plays + connected notes at the same position", () => {
     const sheet = TmdParser.parse(`::SCORE::
 ** Multi-note **

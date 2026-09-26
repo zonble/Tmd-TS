@@ -1,6 +1,8 @@
 import {
   Sheet,
   Order,
+  ChordSymbol,
+  KeySignature,
   TMDMeasureRenderer,
   SheetInstrumentHelper,
   TMDMacroEvaluator,
@@ -50,7 +52,7 @@ export class TMDChordProGenerator {
     }
 
     // Determine target track: pick guitar/chords instrument or first instrument
-    const distinctInstruments = SheetInstrumentHelper.distinctInstruments(sheet);
+    const distinctInstruments = SheetInstrumentHelper.distinctInstruments(sheet, false);
 
     const targetInstrument =
       distinctInstruments.find((inst) =>
@@ -68,15 +70,26 @@ export class TMDChordProGenerator {
           }));
 
     const measuresPerLine = options.measuresPerLine ?? 4;
+    let currentKeyOffset = sheet.keySignature.semitoneOffset;
+    let emittedKeyOffset = currentKeyOffset;
 
     for (const order of orders) {
+      if (order.type === 'relative') {
+        const delta = parseInt(order.value.replace('+', ''), 10);
+        if (!Number.isNaN(delta)) currentKeyOffset += delta;
+        continue;
+      }
+      if (order.type === 'absolute') {
+        currentKeyOffset = KeySignature.parse(order.value).semitoneOffset;
+        continue;
+      }
       if (order.type === 'name') {
         const pName = order.name;
-        // Create a sub-sheet with just this section to isolate its measures
         const sectionSheet: Sheet = {
           ...sheet,
           paragraphs: sheet.paragraphs.filter((p) => p.name === pName),
           orders: [{ type: 'name', name: pName }],
+          keySignature: keySignatureForOffset(currentKeyOffset),
         };
 
         const sectionMeasures = TMDMeasureRenderer.renderMeasures(
@@ -87,6 +100,10 @@ export class TMDChordProGenerator {
         if (sectionMeasures.length === 0) continue;
 
         lines.push('');
+        if (currentKeyOffset !== emittedKeyOffset) {
+          lines.push(`{key: ${keySignatureForOffset(currentKeyOffset).toString()}}`);
+          emittedKeyOffset = currentKeyOffset;
+        }
         lines.push(`{comment: ${pName}}`);
 
         const measureStrings: string[] = [];
@@ -95,7 +112,7 @@ export class TMDChordProGenerator {
           const chordsInMeasure: string[] = [];
           for (const ev of m.events) {
             if (ev.content.type === 'chord') {
-              chordsInMeasure.push(`[${ev.content.chord.toString()}]`);
+              chordsInMeasure.push(`[${chordText(ev.content.chord, ev.state.keyOffset)}]`);
             }
           }
 
@@ -119,4 +136,24 @@ export class TMDChordProGenerator {
 
     return lines.join('\n') + '\n';
   }
+}
+
+const chromaticNames = ['C', "C'", 'D', "D'", 'E', 'F', "F'", 'G', "G'", 'A', "A'", 'B'];
+
+function keySignatureForOffset(offset: number): KeySignature {
+  const normalized = ((offset % 12) + 12) % 12;
+  return KeySignature.parse(chromaticNames[normalized]);
+}
+
+function chordText(chord: ChordSymbol, keyOffset: number): string {
+  const root = chord.root.isScaleDegree
+    ? chromaticNames[((keyOffset + chord.root.semitoneOffset) % 12 + 12) % 12]
+    : chord.root.toString();
+  const suffix = chord.toString().slice(chord.root.toString().length);
+  if (!chord.bass) return root + suffix;
+  const qualitySuffix = suffix.split('/', 1)[0];
+  const bass = chord.bass.isScaleDegree
+    ? chromaticNames[((keyOffset + chord.bass.semitoneOffset) % 12 + 12) % 12]
+    : chord.bass.toString();
+  return `${root}${qualitySuffix}/${bass}`;
 }

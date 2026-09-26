@@ -87,6 +87,27 @@ A:Piano@|0|{
 });
 
 describe('MusicXML Exporter Invariants', () => {
+  it('does not create an implicit Piano part for a prototype-only sheet', () => {
+    const tmd = `
+::SCORE::
+** Prototype Only **
+!= 120
+?= C
+<4/4>
+
+Theme {
+    <4*>
+    1 2 3 4
+}
+`;
+    const sheet = TmdParser.parse(tmd)!;
+    const xml = TMDMusicXMLGenerator.generateMusicXML(sheet);
+
+    expect(xml).toContain('<score-partwise');
+    expect(xml).not.toContain('<score-part id="P1">');
+    expect(xml).not.toContain('<part id="P1">');
+  });
+
   it('conserves measure durations and generates proper tie tags', () => {
     const tmd = `
 ::SCORE::
@@ -523,5 +544,4 @@ A:Piano@|0|{
     });
   });
 });
-
 

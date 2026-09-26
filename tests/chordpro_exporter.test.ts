@@ -87,6 +87,27 @@ Chorus:Guitar@|0|{
     expect(chorusMatches).toHaveLength(1);
   });
 
+  it('renders repeated section chords using the order modulation state', () => {
+    const tmd = `
+::SCORE::
+** Modulated ChordPro **
+!= 120
+?= C
+<4/4>
+
+Verse:Guitar@|0|{
+    <4*>
+    [1] - - -
+}
+-> Verse -> {?+2} -> Verse ->#
+`;
+    const sheet = TmdParser.parse(tmd)!;
+    const cho = TMDChordProGenerator.generateChordPro(sheet);
+
+    expect((cho.match(/\[C\]/g) || []).length).toBe(1);
+    expect((cho.match(/\[D\]/g) || []).length).toBe(1);
+  });
+
   it('handles custom line wrapping for measures', () => {
     const tmd = `
 ::SCORE::

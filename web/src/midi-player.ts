@@ -54,7 +54,7 @@ export class TMDMidiPlayer {
     try {
       synthTiny(JZZ);
       smf(JZZ);
-      JZZ();
+      JZZ({ engine: "none" });
       this.tinySynth = JZZ.synth.Tiny();
     } catch (err) {
       console.warn("[TMDMidiPlayer] JZZ initialization error:", err);

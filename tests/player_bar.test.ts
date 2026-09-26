@@ -1,20 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
-vi.mock("jzz", () => {
-  const fn: any = () => ({
-    synth: { Tiny: () => ({}) },
-    openMidiOut: () => Promise.resolve({}),
-  });
-  fn.synth = { Tiny: () => ({}) };
+const { mockJZZ, mockJZZInstance } = vi.hoisted(() => {
+  const instance = {
+    synth: { Tiny: vi.fn(() => ({})) },
+    openMidiOut: vi.fn(() => Promise.resolve({})),
+  };
+  const fn: any = vi.fn((options?: any) => instance);
+  fn.synth = instance.synth;
   fn.MIDI = { SMF: () => ({}) };
-  return { default: fn };
+  return { mockJZZ: fn, mockJZZInstance: instance };
+});
+
+vi.mock("jzz", () => {
+  return {
+    default: mockJZZ,
+  };
 });
 vi.mock("jzz-synth-tiny", () => ({ default: () => {} }));
 vi.mock("jzz-midi-smf", () => ({ default: () => {} }));
 vi.mock("soundfont-player", () => ({ default: {} }));
 
-import { tmdPlayer } from "../web/src/midi-player.js";
+import { tmdPlayer, TMDMidiPlayer } from "../web/src/midi-player.js";
 
 describe("TMD Player Replay & End-of-Track Invariants (TDD)", () => {
   beforeEach(() => {
@@ -110,5 +117,12 @@ describe("TMD Player Replay & End-of-Track Invariants (TDD)", () => {
 
     expect(onEndBody).not.toContain('tmdPlayerBar.style.display = "none"');
     expect(onEndBody).toMatch(/playerBtnPause\.textContent\s*=\s*["']▶["']/);
+  });
+
+  it("does not request Web MIDI or scan hardware MIDI ports during initialization (Issue #4)", () => {
+    // JZZ must be initialized with { engine: 'none' } or equivalent so navigator.requestMIDIAccess is not called automatically
+    expect(mockJZZ).toHaveBeenCalledWith({ engine: "none" });
+    // openMidiOut should never be called during player construction
+    expect(mockJZZInstance.openMidiOut).not.toHaveBeenCalled();
   });
 });

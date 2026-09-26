@@ -475,14 +475,14 @@ intro:Bass@|0|{
     });
   });
 
-  describe("Default Track / Instrument Handling (TDD)", () => {
-    const defaultTrackTMD = `::SCORE::
+  describe("Explicit Track / Instrument Handling (TDD)", () => {
+    const pianoTrackTMD = `::SCORE::
 ** Default Track Score **
 != 120
 ?= C
 <4/4>
 
-theme {
+theme:Piano@|0|{
     <4*>
     1 2 3 4
 }
@@ -490,10 +490,10 @@ theme {
 -> theme ->#
 `;
 
-    it("defaults paragraph without instrument to Piano in TMDPlaybackRenderer", () => {
-      const sheet = TmdParser.parse(defaultTrackTMD)!;
+    it("renders an explicitly assigned Piano track", () => {
+      const sheet = TmdParser.parse(pianoTrackTMD)!;
       expect(sheet).not.toBeNull();
-      expect(sheet.paragraphs[0].instrument).toBe("");
+      expect(sheet.paragraphs[0].instrument).toBe("Piano");
 
       // Rendering with "Piano" should play the theme notes
       const pianoTimeline = TMDPlaybackRenderer.render(sheet, "Piano");
@@ -501,13 +501,12 @@ theme {
       expect(pianoTimeline.events[0].position).toBe(0);
       expect(pianoTimeline.duration).toBe(4);
 
-      // Rendering with "" should also play the theme notes
       const emptyTimeline = TMDPlaybackRenderer.render(sheet, "");
       expect(emptyTimeline.events).toHaveLength(4);
     });
 
-    it("generates playable MIDI with Piano track and program 0 for default track", () => {
-      const sheet = TmdParser.parse(defaultTrackTMD)!;
+    it("generates playable MIDI with Piano track and program 0", () => {
+      const sheet = TmdParser.parse(pianoTrackTMD)!;
       const midi = TMDMIDIGenerator.generateMIDI(sheet);
       expect(midi.length).toBeGreaterThan(0);
 
@@ -524,8 +523,8 @@ theme {
       expect(sectionTracks).toBe(2);
     });
 
-    it("exports MusicXML and ABC with notes for default track without instrument", () => {
-      const sheet = TmdParser.parse(defaultTrackTMD)!;
+    it("exports MusicXML and ABC with notes for an explicitly assigned track", () => {
+      const sheet = TmdParser.parse(pianoTrackTMD)!;
       const instruments = SheetInstrumentHelper.distinctInstruments(sheet);
       expect(instruments).toEqual(["Piano"]);
 
@@ -565,4 +564,3 @@ theme {
     });
   });
 });
-

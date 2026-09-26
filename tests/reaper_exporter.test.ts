@@ -71,6 +71,39 @@ A:Piano@|0|{
     expect(rpp).toMatch(/PT 4\.00000000 120(\.0+)? 0 262148/);
   });
 
+  it('uses the active meter when calculating paragraph marker offsets', () => {
+    const tmd = `
+::SCORE::
+** Meter-Aware Markers **
+!= 120
+?= C
+<4/4>
+
+A:Piano@|0|{
+    <4*>
+    1 - - -
+    {<3/4>}
+}
+
+B:Piano@|1|{
+    <4*>
+    1 - - -
+}
+
+C:Piano@|0|{
+    <4*>
+    1 - - -
+}
+-> A -> B -> C ->#
+`;
+    const sheet = TmdParser.parse(tmd)!;
+    const rpp = TMDReaperGenerator.generateRPP(sheet);
+
+    // A = 4 quarters, B starts one active 3/4 bar later and lasts 4 quarters.
+    // C therefore starts at 11 quarters = 5.5 seconds at 120 BPM.
+    expect(rpp).toMatch(/MARKER 3 5\.50000000 "C" 0/);
+  });
+
   it('configures track names, panning (-L / -R), colors, and inline MIDI data', () => {
     const tmd = `
 ::SCORE::
@@ -180,4 +213,3 @@ Theme {
     expect(rpp).toContain('NAME "Violin2"');
   });
 });
-
