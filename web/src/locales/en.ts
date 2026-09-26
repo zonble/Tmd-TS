@@ -177,7 +177,7 @@ export const en = {
   sbCursorTitle: "Cursor Position (Line:Column)",
   statLabelTitle: "Title",
   statLabelTempo: "Tempo (BPM)",
-  statLabelKey: "Key",
+  statLabelMovableDoBase: "Movable-do base",
   statLabelMeter: "Meter",
   statLabelDuration: "Duration",
   statLabelMeasures: "Measures",

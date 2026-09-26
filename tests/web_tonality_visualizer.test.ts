@@ -4,8 +4,15 @@ import * as path from "node:path";
 import { TmdParser } from "../src/core/parser.js";
 import { TMDSongInspector } from "../src/core/inspector.js";
 import { renderTonalityProfileHtml } from "../web/src/ui/tonality.js";
+import fs from "node:fs";
+import path from "node:path";
 
 describe("Web Studio tonality visualization", () => {
+  it("labels the top score metric as movable-do base, not a declared key", () => {
+    const indexHtml = fs.readFileSync(path.join(process.cwd(), "web/index.html"), "utf8");
+    expect(indexHtml).toContain('data-i18n="statLabelMovableDoBase"');
+    expect(indexHtml).not.toContain('data-i18n="statLabelKey"');
+  });
   it("renders the same inspector-level tonality details as the VSCode view", () => {
     const sheet = TmdParser.parse(`::SCORE::
 ** Tonality UI **

@@ -181,7 +181,7 @@ export const zhTW = {
   sbCursorTitle: "游標位置 (行:列)",
   statLabelTitle: "曲名",
   statLabelTempo: "速度 (BPM)",
-  statLabelKey: "調號 (Key)",
+  statLabelMovableDoBase: "首調基準",
   statLabelMeter: "拍號 (Meter)",
   statLabelDuration: "演奏時長",
   statLabelMeasures: "小節總數",
