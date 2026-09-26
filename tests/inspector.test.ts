@@ -340,21 +340,21 @@ chorus:Piano@|0|{
 
     const verseSec = tonality.sections[0];
     expect(verseSec.sectionName).toBe("verse");
-    expect(verseSec.declaredKey).toBe("C");
-    expect(verseSec.keyOffset).toBe(0);
+    expect(verseSec.inferredTonality.tonic).toBe("C");
+    expect(verseSec.playbackContext.transpositionOffset).toBe(0);
     expect(verseSec.fifthsPosition).toBe(0);
     expect(verseSec.pitchClasses.diatonicRatio).toBeGreaterThan(0.99);
-    expect(verseSec.correlation.declaredKeyCorrelation).toBeGreaterThan(0.8);
-    expect(verseSec.correlation.stability).toBe("high");
+    expect(verseSec.inferredTonality.bestCorrelation).toBeGreaterThan(0.8);
+    expect(verseSec.inferredTonality.stability).toBe("ambiguous");
     expect(verseSec.nonDiatonicNotes).toEqual([]);
 
     const chorusSec = tonality.sections[1];
     expect(chorusSec.sectionName).toBe("chorus");
-    expect(chorusSec.declaredKey).toBe("D");
-    expect(chorusSec.keyOffset).toBe(2);
+    expect(chorusSec.inferredTonality.tonic).toBe("D");
+    expect(chorusSec.playbackContext.transpositionOffset).toBe(2);
     expect(chorusSec.fifthsPosition).toBe(2);
     expect(chorusSec.pitchClasses.diatonicRatio).toBeGreaterThan(0.99);
-    expect(chorusSec.correlation.declaredKeyCorrelation).toBeGreaterThan(0.8);
+    expect(chorusSec.inferredTonality.bestCorrelation).toBeGreaterThan(0.8);
 
     // 2. Global Fifths Path
     expect(tonality.circleOfFifthsPath).toEqual([0, 2]);
@@ -362,10 +362,10 @@ chorus:Piano@|0|{
     // 3. Human-readable Producer Report
     const report = TMDSongInspector.generateReport(profile);
     expect(report).toContain("調性診斷：");
-    expect(report).toContain("目前以大調分析為主；建議優先支援大調與小調");
+    expect(report).toContain("由實際發聲的音符與和弦推測調性");
     expect(report).toContain("五度圈歷程:");
     expect(report).toContain("+0 -> +2");
-    expect(tonality.modulationStory).toContain("轉至 D 大調");
+    expect(tonality.inferredModulationPath).toEqual([]);
     expect(tonality.moodDescription).toContain("大調");
   });
 
@@ -429,8 +429,8 @@ verse:Piano@|0|{
     const tonality = profile.tonality!;
     const section = tonality.sections[0];
 
-    expect(section.declaredKey).toBe("D");
-    expect(section.keyOffset).toBe(2);
+    expect(section.inferredTonality.tonic).toBe("D");
+    expect(section.playbackContext.transpositionOffset).toBe(2);
     expect(section.fifthsPosition).toBe(2);
     expect(section.nonDiatonicNotes).toEqual([]);
     expect(tonality.modulationStory).toBe("全曲維持單一調性（未轉調）");
@@ -464,10 +464,10 @@ chorus:Piano@|0|{
     expect(profile.tonality).toBeDefined();
     const tonality = profile.tonality!;
 
-    expect(tonality.sections.map(s => s.declaredKey)).toEqual(["D", "E"]);
-    expect(tonality.sections.map(s => s.keyOffset)).toEqual([2, 4]);
-    expect(tonality.modulationStory).toContain("D 大調起奏");
-    expect(tonality.modulationStory).toContain("轉至 E 大調 (+2 半音");
+    expect(tonality.sections.map(s => s.inferredTonality.tonic)).toEqual(["D", "E"]);
+    expect(tonality.sections.map(s => s.playbackContext.transpositionOffset)).toEqual([2, 4]);
+    expect(tonality.inferredModulationPath).toEqual([]);
+    expect(tonality.playbackTranspositionPath).toEqual([2, 4]);
   });
 
   it("generates standalone SVG and HTML visualizer reports using TMDTonalityVisualizer", async () => {
@@ -536,7 +536,7 @@ verse:Piano@|0|{
     expect(profile.locale).toBe("en");
     expect(report).toContain("TMD Song Profile");
     expect(report).toContain("Analysis scope");
-    expect(report).toContain("Major and minor are the recommended first scope");
+    expect(report).toContain("Inferred tonality from sounding note and chord evidence");
     expect(report).not.toContain("調性診斷");
 
     const zhProfile = TMDSongInspector.inspect(sheet!);

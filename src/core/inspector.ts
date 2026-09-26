@@ -128,27 +128,38 @@ export interface TMDPitchClassDistribution {
   topPitchClasses: string[];
 }
 
-/**
- * A candidate key match and its Pearson correlation score from K-S analysis.
- */
-export interface TMDKeyFitCandidate {
-  keyName: string;
+export type TMDTonalityMode = "major" | "minor" | "modal" | "ambiguous" | "insufficient";
+export type TMDScaleFamily = "major" | "naturalMinor" | "harmonicMinor" | "melodicMinor" | "modal" | "chromatic" | "unknown";
+export type TMDKeyStability = "high" | "moderate" | "ambiguous" | "insufficient";
+
+export interface TMDTonalityCandidate {
+  tonic: string;
+  mode: "major" | "minor";
+  scaleFamily: TMDScaleFamily;
   correlation: number;
 }
 
-/**
- * Qualitative stability assessment of tonality.
- */
-export type TMDKeyStability = "high" | "moderate" | "ambiguous";
+export interface TMDTonalityEvidence {
+  noteWeight: number;
+  chordWeight: number;
+}
 
-/**
- * Key correlation and best-fit prediction results from Krumhansl-Schmuckler analysis.
- */
-export interface TMDKeyCorrelation {
-  declaredKey: string;
-  declaredKeyCorrelation: number;
-  topCandidateKeys: TMDKeyFitCandidate[];
+export interface TMDTonalityInference {
+  tonic: string | null;
+  mode: TMDTonalityMode;
+  scaleFamily: TMDScaleFamily;
+  confidence: number;
+  margin: number;
   stability: TMDKeyStability;
+  bestCorrelation: number;
+  topCandidates: TMDTonalityCandidate[];
+  evidence: TMDTonalityEvidence;
+}
+
+export interface TMDPlaybackContext {
+  movableDoBase: string;
+  transpositionOffset: number;
+  fixedPitch: boolean;
 }
 
 /**
@@ -157,22 +168,22 @@ export interface TMDKeyCorrelation {
 export interface TMDSectionTonalityProfile {
   sectionName: string;
   occurrenceIndex: number;
-  declaredKey: string;
-  keyOffset: number;
+  playbackContext: TMDPlaybackContext;
   fifthsPosition: number;
   pitchClasses: TMDPitchClassDistribution;
-  correlation: TMDKeyCorrelation;
+  inferredTonality: TMDTonalityInference;
   nonDiatonicNotes: string[];
 }
 
-export type TMDTonalityMood = "cleanMajor" | "contemporaryMajor" | "modal";
+export type TMDTonalityMood = "cleanMajor" | "contemporaryMajor" | "cleanMinor" | "contemporaryMinor" | "modal" | "insufficient";
 
 export interface TMDTonalityNarrative {
-  baseKey: string;
+  tonic: string;
   mood: TMDTonalityMood;
   transitions: Array<{
     sectionName: string;
-    declaredKey: string;
+    tonic: string;
+    mode: "major" | "minor";
     semitoneDiff: number;
     fifthsStepDiff: number;
   }>;
@@ -183,7 +194,10 @@ export interface TMDTonalityNarrative {
  */
 export interface TMDTonalityProfile {
   globalPitchClasses: TMDPitchClassDistribution;
-  globalCorrelation: TMDKeyCorrelation;
+  globalInference: TMDTonalityInference;
+  playbackContext: TMDPlaybackContext;
+  playbackTranspositionPath: number[];
+  inferredModulationPath: TMDTonalityNarrative["transitions"];
   circleOfFifthsPath: number[];
   sections: TMDSectionTonalityProfile[];
   summaryText: string;
@@ -649,6 +663,8 @@ export class TMDSongInspector {
     }
 
     const globalWeights = new Array<number>(12).fill(0.0);
+    let noteWeight = 0.0;
+    let chordWeight = 0.0;
     const sectionWeights: Record<number, number[]> = {};
     for (let idx = 0; idx < timingProfile.sections.length; idx++) {
       sectionWeights[idx] = new Array<number>(12).fill(0.0);
@@ -667,6 +683,7 @@ export class TMDSongInspector {
       const dur = event.duration;
 
       globalWeights[pc] += dur;
+      noteWeight += dur;
 
       for (let secIdx = 0; secIdx < timingProfile.sections.length; secIdx++) {
         const sec = timingProfile.sections[secIdx];
@@ -691,6 +708,7 @@ export class TMDSongInspector {
       for (const item of chordPCs) {
         const w = dur * item.weight;
         globalWeights[item.pc] += w;
+        chordWeight += w;
 
         for (let secIdx = 0; secIdx < timingProfile.sections.length; secIdx++) {
           const sec = timingProfile.sections[secIdx];
@@ -711,9 +729,13 @@ export class TMDSongInspector {
     const baseKey = sheet.keySignature ? sheet.keySignature.toString() : "C";
     const initialTonicOffset = sheet.keySignature ? sheet.keySignature.semitoneOffset : 0;
 
-    // Global distribution & K-S correlation
-    const globalDist = this.makePitchClassDistribution(globalWeights, initialTonicOffset);
-    const globalCorr = this.evaluateKeyCorrelation(globalWeights, baseKey, initialTonicOffset);
+    // Infer tonality from sounding evidence. The movable-do base is only playback context.
+    const globalInference = this.evaluateTonality(globalWeights, { noteWeight, chordWeight });
+    const globalTonicOffset = globalInference.tonic === null
+      ? initialTonicOffset
+      : this.pitchClassOffset(globalInference.tonic);
+    const globalDisplayMode = globalInference.mode === "ambiguous" ? (globalInference.topCandidates[0]?.mode ?? "major") : globalInference.mode;
+    const globalDist = this.makePitchClassDistribution(globalWeights, globalTonicOffset, globalDisplayMode);
 
     // Sections
     const sectionProfiles: TMDSectionTonalityProfile[] = [];
@@ -722,12 +744,17 @@ export class TMDSongInspector {
     for (let secIdx = 0; secIdx < timingProfile.sections.length; secIdx++) {
       const sec = timingProfile.sections[secIdx];
       const weights = sectionWeights[secIdx] || new Array<number>(12).fill(0.0);
-      const secTonicOffset = ((sec.keyOffset % 12) + 12) % 12;
-      const secKeyName = this.keyName(secTonicOffset);
-      const secDist = this.makePitchClassDistribution(weights, secTonicOffset);
-      const secCorr = this.evaluateKeyCorrelation(weights, secKeyName, secTonicOffset);
+      const fixedPitch = sheet.paragraphs
+        .filter((paragraph) => paragraph.name === sec.name)
+        .some((paragraph) => paragraph.sections.some((section) => section.directives.some((directive) => directive.kind.type === "fixedPitch")));
+      const secInference = this.evaluateTonality(weights);
+      const secTonicOffset = secInference.tonic === null
+        ? ((sec.keyOffset % 12) + 12) % 12
+        : this.pitchClassOffset(secInference.tonic);
+      const secDisplayMode = secInference.mode === "ambiguous" ? (secInference.topCandidates[0]?.mode ?? "major") : secInference.mode;
+      const secDist = this.makePitchClassDistribution(weights, secTonicOffset, secDisplayMode);
 
-      const diatonicMask = this.diatonicPitchClassMask(secTonicOffset);
+      const diatonicMask = this.diatonicPitchClassMask(secTonicOffset, secDisplayMode);
       const nonDiatonic: string[] = [];
       for (let pc = 0; pc < 12; pc++) {
         if (!diatonicMask.has(pc) && weights[pc] > 0.001) {
@@ -741,11 +768,14 @@ export class TMDSongInspector {
       sectionProfiles.push({
         sectionName: sec.name,
         occurrenceIndex: sec.occurrenceIndex,
-        declaredKey: secKeyName,
-        keyOffset: sec.keyOffset,
+        playbackContext: {
+          movableDoBase: baseKey,
+          transpositionOffset: sec.keyOffset,
+          fixedPitch,
+        },
         fifthsPosition: fifthsStep,
         pitchClasses: secDist,
-        correlation: secCorr,
+        inferredTonality: secInference,
         nonDiatonicNotes: nonDiatonic,
       });
     }
@@ -753,7 +783,13 @@ export class TMDSongInspector {
     // Human-friendly producer narrative synthesis
     const diatonicRatio = globalDist.diatonicRatio;
     let mood: TMDTonalityMood;
-    if (diatonicRatio >= 0.95) {
+    if (globalInference.mode === "insufficient") {
+      mood = "insufficient";
+    } else if (globalInference.mode === "minor" && diatonicRatio >= 0.95) {
+      mood = "cleanMinor";
+    } else if (globalInference.mode === "minor" && diatonicRatio >= 0.80) {
+      mood = "contemporaryMinor";
+    } else if (diatonicRatio >= 0.95) {
       mood = "cleanMajor";
     } else if (diatonicRatio >= 0.80) {
       mood = "contemporaryMajor";
@@ -765,36 +801,42 @@ export class TMDSongInspector {
     // Modulation story
     const modTransitions: string[] = [];
     const modulationTransitions: TMDTonalityNarrative["transitions"] = [];
-    let prevKey = baseKey;
-    let prevOffset = initialTonicOffset;
-    let prevFifths = this.circleOfFifthsStep(prevOffset);
+    let previousInference: TMDTonalityInference | undefined;
+    let previousTonicOffset = globalTonicOffset;
+    let previousFifths = this.circleOfFifthsStep(previousTonicOffset);
 
     for (const sec of sectionProfiles) {
-      if (sec.keyOffset !== prevOffset || sec.declaredKey !== prevKey) {
-        const diff = sec.keyOffset - prevOffset;
+      const current = sec.inferredTonality;
+      if (previousInference && this.isStableInference(previousInference) && this.isStableInference(current)
+        && (current.tonic !== previousInference.tonic || current.mode !== previousInference.mode)) {
+        const currentOffset = this.pitchClassOffset(current.tonic!);
+        const diff = currentOffset - previousTonicOffset;
         const semitoneDiff = diff >= 0 ? `+${diff}` : `${diff}`;
-        let stepDiff = sec.fifthsPosition - prevFifths;
+        let stepDiff = this.circleOfFifthsStep(currentOffset) - previousFifths;
         if (stepDiff > 6) stepDiff -= 12;
         if (stepDiff < -6) stepDiff += 12;
         const stepStr = stepDiff >= 0 ? `+${stepDiff}` : `${stepDiff}`;
         modulationTransitions.push({
           sectionName: sec.sectionName,
-          declaredKey: sec.declaredKey,
+          tonic: current.tonic!,
+          mode: current.mode as "major" | "minor",
           semitoneDiff: diff,
           fifthsStepDiff: stepDiff,
         });
         modTransitions.push(
           localizer.text(TMDLocalizationKey.modulationStep, [
             sec.sectionName,
-            sec.declaredKey,
+            `${current.tonic} ${this.modeLabel(current.mode, localizer)}`,
             semitoneDiff,
             stepStr,
           ])
         );
-        prevKey = sec.declaredKey;
-        prevOffset = sec.keyOffset;
-        prevFifths = sec.fifthsPosition;
       }
+      if (this.isStableInference(current)) {
+        previousTonicOffset = this.pitchClassOffset(current.tonic!);
+        previousFifths = this.circleOfFifthsStep(previousTonicOffset);
+      }
+      previousInference = current;
     }
 
     let modulationStory: string;
@@ -802,7 +844,7 @@ export class TMDSongInspector {
       modulationStory = localizer.text(TMDLocalizationKey.modulationNone);
     } else {
       modulationStory =
-        localizer.text(TMDLocalizationKey.modulationStart, [baseKey]) +
+        localizer.text(TMDLocalizationKey.modulationStart, [globalInference.tonic ?? "?", this.modeLabel(globalInference.mode, localizer)]) +
         " ➔ " +
         modTransitions.join(" ➔ ");
     }
@@ -810,27 +852,39 @@ export class TMDSongInspector {
     let summaryText: string;
     if (modTransitions.length === 0) {
       const moodSummary =
-        diatonicRatio >= 0.95
-          ? localizer.text(TMDLocalizationKey.summaryClean)
-          : localizer.text(TMDLocalizationKey.summaryColor);
-      summaryText = localizer.text(TMDLocalizationKey.summaryStable, [baseKey, moodSummary]);
+        mood === "cleanMinor"
+          ? localizer.text(TMDLocalizationKey.summaryCleanMinor)
+          : mood === "contemporaryMinor"
+            ? localizer.text(TMDLocalizationKey.summaryColorMinor)
+            : diatonicRatio >= 0.95
+              ? localizer.text(TMDLocalizationKey.summaryClean)
+              : localizer.text(TMDLocalizationKey.summaryColor);
+      summaryText = localizer.text(TMDLocalizationKey.summaryStable, [globalInference.tonic ?? "?", this.modeLabel(globalInference.mode, localizer), moodSummary]);
     } else {
       summaryText = localizer.text(TMDLocalizationKey.summaryModulating, [
-        baseKey,
+        globalInference.tonic ?? "?",
+        this.modeLabel(globalInference.mode, localizer),
         String(modTransitions.length),
       ]);
     }
 
     return {
       globalPitchClasses: globalDist,
-      globalCorrelation: globalCorr,
+      globalInference,
+      playbackContext: {
+        movableDoBase: baseKey,
+        transpositionOffset: initialTonicOffset,
+        fixedPitch: false,
+      },
+      playbackTranspositionPath: sectionProfiles.map((section) => section.playbackContext.transpositionOffset),
+      inferredModulationPath: modulationTransitions,
       circleOfFifthsPath,
       sections: sectionProfiles,
       summaryText,
       moodDescription,
       modulationStory,
       narrative: {
-        baseKey,
+        tonic: globalInference.tonic ?? "?",
         mood,
         transitions: modulationTransitions,
       },
@@ -842,7 +896,25 @@ export class TMDSongInspector {
     switch (mood) {
     case "cleanMajor": return TMDLocalizationKey.moodCleanMajor;
     case "contemporaryMajor": return TMDLocalizationKey.moodContemporaryMajor;
+    case "cleanMinor": return TMDLocalizationKey.moodCleanMinor;
+    case "contemporaryMinor": return TMDLocalizationKey.moodContemporaryMinor;
+    case "insufficient": return TMDLocalizationKey.moodInsufficient;
     case "modal": return TMDLocalizationKey.moodModal;
+    }
+  }
+
+  private static isStableInference(inference: TMDTonalityInference): inference is TMDTonalityInference & { tonic: string; mode: "major" | "minor" } {
+    return inference.tonic !== null && (inference.mode === "major" || inference.mode === "minor")
+      && inference.stability !== "ambiguous" && inference.stability !== "insufficient";
+  }
+
+  private static modeLabel(mode: TMDTonalityMode, localizer: TMDLocalizer): string {
+    switch (mode) {
+    case "major": return localizer.text(TMDLocalizationKey.major);
+    case "minor": return localizer.text(TMDLocalizationKey.minor);
+    case "ambiguous": return localizer.text(TMDLocalizationKey.modeAmbiguous);
+    case "modal": return localizer.text(TMDLocalizationKey.modeModal);
+    case "insufficient": return localizer.text(TMDLocalizationKey.modeInsufficient);
     }
   }
 
@@ -858,23 +930,24 @@ export class TMDSongInspector {
         modulationStory: tonality.modulationStory,
       };
     }
-    const { baseKey, mood, transitions } = tonality.narrative;
+    const { tonic, mood, transitions } = tonality.narrative;
     const moodDescription = localizer.text(this.moodLocalizationKey(mood));
     const modulationParts = transitions.map((transition) => localizer.text(TMDLocalizationKey.modulationStep, [
       transition.sectionName,
-      transition.declaredKey,
+      `${transition.tonic} ${this.modeLabel(transition.mode, localizer)}`,
       transition.semitoneDiff >= 0 ? `+${transition.semitoneDiff}` : `${transition.semitoneDiff}`,
       transition.fifthsStepDiff >= 0 ? `+${transition.fifthsStepDiff}` : `${transition.fifthsStepDiff}`,
     ]));
     const modulationStory = transitions.length === 0
       ? localizer.text(TMDLocalizationKey.modulationNone)
-      : localizer.text(TMDLocalizationKey.modulationStart, [baseKey]) + " ➔ " + modulationParts.join(" ➔ ");
+      : localizer.text(TMDLocalizationKey.modulationStart, [tonic, this.modeLabel(tonality.globalInference.mode, localizer)]) + " ➔ " + modulationParts.join(" ➔ ");
     const summaryText = transitions.length === 0
       ? localizer.text(TMDLocalizationKey.summaryStable, [
-        baseKey,
-        localizer.text(mood === "cleanMajor" ? TMDLocalizationKey.summaryClean : TMDLocalizationKey.summaryColor),
+        tonic,
+        this.modeLabel(tonality.globalInference.mode, localizer),
+        localizer.text(mood === "cleanMinor" ? TMDLocalizationKey.summaryCleanMinor : mood === "contemporaryMinor" ? TMDLocalizationKey.summaryColorMinor : mood === "cleanMajor" ? TMDLocalizationKey.summaryClean : TMDLocalizationKey.summaryColor),
       ])
-      : localizer.text(TMDLocalizationKey.summaryModulating, [baseKey, String(transitions.length)]);
+      : localizer.text(TMDLocalizationKey.summaryModulating, [tonic, this.modeLabel(tonality.globalInference.mode, localizer), String(transitions.length)]);
     return { summaryText, moodDescription, modulationStory };
   }
 
@@ -921,11 +994,10 @@ export class TMDSongInspector {
     return result;
   }
 
-  private static diatonicPitchClassMask(tonicOffset: number): Set<number> {
-    // Major scale diatonic intervals: [0, 2, 4, 5, 7, 9, 11]
-    const majorSteps = [0, 2, 4, 5, 7, 9, 11];
+  private static diatonicPitchClassMask(tonicOffset: number, mode: TMDTonalityMode = "major"): Set<number> {
+    const steps = mode === "minor" ? [0, 2, 3, 5, 7, 8, 10] : mode === "major" ? [0, 2, 4, 5, 7, 9, 11] : [];
     const mask = new Set<number>();
-    for (const step of majorSteps) {
+    for (const step of steps) {
       mask.add((tonicOffset + step) % 12);
     }
     return mask;
@@ -933,7 +1005,8 @@ export class TMDSongInspector {
 
   private static makePitchClassDistribution(
     weights: number[],
-    tonicOffset: number
+    tonicOffset: number,
+    mode: TMDTonalityMode = "major"
   ): TMDPitchClassDistribution {
     const pitchClassNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
     const total = weights.reduce((acc, w) => acc + w, 0.0);
@@ -946,7 +1019,7 @@ export class TMDSongInspector {
       };
     }
 
-    const diatonicMask = this.diatonicPitchClassMask(tonicOffset);
+    const diatonicMask = this.diatonicPitchClassMask(tonicOffset, mode);
     let diatonicSum = 0.0;
     for (let pc = 0; pc < 12; pc++) {
       if (diatonicMask.has(pc)) {
@@ -997,13 +1070,23 @@ export class TMDSongInspector {
     return num / denom;
   }
 
-  private static evaluateKeyCorrelation(
-    weights: number[],
-    declaredKeyName: string,
-    declaredTonicOffset: number
-  ): TMDKeyCorrelation {
+  private static evaluateTonality(weights: number[], evidence: TMDTonalityEvidence = { noteWeight: 0, chordWeight: 0 }): TMDTonalityInference {
     const pitchClassNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-    const candidates: TMDKeyFitCandidate[] = [];
+    const total = weights.reduce((acc, w) => acc + w, 0.0);
+    if (total <= 0.0001) {
+      return {
+        tonic: null,
+        mode: "insufficient",
+        scaleFamily: "unknown",
+        confidence: 0,
+        margin: 0,
+        stability: "insufficient",
+        bestCorrelation: 0,
+        topCandidates: [],
+        evidence,
+      };
+    }
+    const candidates: TMDTonalityCandidate[] = [];
 
     // Evaluate all 12 Major and 12 Minor keys
     for (let tonic = 0; tonic < 12; tonic++) {
@@ -1013,44 +1096,39 @@ export class TMDSongInspector {
       }
 
       const rMajor = this.pearsonCorrelation(rotWeights, this.KS_MAJOR_PROFILE);
-      candidates.push({ keyName: `${pitchClassNames[tonic]} Major`, correlation: rMajor });
+      candidates.push({ tonic: pitchClassNames[tonic], mode: "major", scaleFamily: "major", correlation: rMajor });
 
       const rMinor = this.pearsonCorrelation(rotWeights, this.KS_MINOR_PROFILE);
-      candidates.push({ keyName: `${pitchClassNames[tonic]} Minor`, correlation: rMinor });
+      const seventhWeight = weights[(tonic + 11) % 12] / total;
+      const sixthWeight = weights[(tonic + 9) % 12] / total;
+      const scaleFamily: TMDScaleFamily = seventhWeight > 0.08 && sixthWeight > 0.08
+        ? "melodicMinor" : seventhWeight > 0.08 ? "harmonicMinor" : "naturalMinor";
+      candidates.push({ tonic: pitchClassNames[tonic], mode: "minor", scaleFamily, correlation: rMinor });
     }
 
     candidates.sort((a, b) => b.correlation - a.correlation);
 
-    // Find correlation of declared key (Major profile)
-    const declaredRot = new Array<number>(12).fill(0.0);
-    for (let i = 0; i < 12; i++) {
-      declaredRot[i] = weights[(declaredTonicOffset + i) % 12];
-    }
-    const declaredR = this.pearsonCorrelation(declaredRot, this.KS_MAJOR_PROFILE);
-
-    const diatonicMask = this.diatonicPitchClassMask(declaredTonicOffset);
-    const total = weights.reduce((acc, w) => acc + w, 0.0);
-    const diatonicSum = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-      .filter((pc) => diatonicMask.has(pc))
-      .map((pc) => weights[pc])
-      .reduce((acc, w) => acc + w, 0.0);
-    const diatonicRatio = total > 0 ? diatonicSum / total : 1.0;
-
-    let stability: TMDKeyStability;
-    if (declaredR >= 0.70 && diatonicRatio >= 0.85) {
-      stability = "high";
-    } else if (declaredR >= 0.40 && diatonicRatio >= 0.65) {
-      stability = "moderate";
-    } else {
-      stability = "ambiguous";
-    }
-
+    const best = candidates[0];
+    const second = candidates[1];
+    const margin = best.correlation - second.correlation;
+    const confidence = Math.max(0, Math.min(1, ((best.correlation + 1) / 2) * (0.5 + Math.min(1, margin / 0.20) * 0.5)));
+    const stability: TMDKeyStability = confidence >= 0.75 && margin >= 0.08 ? "high" : confidence >= 0.50 && margin >= 0.03 ? "moderate" : "ambiguous";
+    const mode: TMDTonalityMode = stability === "ambiguous" ? "ambiguous" : best.mode;
     return {
-      declaredKey: declaredKeyName,
-      declaredKeyCorrelation: declaredR,
-      topCandidateKeys: candidates.slice(0, 3),
+      tonic: best.tonic,
+      mode,
+      scaleFamily: mode === "ambiguous" ? "unknown" : best.scaleFamily,
+      confidence,
+      margin,
       stability,
+      bestCorrelation: best.correlation,
+      topCandidates: candidates.slice(0, 4),
+      evidence,
     };
+  }
+
+  private static pitchClassOffset(tonic: string): number {
+    return ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"].indexOf(tonic);
   }
 
   private static keyName(tonic: number): string {
@@ -1095,7 +1173,7 @@ export class TMDSongInspector {
     lines.push("================================================================================");
     lines.push(`⏱  ${localizer.text(TMDLocalizationKey.duration)}:       ${timeFormatted}, ${profile.timing.totalMeasures} ${localizer.text(TMDLocalizationKey.measuresTotal)}`);
     lines.push(
-      `🎼 ${localizer.text(TMDLocalizationKey.keyAndTempo)}:    ${profile.initialKey} ${localizer.text(TMDLocalizationKey.major)}, != ${profile.initialTempo} BPM, <${profile.initialTimeSignature}>`
+      `🎼 ${localizer.text(TMDLocalizationKey.keyAndTempo)}:    ${localizer.text(TMDLocalizationKey.playbackBase)} ${profile.initialKey}, != ${profile.initialTempo} BPM, <${profile.initialTimeSignature}>`
     );
     lines.push(`   - ${localizer.text(TMDLocalizationKey.analysisScope)}`);
 
@@ -1126,8 +1204,8 @@ export class TMDSongInspector {
 
     if (profile.tonality) {
       const tonality = profile.tonality;
-      const stabStr = tonality.globalCorrelation.stability.charAt(0).toUpperCase() + tonality.globalCorrelation.stability.slice(1);
-      const corrStr = tonality.globalCorrelation.declaredKeyCorrelation.toFixed(2);
+      const stabStr = tonality.globalInference.stability.charAt(0).toUpperCase() + tonality.globalInference.stability.slice(1);
+      const corrStr = tonality.globalInference.bestCorrelation.toFixed(2);
       const diatonicPct = `${(tonality.globalPitchClasses.diatonicRatio * 100.0).toFixed(1)}%`;
       const topPitches = tonality.globalPitchClasses.topPitchClasses.slice(0, 5).join(", ");
 
@@ -1136,12 +1214,12 @@ export class TMDSongInspector {
       lines.push(`   - ${localizer.text(TMDLocalizationKey.modulationJourney)}:    ${localizedTonality?.modulationStory ?? tonality.modulationStory}`);
       lines.push(`   - ${localizer.text(TMDLocalizationKey.tonalCore)}:  ${topPitches}`);
       lines.push(
-        `   - ${localizer.text(TMDLocalizationKey.tonalMetrics)}:    ${tonality.globalCorrelation.declaredKey} [${localizer.text(TMDLocalizationKey.correlation)}: ${corrStr}, ${localizer.text(TMDLocalizationKey.stability)}: ${stabStr}, ${localizer.text(TMDLocalizationKey.diatonicPurity)}: ${diatonicPct}]`
+        `   - ${localizer.text(TMDLocalizationKey.tonalMetrics)}:    ${tonality.globalInference.tonic ?? "?"} ${this.modeLabel(tonality.globalInference.mode, localizer)} [${localizer.text(TMDLocalizationKey.correlation)}: ${corrStr}, ${localizer.text(TMDLocalizationKey.stability)}: ${stabStr}, ${localizer.text(TMDLocalizationKey.diatonicPurity)}: ${diatonicPct}]`
       );
 
-      const candidateStr = tonality.globalCorrelation.topCandidateKeys
+      const candidateStr = tonality.globalInference.topCandidates
         .slice(0, 3)
-        .map((c) => `${c.keyName} (${c.correlation.toFixed(2)})`)
+        .map((c) => `${c.tonic} ${this.modeLabel(c.mode, localizer)} (${c.correlation.toFixed(2)})`)
         .join(", ");
       if (candidateStr.length > 0) {
         lines.push(`   - ${localizer.text(TMDLocalizationKey.candidateKeys)}: ${candidateStr}`);
@@ -1157,9 +1235,9 @@ export class TMDSongInspector {
       if (tonality.sections.length > 0) {
         lines.push(`   - ${localizer.text(TMDLocalizationKey.sectionDetails)}:`);
         for (const sec of tonality.sections) {
-          const secCorr = sec.correlation.declaredKeyCorrelation.toFixed(2);
+          const secCorr = sec.inferredTonality.bestCorrelation.toFixed(2);
           const secDiatonic = `${(sec.pitchClasses.diatonicRatio * 100.0).toFixed(1)}%`;
-          let secLine = `     • [${sec.sectionName} #${sec.occurrenceIndex}]: ${sec.declaredKey} (r: ${secCorr}, ${localizer.text(TMDLocalizationKey.diatonicPurity)}: ${secDiatonic}`;
+          let secLine = `     • [${sec.sectionName} #${sec.occurrenceIndex}]: ${sec.inferredTonality.tonic ?? "?"} ${this.modeLabel(sec.inferredTonality.mode, localizer)} (r: ${secCorr}, ${localizer.text(TMDLocalizationKey.diatonicPurity)}: ${secDiatonic}`;
           if (sec.nonDiatonicNotes.length > 0) {
             secLine += `, ${localizer.text(TMDLocalizationKey.nonDiatonic)}: ${sec.nonDiatonicNotes.join(", ")}`;
           }

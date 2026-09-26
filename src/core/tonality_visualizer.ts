@@ -45,7 +45,7 @@ export class TMDTonalityVisualizer {
 
   <!-- Title Bar -->
   <text x="32" y="44" fill="#f8fafc" font-size="20" font-weight="bold">🎼 TMD Tonality Visualizer: ${this.xmlEscape(profile.title)}</text>
-  <text x="32" y="68" fill="#94a3b8" font-size="13">Declared Key: ${tonality.globalCorrelation.declaredKey} | Stability: ${tonality.globalCorrelation.stability.charAt(0).toUpperCase() + tonality.globalCorrelation.stability.slice(1)} | K-S Correlation: ${tonality.globalCorrelation.declaredKeyCorrelation.toFixed(2)} | Diatonic: ${(tonality.globalPitchClasses.diatonicRatio * 100.0).toFixed(1)}%</text>
+  <text x="32" y="68" fill="#94a3b8" font-size="13">${this.xmlEscape(localizer.text(TMDLocalizationKey.visualizerInferredTonality))}: ${this.xmlEscape(`${tonality.globalInference.tonic ?? "?"} ${this.modeLabel(tonality.globalInference.mode, localizer)}`)} | ${this.xmlEscape(localizer.text(TMDLocalizationKey.visualizerConfidence))}: ${(tonality.globalInference.confidence * 100).toFixed(0)}% | ${this.xmlEscape(localizer.text(TMDLocalizationKey.visualizerDiatonicEvidence))}: ${(tonality.globalPitchClasses.diatonicRatio * 100.0).toFixed(1)}%</text>
 `;
 
     // 1. Circle of Fifths (Left, Center (220, 260), Radius 130)
@@ -319,7 +319,10 @@ export class TMDTonalityVisualizer {
         const textX = currentX + secWidth / 2.0;
         let keyLabel = `${sec.keyOffset}`;
         if (profile.tonality && idx < profile.tonality.sections.length) {
-          keyLabel = profile.tonality.sections[idx].declaredKey;
+          const section = profile.tonality.sections[idx];
+          keyLabel = section.inferredTonality.tonic
+            ? `${section.inferredTonality.tonic} ${this.modeLabel(section.inferredTonality.mode, localizer)}`
+            : localizer.text(TMDLocalizationKey.visualizerAmbiguous);
         }
         s += `  <text x="${textX.toFixed(1)}" y="${(y + height / 2 + 5).toFixed(1)}" fill="#ffffff" font-size="11" font-weight="bold" text-anchor="middle">${this.xmlEscape(sec.name)} [${keyLabel}]</text>\n`;
       }
@@ -336,6 +339,16 @@ export class TMDTonalityVisualizer {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&apos;");
+  }
+
+  private static modeLabel(mode: TMDTonalityProfile["globalInference"]["mode"], localizer: TMDLocalizer): string {
+    switch (mode) {
+    case "major": return localizer.text(TMDLocalizationKey.major);
+    case "minor": return localizer.text(TMDLocalizationKey.minor);
+    case "ambiguous": return localizer.text(TMDLocalizationKey.modeAmbiguous);
+    case "modal": return localizer.text(TMDLocalizationKey.modeModal);
+    case "insufficient": return localizer.text(TMDLocalizationKey.modeInsufficient);
+    }
   }
 }
 

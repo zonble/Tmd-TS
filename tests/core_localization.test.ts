@@ -7,9 +7,9 @@ describe("TMD core localization", () => {
     const en = new TMDLocalizer("en");
 
     expect(zh.text(TMDLocalizationKey.reportTitle)).toBe("TMD Song Profile");
-    expect(zh.text(TMDLocalizationKey.modulationStep, ["chorus", "D", "+2", "+2"]))
+    expect(zh.text(TMDLocalizationKey.modulationStep, ["chorus", "D 大調", "+2", "+2"]))
       .toBe("[chorus] 轉至 D 大調 (+2 半音 / 五度圈 +2 步)");
-    expect(en.text(TMDLocalizationKey.modulationStep, ["chorus", "D", "+2", "+2"]))
+    expect(en.text(TMDLocalizationKey.modulationStep, ["chorus", "D Major", "+2", "+2"]))
       .toBe("[chorus] to D Major (+2 semitones / +2 fifths)");
     expect(en.text(TMDLocalizationKey.candidateKeys)).toBe("Best-fit keys (K-S)");
   });

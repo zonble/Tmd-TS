@@ -1,4 +1,5 @@
 import { TMDLocale, TMDSectionTimingProfile, TMDTonalityProfile, TMDSongInspector } from "../../../src/core/inspector.js";
+import { TMDLocalizationKey, TMDLocalizer } from "../../../src/core/localization.js";
 import { escapeHtml } from "../html.js";
 import { en } from "../locales/en.js";
 import { zhTW } from "../locales/zh-TW.js";
@@ -11,11 +12,12 @@ const KEY_OFFSETS: Record<string, number> = {
 const SOLFEGE: Record<number, string> = { 0: "Do", 2: "Re", 4: "Mi", 5: "Fa", 7: "Sol", 9: "La", 11: "Ti" };
 
 type TonalityLabelKey =
-  | "tonalityStabilityHigh" | "tonalityStabilityModerate" | "tonalityStabilityAmbiguous"
+  | "tonalityStabilityHigh" | "tonalityStabilityModerate" | "tonalityStabilityAmbiguous" | "tonalityStabilityInsufficient"
   | "tonalityMoodLabel" | "tonalityModulationLabel" | "tonalityPitchDistribution"
-  | "tonalityStructureTimeline" | "tonalityDetailedAnalysis" | "tonalityDeclaredKey"
+  | "tonalityStructureTimeline" | "tonalityDetailedAnalysis"
   | "tonalityCorrelation" | "tonalityDiatonicPurity" | "tonalityDiatonicChromatic"
-  | "tonalityBestFitKeys" | "tonalityCircleOfFifths";
+  | "tonalityBestFitKeys" | "tonalityCircleOfFifths" | "tonalityInferred" | "tonalityConfidence"
+  | "tonalityPlaybackContext" | "tonalityAmbiguous";
 
 function label(locale: TMDLocale, key: TonalityLabelKey, fallback: string): string {
   const dictionary = locale === "zh-Hant" || locale === "zh-TW" ? zhTW : en;
@@ -25,8 +27,19 @@ function label(locale: TMDLocale, key: TonalityLabelKey, fallback: string): stri
 function stabilityLabel(stability: string, locale: TMDLocale): string {
   const key = stability === "high"
     ? "tonalityStabilityHigh"
-    : stability === "moderate" ? "tonalityStabilityModerate" : "tonalityStabilityAmbiguous";
+    : stability === "moderate" ? "tonalityStabilityModerate" : stability === "insufficient" ? "tonalityStabilityInsufficient" : "tonalityStabilityAmbiguous";
   return label(locale, key, stability);
+}
+
+function modeLabel(mode: TMDTonalityProfile["globalInference"]["mode"], locale: TMDLocale): string {
+  const localizer = new TMDLocalizer(locale);
+  switch (mode) {
+  case "major": return localizer.text(TMDLocalizationKey.major);
+  case "minor": return localizer.text(TMDLocalizationKey.minor);
+  case "ambiguous": return localizer.text(TMDLocalizationKey.modeAmbiguous);
+  case "modal": return localizer.text(TMDLocalizationKey.modeModal);
+  case "insufficient": return localizer.text(TMDLocalizationKey.modeInsufficient);
+  }
 }
 
 /**
@@ -39,19 +52,19 @@ export function renderTonalityProfileHtml(
   locale: TMDLocale = "en",
   timingSections: TMDSectionTimingProfile[] = []
 ): string {
-  const stability = tonality.globalCorrelation.stability || "high";
+  const stability = tonality.globalInference.stability || "insufficient";
   const stabilityClass = stability === "high" ? "valid" : stability === "moderate" ? "warn" : "error";
   const diatonicPct = (tonality.globalPitchClasses.diatonicRatio * 100).toFixed(1);
-  const correlation = tonality.globalCorrelation.declaredKeyCorrelation.toFixed(2);
-  const candidates = (tonality.globalCorrelation.topCandidateKeys || [])
+  const correlation = tonality.globalInference.bestCorrelation.toFixed(2);
+  const candidates = (tonality.globalInference.topCandidates || [])
     .slice(0, 3)
-    .map((candidate) => `${escapeHtml(candidate.keyName)} (${candidate.correlation.toFixed(2)})`)
+    .map((candidate) => `${escapeHtml(`${candidate.tonic} ${modeLabel(candidate.mode, locale)}`)} (${candidate.correlation.toFixed(2)})`)
     .join(", ");
   const fifthsPath = (tonality.circleOfFifthsPath || [])
     .map((position) => (position >= 0 ? `+${position}` : `${position}`))
     .join(" → ");
 
-  const rootName = (tonality.globalCorrelation.declaredKey || "C").split(" ")[0];
+  const rootName = tonality.globalInference.tonic || "C";
   const rootOffset = KEY_OFFSETS[rootName] ?? 0;
   const weights = tonality.globalPitchClasses.weights || [];
   const maxWeight = Math.max(0.001, ...weights);
@@ -72,7 +85,7 @@ export function renderTonalityProfileHtml(
   }).join("");
 
   const narrative = TMDSongInspector.localizeTonalityNarrative(tonality, locale);
-  const summary = narrative.summaryText || tonality.globalCorrelation.declaredKey;
+  const summary = narrative.summaryText || `${rootName} ${modeLabel(tonality.globalInference.mode, locale)}`;
   const mood = narrative.moodDescription || (tonality.globalPitchClasses.diatonicRatio >= 0.95
     ? label(locale, "tonalityMoodLabel", "Musical Character & Mood")
     : label(locale, "tonalityMoodLabel", "Musical Character & Mood"));
@@ -90,7 +103,7 @@ export function renderTonalityProfileHtml(
           const tonalSection = tonality.sections[index];
           return `<button type="button" class="timeline-item tonality-timeline-item" data-tonality-section="${escapeHtml(section.name)}">
             <span class="timeline-item-index">#${index + 1}</span>
-            <span class="timeline-item-name">${escapeHtml(section.name)}${tonalSection ? ` · ${escapeHtml(tonalSection.declaredKey)}` : ""}</span>
+            <span class="timeline-item-name">${escapeHtml(section.name)}${tonalSection ? ` · ${escapeHtml(tonalSection.inferredTonality.tonic ? `${tonalSection.inferredTonality.tonic} ${modeLabel(tonalSection.inferredTonality.mode, locale)}` : label(locale, "tonalityAmbiguous", "ambiguous"))}` : ""}</span>
             <span class="timeline-item-time">${section.durationSeconds.toFixed(1)}s (${section.measures}m)</span>
           </button>`;
         }).join("")}</div>
@@ -116,10 +129,11 @@ export function renderTonalityProfileHtml(
       <summary class="tonality-advanced-summary">${escapeHtml(label(locale, "tonalityDetailedAnalysis", "Detailed Theoretical Analysis"))}</summary>
       <div class="tonality-details-content">
         <div class="tonality-summary-row">
-          <div class="tonality-stat-box"><span class="stat-label">${escapeHtml(label(locale, "tonalityDeclaredKey", "Declared Key"))}</span><span class="stat-value">${escapeHtml(tonality.globalCorrelation.declaredKey)}</span><span class="stat-sub">${escapeHtml(label(locale, "tonalityCorrelation", "Correlation"))}: ${correlation}</span></div>
+          <div class="tonality-stat-box"><span class="stat-label">${escapeHtml(label(locale, "tonalityInferred", "Inferred Tonality"))}</span><span class="stat-value">${escapeHtml(`${rootName} ${modeLabel(tonality.globalInference.mode, locale)}`)}</span><span class="stat-sub">${escapeHtml(label(locale, "tonalityConfidence", "Confidence"))}: ${(tonality.globalInference.confidence * 100).toFixed(0)}% · ${escapeHtml(label(locale, "tonalityCorrelation", "Correlation"))}: ${correlation}</span></div>
           <div class="tonality-stat-box"><span class="stat-label">${escapeHtml(label(locale, "tonalityDiatonicPurity", "Diatonic Purity"))}</span><span class="stat-value">${diatonicPct}%</span><span class="stat-sub">${escapeHtml(label(locale, "tonalityDiatonicChromatic", "Diatonic / Chromatic"))}</span></div>
         </div>
-        ${candidates ? `<div class="pitch-metric-row"><span class="stat-label">${escapeHtml(label(locale, "tonalityBestFitKeys", "Best Fit Keys (K-S)"))}</span><span class="pitch-metric-value">${candidates}</span></div>` : ""}
+        ${candidates ? `<div class="pitch-metric-row"><span class="stat-label">${escapeHtml(label(locale, "tonalityBestFitKeys", "Best Fit Tonalities (K-S)"))}</span><span class="pitch-metric-value">${candidates}</span></div>` : ""}
+        <div class="pitch-metric-row"><span class="stat-label">${escapeHtml(label(locale, "tonalityPlaybackContext", "Playback Context"))}</span><span class="pitch-metric-value mono">${escapeHtml(`${tonality.playbackContext.movableDoBase} · ${tonality.playbackTranspositionPath.join(" → ") || "+0"}`)}</span></div>
         ${fifthsPath ? `<div class="pitch-metric-row"><span class="stat-label">${escapeHtml(label(locale, "tonalityCircleOfFifths", "Circle of Fifths Trajectory"))}</span><span class="pitch-metric-value mono">${escapeHtml(fifthsPath)}</span></div>` : ""}
       </div>
     </details>

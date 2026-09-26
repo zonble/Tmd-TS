@@ -29,7 +29,7 @@ verse:Piano@|0|{
     expect(html).toContain("Modulation Journey");
     expect((html.match(/class=\"pitch-bar-col\"/g) || []).length).toBe(12);
     expect(html).toContain("Do");
-    expect(html).toContain("Best Fit Keys (K-S)");
+    expect(html).toContain("Best Fit Tonalities (K-S)");
     expect(html).toContain("Circle of Fifths Trajectory");
     expect(html).toContain("Detailed Theoretical Analysis");
     expect(html).toContain("tonality-timeline");
@@ -52,7 +52,7 @@ A:Piano@|0|{ <4*> 1 3 5 1^ }
 
     expect(html).toContain("音樂性格與氣質");
     expect(html).toContain("詳細樂理分析");
-    expect(html).toContain("最佳符合調性 (K-S)");
+    expect(html).toContain("最佳推論調性 (K-S)");
     expect(html).not.toContain("Musical Character &amp; Mood");
 
     const indexHtml = fs.readFileSync(path.join(__dirname, "../web/index.html"), "utf8");
