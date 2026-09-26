@@ -6,6 +6,7 @@ import { TMDSongInspector, TMDSongProfile } from "../../../src/core/inspector.js
 import { TMDTonalityVisualizer } from "../../../src/core/tonality_visualizer.js";
 import { t, getCurrentLocale } from "../i18n.js";
 import { escapeHtml } from "../html.js";
+import { renderTonalityProfileHtml } from "./tonality.js";
 
 export interface InspectorElements {
   inspectorStatus: HTMLElement;
@@ -235,22 +236,8 @@ export function renderInspectorView(
     if (inspectorTonalityViz) {
       if (profile.tonality) {
         const locale = getCurrentLocale() === "zh-TW" ? "zh-Hant" : "en";
-        const svg = TMDTonalityVisualizer.generateSVG(profile, locale);
-        inspectorTonalityViz.innerHTML = svg;
-
-        if (inspectorTonalitySummary) {
-          const tonality = profile.tonality;
-          const corrStr = tonality.globalCorrelation.declaredKeyCorrelation.toFixed(2);
-          const purityStr = `${(tonality.globalPitchClasses.diatonicRatio * 100).toFixed(1)}%`;
-          inspectorTonalitySummary.innerHTML = `
-            <div style="margin-bottom: 4px;"><strong>${escapeHtml(tonality.summaryText)}</strong></div>
-            <div style="color: var(--text-secondary); line-height: 1.4;">
-              ${escapeHtml(tonality.moodDescription)}<br>
-              ${escapeHtml(tonality.modulationStory)}<br>
-              <span style="color: var(--accent-blue);">r: ${corrStr} · Diatonic: ${purityStr} · Key: ${escapeHtml(tonality.globalCorrelation.declaredKey)}</span>
-            </div>
-          `;
-        }
+        inspectorTonalityViz.innerHTML = renderTonalityProfileHtml(profile.tonality, locale);
+        if (inspectorTonalitySummary) inspectorTonalitySummary.innerHTML = "";
         if (inspectorTonalityCard) {
           inspectorTonalityCard.style.display = "";
         }
