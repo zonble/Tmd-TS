@@ -31,7 +31,7 @@ export class TMDLilyPondGenerator {
     ly += `  \\key ${TMDLilyPondGenerator.lilyPondKey(sheet.keySignature.toString())}\n`;
     ly += `}\n\n`;
 
-    const instruments = SheetInstrumentHelper.distinctInstruments(sheet);
+    const instruments = SheetInstrumentHelper.distinctInstruments(sheet, false);
 
     const identifierMap = new Map<string, string>();
     const usedNames = new Set<string>();
@@ -281,4 +281,3 @@ export class TMDLilyPondGenerator {
       );
   }
 }
-

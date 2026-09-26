@@ -31,7 +31,7 @@ export class TMDABCGenerator {
     abc += `${tempoField}\n`;
     abc += `K:${TMDABCGenerator.abcKey(sheet.keySignature.toString())}\n\n`;
 
-    const instruments = SheetInstrumentHelper.distinctInstruments(sheet);
+    const instruments = SheetInstrumentHelper.distinctInstruments(sheet, false);
 
     instruments.forEach((inst, idx) => {
       const vId = `V${idx + 1}`;
@@ -289,4 +289,3 @@ export class TMDABCGenerator {
       );
   }
 }
-

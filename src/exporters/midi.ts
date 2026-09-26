@@ -860,7 +860,7 @@ export class TMDMIDIGenerator {
       };
     }
 
-    let distinctInstruments = SheetInstrumentHelper.distinctInstruments(effectiveSheet);
+    let distinctInstruments = SheetInstrumentHelper.distinctInstruments(effectiveSheet, false);
 
     if (options?.targetInstrument) {
       const target = options.targetInstrument === "" ? DEFAULT_INSTRUMENT : options.targetInstrument;
@@ -870,14 +870,8 @@ export class TMDMIDIGenerator {
       }
     }
 
-    const timelineInstrument =
-      effectiveSheet.paragraphs.find(p => p.sections.some(s => s.directives.length > 0))
-        ?.instrument ||
-      distinctInstruments[0] ||
-      DEFAULT_INSTRUMENT;
-
     const renderOpts = { startOrderIndex: options?.startOrderIndex };
-    const timeline = TMDPlaybackRenderer.render(effectiveSheet, timelineInstrument, renderOpts);
+    const timeline = TMDPlaybackRenderer.renderConductor(effectiveSheet, renderOpts);
     const trackData: Uint8Array[] = [
       TMDMIDIEncoder.encodeTrack(
         this.conductorEvents(effectiveSheet, timeline, ticksPerQuarter)

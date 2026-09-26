@@ -24,7 +24,7 @@ export class TMDMusicXMLGenerator {
     xml += `    <encoding>\n      <software>Tmd-TS MusicXML Exporter</software>\n    </encoding>\n`;
     xml += `  </identification>\n\n`;
 
-    const instruments = SheetInstrumentHelper.distinctInstruments(sheet);
+    const instruments = SheetInstrumentHelper.distinctInstruments(sheet, false);
 
     xml += `  <part-list>\n`;
     instruments.forEach((inst, idx) => {

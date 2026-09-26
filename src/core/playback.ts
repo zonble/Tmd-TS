@@ -141,6 +141,46 @@ export class TMDPlaybackRenderer {
     };
   }
 
+  /** Renders a score-level conductor timeline by merging directives from every concrete instrument. */
+  public static renderConductor(inputSheet: Sheet, options?: TMDPlaybackRendererOptions): PlaybackTimeline {
+    const sheet = TMDMacroEvaluator.expand(inputSheet);
+    const instruments = Array.from(new Set(
+      sheet.paragraphs.map((p) => p.instrument).filter((instrument) => Boolean(instrument && instrument.trim()))
+    )).sort();
+    const sourceTimelines = instruments.map((instrument) => this.render(sheet, instrument, options));
+    const merged: PlaybackDirectiveEvent[] = [];
+
+    for (const timeline of sourceTimelines) {
+      for (const directive of timeline.directives) {
+        if (merged.some((existing) => existing.position === directive.position &&
+          JSON.stringify(existing.kind) === JSON.stringify(directive.kind))) {
+          continue;
+        }
+        merged.push(directive);
+      }
+    }
+
+    let state: PlaybackState = {
+      tempo: sheet.speed > 0 ? sheet.speed : 120,
+      keyOffset: sheet.keySignature.semitoneOffset,
+      timeSignature: sheet.beat,
+    };
+    const directives = merged
+      .map((directive, index) => ({ directive, index }))
+      .sort((a, b) => a.directive.position - b.directive.position || a.index - b.index)
+      .map(({ directive }) => directive)
+      .map((directive) => {
+        state = this.applyDirective(directive.kind, state);
+        return { position: directive.position, kind: directive.kind, state };
+      });
+
+    return {
+      events: [],
+      directives,
+      duration: Math.max(0, ...sourceTimelines.map((timeline) => timeline.duration)),
+    };
+  }
+
   private static renderParagraph(
     paragraph: Paragraph,
     start: number,
