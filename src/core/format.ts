@@ -60,6 +60,10 @@ export function formatSectionDirective(dir: SectionDirective): string {
       return `{?=${k.key}}`;
     case "relativeKey":
       return `{?${k.semitones >= 0 ? "+" + k.semitones : k.semitones}}`;
+    case "explicitKey":
+      return `{key= ${k.key}}`;
+    case "dynamics":
+      return `{${k.mark}}`;
     case "fixedPitch":
       return "{?=fixed}";
     case "timeSignature":
@@ -162,6 +166,7 @@ export function formatSheet(sheet: Sheet): string {
   result += `** ${sheet.name} **\n`;
   result += `!=${Number.isInteger(sheet.speed) ? sheet.speed : sheet.speed}\n`;
   result += `?=${sheet.keySignature.toString()}\n`;
+  if (sheet.declaredKey) result += `key= ${sheet.declaredKey}\n`;
   result += `<${sheet.beat.count}/${sheet.beat.noteValue}>\n\n`;
 
   const metaKeys = Object.keys(sheet.metadata).sort();

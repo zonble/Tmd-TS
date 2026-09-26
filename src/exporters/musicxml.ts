@@ -237,6 +237,12 @@ export class TMDMusicXMLGenerator {
         return `      <attributes><time><beats>${directive.kind.beat.count}</beats><beat-type>${directive.kind.beat.noteValue}</beat-type></time></attributes>\n`;
       case "absoluteKey":
         return `      <attributes><key><fifths>${TMDMusicXMLGenerator.keySignatureToFifths(directive.kind.key)}</fifths></key></attributes>\n`;
+      case "explicitKey": {
+        const mode = /(?:m|min|minor)$/i.test(directive.kind.key) ? "minor" : "major";
+        return `      <attributes><key><fifths>${TMDMusicXMLGenerator.keySignatureToFifths(directive.kind.key)}</fifths><mode>${mode}</mode></key></attributes>\n`;
+      }
+      case "dynamics":
+        return `      <direction placement="below"><direction-type><dynamics><${directive.kind.mark}/></dynamics></direction-type></direction>\n`;
       case "relativeKey": {
         const fifths = TMDMusicXMLGenerator.semitoneOffsetToFifths(directive.state.keyOffset);
         return `      <attributes><key><fifths>${fifths}</fifths></key></attributes>\n`;
@@ -276,7 +282,9 @@ export class TMDMusicXMLGenerator {
     const speed = sheet.speed > 0 ? sheet.speed : 120;
     const initialMetronome = TMDMusicXMLGenerator.resolveMetronome(sheet.beat, speed);
     const dotTag = initialMetronome.isDotted ? "\n            <beat-unit-dot/>" : "";
-    return `      <attributes>\n        <divisions>${divisions}</divisions>\n        <key>\n          <fifths>${TMDMusicXMLGenerator.keySignatureToFifths(sheet.keySignature.toString())}</fifths>\n        </key>\n        <time>\n          <beats>${sheet.beat.count}</beats>\n          <beat-type>${sheet.beat.noteValue}</beat-type>\n        </time>\n${TMDMusicXMLGenerator.generateClefXML(instrument, sheet)}      </attributes>\n      <direction placement="above">\n        <direction-type>\n          <metronome>\n            <beat-unit>${initialMetronome.beatUnit}</beat-unit>${dotTag}\n            <per-minute>${initialMetronome.perMinute}</per-minute>\n          </metronome>\n        </direction-type>\n        <sound tempo="${Math.round(speed)}"/>\n      </direction>\n`;
+    const key = sheet.declaredKey || sheet.keySignature.toString();
+    const modeTag = sheet.declaredKey ? `<mode>${/(?:m|min|minor)$/i.test(key) ? "minor" : "major"}</mode>` : "";
+    return `      <attributes>\n        <divisions>${divisions}</divisions>\n        <key>\n          <fifths>${TMDMusicXMLGenerator.keySignatureToFifths(key)}</fifths>${modeTag}\n        </key>\n        <time>\n          <beats>${sheet.beat.count}</beats>\n          <beat-type>${sheet.beat.noteValue}</beat-type>\n        </time>\n${TMDMusicXMLGenerator.generateClefXML(instrument, sheet)}      </attributes>\n      <direction placement="above">\n        <direction-type>\n          <metronome>\n            <beat-unit>${initialMetronome.beatUnit}</beat-unit>${dotTag}\n            <per-minute>${initialMetronome.perMinute}</per-minute>\n          </metronome>\n        </direction-type>\n        <sound tempo="${Math.round(speed)}"/>\n      </direction>\n`;
   }
 
   private static generateNoteXML(

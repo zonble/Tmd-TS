@@ -308,6 +308,7 @@ export class TMDSongInspector {
       tempo: sheet.speed && sheet.speed > 0 ? sheet.speed : 120.0,
       keyOffset: sheet.keySignature ? sheet.keySignature.semitoneOffset : 0,
       timeSignature: sheet.beat || { count: 4, noteValue: 4 },
+      dynamicLevel: "mf",
     };
 
     const sections: TMDSectionTimingProfile[] = [];
@@ -375,7 +376,7 @@ export class TMDSongInspector {
         currentSeconds += secDurationSeconds;
         currentMeasure += secMeasures;
         totalMeasures += secMeasures;
-        state = { tempo, keyOffset: state.keyOffset, timeSignature: meter };
+        state = { tempo, keyOffset: state.keyOffset, timeSignature: meter, dynamicLevel: state.dynamicLevel };
       }
     }
 

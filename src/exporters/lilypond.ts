@@ -28,7 +28,7 @@ export class TMDLilyPondGenerator {
     ly += `global = {\n`;
     ly += `  \\time ${sheet.beat.count}/${sheet.beat.noteValue}\n`;
     ly += `  ${TMDLilyPondGenerator.resolveTempo(sheet.beat, sheet.speed > 0 ? sheet.speed : 120)}\n`;
-    ly += `  \\key ${TMDLilyPondGenerator.lilyPondKey(sheet.keySignature.toString())}\n`;
+    ly += `  \\key ${TMDLilyPondGenerator.lilyPondKey(sheet.declaredKey || sheet.keySignature.toString())}\n`;
     ly += `}\n\n`;
 
     const instruments = SheetInstrumentHelper.distinctInstruments(sheet, false);
@@ -127,6 +127,10 @@ export class TMDLilyPondGenerator {
         return `\\time ${k.beat.count}/${k.beat.noteValue} `;
       case "absoluteKey":
         return `\\key ${TMDLilyPondGenerator.lilyPondKey(k.key)} `;
+      case "explicitKey":
+        return `\\key ${TMDLilyPondGenerator.lilyPondKey(k.key)} `;
+      case "dynamics":
+        return `\\${k.mark} `;
       case "relativeKey": {
         const semitone = ((directive.state.keyOffset % 12) + 12) % 12;
         const keyTonic = PitchMapping.lilyPondNames[semitone];
@@ -250,7 +254,8 @@ export class TMDLilyPondGenerator {
     } else if (trimmed.includes(",") || trimmed.includes("b")) {
       pitch += "es";
     }
-    return `${pitch} \\major`;
+    const mode = /(?:m|min|minor)$/i.test(trimmed) ? "minor" : "major";
+    return `${pitch} \\${mode}`;
   }
 
   private static sanitizeIdentifier(str: string, idx: number): string {

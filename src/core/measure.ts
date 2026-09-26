@@ -161,6 +161,7 @@ export class TMDMeasureRenderer {
         tempo: sheet.speed > 0 ? sheet.speed : 120,
         keyOffset: sheet.keySignature.semitoneOffset,
         timeSignature: mBeat,
+        dynamicLevel: "mf",
       };
 
       const epsilon = 1e-4;

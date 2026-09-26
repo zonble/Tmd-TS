@@ -23,6 +23,7 @@ export type TokenType =
   | "speedPrefix"
   | "relativeTempoPrefix"
   | "keySignaturePrefix"
+  | "explicitKeyPrefix"
   | "openAngle"
   | "slash"
   | "asterisk"
@@ -67,6 +68,7 @@ export function tokenExpectedDescription(type: TokenType): string {
     case "speedPrefix": return "!=";
     case "relativeTempoPrefix": return "!+";
     case "keySignaturePrefix": return "?=";
+    case "explicitKeyPrefix": return "key=";
     case "openAngle": return "<";
     case "slash": return "/";
     case "asterisk": return "*";
@@ -433,6 +435,16 @@ export class Lexer {
       }
     }
 
+    // key= or Key= (optional whitespace is part of the directive)
+    if ((c === "k" || c === "K") && this.peek(1).toLowerCase() === "e" && this.peek(2).toLowerCase() === "y") {
+      let offset = 3;
+      while (this.peek(offset) === " " || this.peek(offset) === "\t") offset++;
+      if (this.peek(offset) === "=") {
+        for (let i = 0; i <= offset; i++) this.advance();
+        return { type: "explicitKeyPrefix", text: "key=", line, column: col };
+      }
+    }
+
     // **
     if (c === "*" && this.peek(1) === "*") {
       this.advance(); this.advance();
@@ -523,7 +535,7 @@ export class Lexer {
 
     // Identifier
     let idStr = "";
-    const stops = new Set(" \t\r\n:!=?*<>/|{}()[]@#,");
+    const stops = new Set(" \t\r\n:!=?*<>/|{}()[]@,");
     while (!this.isAtEnd()) {
       const cur = this.peek();
       if (stops.has(cur)) break;
@@ -653,6 +665,7 @@ export class TmdParser {
     let name = "";
     let speed = 120.0;
     let keySignature = new KeySignature();
+    let declaredKey: string | undefined;
     let beat: Beat = { count: 4, noteValue: 4 };
     const paragraphs: Paragraph[] = [];
     const orders: Order[] = [];
@@ -699,6 +712,15 @@ export class TmdParser {
           break;
         }
 
+        case "explicitKeyPrefix": {
+          this.advance();
+          let key = "";
+          if (this.current.type === "identifier") key = String(this.advance().value);
+          else if (this.current.type === "note") key = String((this.advance().value as Note).degree);
+          if (key) declaredKey = key;
+          break;
+        }
+
         case "openAngle": {
           this.advance();
           let count = 4;
@@ -722,7 +744,7 @@ export class TmdParser {
           const currType = this.currentToken().type as string;
           if (currType === "arrowEnd") {
             this.advance();
-            return { name, speed, keySignature, beat, paragraphs, orders, metadata };
+            return { name, speed, keySignature, declaredKey, beat, paragraphs, orders, metadata };
           } else if (currType === "relativeOrderPrefix") {
             this.advance();
             let val = "";
@@ -795,7 +817,7 @@ export class TmdParser {
       }
     }
 
-    return { name, speed, keySignature, beat, paragraphs, orders, metadata };
+    return { name, speed, keySignature, declaredKey, beat, paragraphs, orders, metadata };
   }
 
   private parseParagraph(): Paragraph | null {
@@ -886,7 +908,8 @@ export class TmdParser {
             this.current.type === "relativeOrderPrefix" ||
             this.current.type === "absoluteOrderPrefix" ||
             this.current.type === "keySignaturePrefix" ||
-            this.current.type === "relativeTempoPrefix"
+            this.current.type === "relativeTempoPrefix" ||
+            this.current.type === "explicitKeyPrefix"
           ) {
             const dirPos = unitGroups.reduce((acc, g) => acc + g.length, 0);
             const directive = this.parseSectionDirective(dirPos);
@@ -1062,7 +1085,7 @@ export class TmdParser {
 
   private parseSectionDirective(position: number): SectionDirective | null {
     const startsWithBrace = this.match("openBrace");
-    const allowed = ["relativeOrderPrefix", "absoluteOrderPrefix", "keySignaturePrefix", "relativeTempoPrefix"];
+    const allowed = ["relativeOrderPrefix", "absoluteOrderPrefix", "keySignaturePrefix", "relativeTempoPrefix", "explicitKeyPrefix"];
     if (!startsWithBrace && !allowed.includes(this.current.type)) return null;
 
     let result: SectionDirective | null = null;
@@ -1124,6 +1147,18 @@ export class TmdParser {
         result = { position, kind: { type: "fixedPitch" } };
       } else {
         result = { position, kind: { type: "absoluteKey", key: val } };
+      }
+    } else if (type === "explicitKeyPrefix") {
+      this.advance();
+      let key = "";
+      if (this.current.type === "identifier") key = String(this.advance().value);
+      else if (this.current.type === "note") key = String((this.advance().value as Note).degree);
+      if (key) result = { position, kind: { type: "explicitKey", key } };
+    } else if (type === "identifier") {
+      const mark = String(this.current.value).toLowerCase();
+      if (["ppp", "pp", "p", "mp", "mf", "f", "ff", "fff"].includes(mark)) {
+        this.advance();
+        result = { position, kind: { type: "dynamics", mark: mark as import("./types.js").DynamicMark } };
       }
     } else if ((this.current.type as string) === "openAngle") {
       this.advance();

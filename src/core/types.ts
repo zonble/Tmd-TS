@@ -282,8 +282,12 @@ export type SectionDirectiveKind =
   | { type: "relativeTempo"; deltaBpm: number }
   | { type: "absoluteKey"; key: string }
   | { type: "relativeKey"; semitones: number }
+  | { type: "explicitKey"; key: string }
+  | { type: "dynamics"; mark: DynamicMark }
   | { type: "fixedPitch" }
   | { type: "timeSignature"; beat: Beat };
+
+export type DynamicMark = "ppp" | "pp" | "p" | "mp" | "mf" | "f" | "ff" | "fff";
 
 export interface SectionDirective {
   position: number;
@@ -322,6 +326,7 @@ export interface Sheet {
   name: string;
   speed: number;
   keySignature: KeySignature;
+  declaredKey?: string;
   beat: Beat;
   paragraphs: Paragraph[];
   orders: Order[];

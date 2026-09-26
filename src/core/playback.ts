@@ -9,7 +9,8 @@ import {
   SectionDirective,
   SectionDirectiveKind,
   Sheet,
-  Unit
+  Unit,
+  DynamicMark
 } from "./types";
 import { TMDMacroEvaluator } from "./macro.js";
 
@@ -23,6 +24,7 @@ export interface PlaybackState {
   tempo: number;
   keyOffset: number;
   timeSignature: Beat;
+  dynamicLevel: DynamicMark;
 }
 
 export interface PlaybackEvent {
@@ -67,7 +69,8 @@ export class TMDPlaybackRenderer {
     let state: PlaybackState = {
       tempo: sheet.speed > 0 ? sheet.speed : 120,
       keyOffset: sheet.keySignature.semitoneOffset,
-      timeSignature: sheet.beat
+      timeSignature: sheet.beat,
+      dynamicLevel: "mf"
     };
 
     let events: PlaybackEvent[] = [];
@@ -164,6 +167,7 @@ export class TMDPlaybackRenderer {
       tempo: sheet.speed > 0 ? sheet.speed : 120,
       keyOffset: sheet.keySignature.semitoneOffset,
       timeSignature: sheet.beat,
+      dynamicLevel: "mf",
     };
     const directives = merged
       .map((directive, index) => ({ directive, index }))
@@ -287,6 +291,10 @@ export class TMDPlaybackRenderer {
         return { ...state, keyOffset: KeySignature.parse(kind.key).semitoneOffset };
       case "relativeKey":
         return { ...state, keyOffset: state.keyOffset + kind.semitones };
+      case "explicitKey":
+        return { ...state, keyOffset: KeySignature.parse(kind.key).semitoneOffset };
+      case "dynamics":
+        return { ...state, dynamicLevel: kind.mark };
       case "fixedPitch":
         return { ...state, keyOffset: 0 };
       case "timeSignature":
@@ -314,7 +322,8 @@ export class TMDPlaybackRenderer {
     let state: PlaybackState = {
       tempo: sheet.speed > 0 ? sheet.speed : 120,
       keyOffset: sheet.keySignature.semitoneOffset,
-      timeSignature: sheet.beat
+      timeSignature: sheet.beat,
+      dynamicLevel: "mf"
     };
     let timelinePosition = 0;
     let earliest = 0;

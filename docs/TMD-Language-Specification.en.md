@@ -65,14 +65,16 @@ Identifiers, numbers, and scale-degree digits enclosed between `**` delimiters a
 
 Tempo is stored as a `Double` representing beats per minute (BPM). Both integer and decimal values are supported. Inside sections, `{!=145}` or `{!+30}` can also be used to alter the absolute or relative playback tempo downstream.
 
-### 4.3 Key Signature
+### 4.3 Movable-Do Base and Explicit Tonality
 
 ```text
-?= A'
-? = C
+?= D
+key= Bm
 ```
 
-The key signature is stored as a string without strict validation at the parser level. Thus, `C`, `A'`, `Bb`, or any token readable as an identifier can be accepted. Key modulation such as `{?+5}` represents relative transposition in the playback order rather than this header field.
+- **Movable-do base (`?=`)**: Sets the pitch to which numbered scale degree `1` is mapped. `?= C` means `1=C`; `?= D` means `1=D`. It is playback/pitch context, not a major/minor declaration.
+- **Explicit tonality (`key=` or `Key=`)**: Declares the actual musical key and mode, such as `key= Bm`, `key= C`, or `key= F#m`. It is stored separately as `Sheet.declaredKey` for performance, engraving, inspection, and export.
+- **Playback transposition**: `{?+5}`, `{?-2}`, and `{?=D}` change movable-do playback context and must not be reported as inferred modulation by themselves.
 
 ### 4.4 Time Signature
 
@@ -157,13 +159,19 @@ Directives can be placed anywhere between musical units inside a section:
 {!+10}
 {?+2}
 {?=D}
+{key= Bm}
+{p}
+{mf}
+{f}
 {?=fixed}
 {<3/4>}
 ```
 
 Supported directives include:
 - Absolute tempo changes (`{!=140}`) and relative tempo changes (`{!+10}`) in BPM.
-- Absolute key changes (`{?=D}`) and relative transpositions (`{?+2}`, `{?-2}`) in semitones.
+- Movable-do base changes (`{?=D}`) and relative transpositions (`{?+2}`, `{?-2}`) in semitones.
+- Explicit tonality changes (`{key= Bm}` or `{Key= F#m}`), independent of movable-do context.
+- Dynamics marks (`{ppp}`, `{pp}`, `{p}`, `{mp}`, `{mf}`, `{f}`, `{ff}`, `{fff}`), applied to subsequent playback events and notation output.
 - **Fixed Pitch directive (`{?=fixed}` or `{?fixed}`)**: Locks this track section to fixed pitch (`keyOffset = 0`), making it immune to global order-level transpositions (e.g. `-> {?+3} -> ...`). Ideal for Timpani, Sound FX, or non-transposing percussion.
 - Inline time signature / meter changes (`{<3/4>}`).
 

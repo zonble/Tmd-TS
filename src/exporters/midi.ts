@@ -1030,7 +1030,7 @@ export class TMDMIDIGenerator {
             event.content.note,
             event.state.keyOffset
           );
-          this.appendNote(events, start, duration, channel, pitch, 96);
+          this.appendNote(events, start, duration, channel, pitch, this.dynamicVelocity(event.state.dynamicLevel));
           break;
         }
         case 'chord': {
@@ -1039,7 +1039,7 @@ export class TMDMIDIGenerator {
             event.state.keyOffset
           );
           for (const p of pitches) {
-            this.appendNote(events, start, duration, channel, p, 88);
+            this.appendNote(events, start, duration, channel, p, Math.max(1, this.dynamicVelocity(event.state.dynamicLevel) - 8));
           }
           break;
         }
@@ -1120,6 +1120,14 @@ export class TMDMIDIGenerator {
         note: pitch,
       },
     });
+  }
+
+  private static dynamicVelocity(mark: string): number {
+    const velocities: Record<string, number> = {
+      ppp: 20, pp: 35, p: 50, mp: 65,
+      mf: 80, f: 95, ff: 110, fff: 125,
+    };
+    return velocities[mark] ?? velocities.mf;
   }
 
   private static midiTick(quarterNotes: number, ticksPerQuarter: number): number {

@@ -29,7 +29,7 @@ export class TMDABCGenerator {
     const speed = sheet.speed > 0 ? sheet.speed : 120;
     const tempoField = TMDABCGenerator.resolveTempo(sheet.beat, speed);
     abc += `${tempoField}\n`;
-    abc += `K:${TMDABCGenerator.abcKey(sheet.keySignature.toString())}\n\n`;
+    abc += `K:${TMDABCGenerator.abcKey(sheet.declaredKey || sheet.keySignature.toString())}\n\n`;
 
     const instruments = SheetInstrumentHelper.distinctInstruments(sheet, false);
 
@@ -126,6 +126,10 @@ export class TMDABCGenerator {
         return `M:${k.beat.count}/${k.beat.noteValue} `;
       case "absoluteKey":
         return `K:${TMDABCGenerator.abcKey(k.key)} `;
+      case "explicitKey":
+        return `K:${TMDABCGenerator.abcKey(k.key)} `;
+      case "dynamics":
+        return `!${k.mark}! `;
       case "relativeKey": {
         const key = TMDABCGenerator.keyInfo(directive.state.keyOffset).name;
         return `K:${key} `;
@@ -275,7 +279,15 @@ export class TMDABCGenerator {
   }
 
   private static abcKey(key: string): string {
-    const keySig = KeySignature.parse(key);
+    const trimmed = key.trim();
+    const match = trimmed.match(/^([A-Ga-g])([#b']?)(m|min|minor)?$/i);
+    if (match) {
+      const letter = match[1].toUpperCase();
+      const accidental = match[2] === "'" ? "#" : match[2];
+      const mode = match[3] ? "m" : "";
+      return `${letter}${accidental}${mode}`;
+    }
+    const keySig = KeySignature.parse(trimmed);
     return TMDABCGenerator.keyInfo(keySig.semitoneOffset).name;
   }
 
