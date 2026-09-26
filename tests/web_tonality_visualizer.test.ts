@@ -20,7 +20,7 @@ verse:Piano@|0|{
 -> verse ->#
 `);
     const profile = TMDSongInspector.inspect(sheet!, undefined, "en");
-    const html = renderTonalityProfileHtml(profile.tonality!, "en");
+    const html = renderTonalityProfileHtml(profile.tonality!, "en", profile.timing.sections);
 
     expect(html).toContain("tonality-stability-badge");
     expect(html).toContain("Clean major tonality");
@@ -30,5 +30,8 @@ verse:Piano@|0|{
     expect(html).toContain("Best Fit Keys (K-S)");
     expect(html).toContain("Circle of Fifths Trajectory");
     expect(html).toContain("Detailed Theoretical Analysis");
+    expect(html).toContain("tonality-timeline");
+    expect((html.match(/class=\"timeline-segment\"/g) || []).length).toBe(1);
+    expect(html).toContain("verse");
   });
 });

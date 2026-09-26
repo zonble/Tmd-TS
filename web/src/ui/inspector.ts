@@ -214,7 +214,7 @@ export function renderInspectorView(
     if (inspectorHarmony) {
       if (profile.harmony.distinctChords.length > 0) {
         inspectorHarmony.innerHTML = profile.harmony.distinctChords
-          .map((ch: string) => `<span class="order-tag">${escapeHtml(ch)}</span>`)
+          .map((ch: string) => `<button type="button" class="order-tag harmony-search-tag" data-search-text="${escapeHtml(ch)}" title="${escapeHtml(`Find ${ch} in score`)}">${escapeHtml(ch)}</button>`)
           .join(" ");
       } else {
         inspectorHarmony.innerHTML = `<span class="stat-label">${escapeHtml(t("noChords") || "None")}</span>`;
@@ -236,7 +236,7 @@ export function renderInspectorView(
     if (inspectorTonalityViz) {
       if (profile.tonality) {
         const locale = getCurrentLocale() === "zh-TW" ? "zh-Hant" : "en";
-        inspectorTonalityViz.innerHTML = renderTonalityProfileHtml(profile.tonality, locale);
+        inspectorTonalityViz.innerHTML = renderTonalityProfileHtml(profile.tonality, locale, profile.timing.sections);
         if (inspectorTonalitySummary) inspectorTonalitySummary.innerHTML = "";
         if (inspectorTonalityCard) {
           inspectorTonalityCard.style.display = "";
@@ -407,6 +407,8 @@ export function setupInspectorPanelEvents(
     btnCloseInspector: HTMLButtonElement;
     inspectorTracks: HTMLElement;
     inspectorOrders: HTMLElement;
+    inspectorHarmony?: HTMLElement;
+    inspectorTonalityViz?: HTMLElement;
     btnJumpOrders?: HTMLButtonElement;
     inspectorPitchInstSelect?: HTMLSelectElement;
     btnInspectorDownloadSvg?: HTMLButtonElement;
@@ -424,6 +426,8 @@ export function setupInspectorPanelEvents(
     btnCloseInspector,
     inspectorTracks,
     inspectorOrders,
+    inspectorHarmony,
+    inspectorTonalityViz,
     btnJumpOrders,
     inspectorPitchInstSelect,
     btnInspectorDownloadSvg,
@@ -569,6 +573,53 @@ export function setupInspectorPanelEvents(
           editor.scrollToLine(sLine);
         }
       }
+    }
+  });
+
+  const jumpToSection = (sectionName: string) => {
+    if (!sectionName || typeof editor.getContent !== "function") return;
+    const outlineNodes = TMDOutlineGenerator.generate(editor.getContent());
+    const sectionsNode = outlineNodes.find((node) => node.name === "Sections");
+    const sectionNode = sectionsNode?.children?.find((node) => node.name === sectionName);
+    if (!sectionNode) return;
+    if (typeof editor.scrollToRange === "function") {
+      editor.scrollToRange(
+        sectionNode.range.startLine,
+        sectionNode.range.startColumn,
+        sectionNode.range.endLine,
+        sectionNode.range.endColumn
+      );
+    } else {
+      editor.scrollToLine(sectionNode.range.startLine);
+    }
+  };
+
+  inspectorTonalityViz?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const section = target.closest("[data-tonality-section]") as HTMLElement | null;
+    if (section?.dataset.tonalitySection) {
+      e.preventDefault();
+      jumpToSection(section.dataset.tonalitySection);
+    }
+  });
+
+  inspectorHarmony?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const tag = target.closest("[data-search-text]") as HTMLElement | null;
+    const searchText = tag?.dataset.searchText;
+    if (!searchText || typeof editor.getContent !== "function") return;
+    const content = editor.getContent();
+    const lines = content.split("\n");
+    for (let index = 0; index < lines.length; index++) {
+      const column = lines[index].indexOf(searchText);
+      if (column < 0) continue;
+      e.preventDefault();
+      if (typeof editor.scrollToRange === "function") {
+        editor.scrollToRange(index + 1, column + 1, index + 1, column + searchText.length + 1);
+      } else {
+        editor.scrollToLine(index + 1);
+      }
+      break;
     }
   });
 

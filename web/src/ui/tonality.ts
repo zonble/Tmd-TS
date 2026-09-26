@@ -1,4 +1,4 @@
-import { TMDLocale, TMDTonalityProfile } from "../../../src/core/inspector.js";
+import { TMDLocale, TMDSectionTimingProfile, TMDTonalityProfile } from "../../../src/core/inspector.js";
 import { escapeHtml } from "../html.js";
 
 const PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -24,7 +24,11 @@ function stabilityLabel(stability: string, locale: TMDLocale): string {
  * The output intentionally keeps the same information hierarchy: diagnosis, histogram,
  * and expandable theoretical details.
  */
-export function renderTonalityProfileHtml(tonality: TMDTonalityProfile, locale: TMDLocale = "en"): string {
+export function renderTonalityProfileHtml(
+  tonality: TMDTonalityProfile,
+  locale: TMDLocale = "en",
+  timingSections: TMDSectionTimingProfile[] = []
+): string {
   const stability = tonality.globalCorrelation.stability || "high";
   const stabilityClass = stability === "high" ? "valid" : stability === "moderate" ? "warn" : "error";
   const diatonicPct = (tonality.globalPitchClasses.diatonicRatio * 100).toFixed(1);
@@ -62,6 +66,25 @@ export function renderTonalityProfileHtml(tonality: TMDTonalityProfile, locale: 
     ? text(locale, "Clean major tonality", "純淨自然大調")
     : text(locale, "Contemporary major color", "流行色彩大調"));
   const journey = tonality.modulationStory || text(locale, "No modulation", "未轉調");
+  const timeline = timingSections.length > 0
+    ? `<div class="tonality-timeline">
+        <div class="stat-label">${escapeHtml(text(locale, "Structure & Conductor Timeline", "結構與指揮時間線"))}</div>
+        <div class="timeline-bar-wrapper tonality-timeline-bar">${timingSections.map((section, index) => {
+          const width = timingSections.reduce((sum, item) => sum + item.durationSeconds, 0) > 0
+            ? Math.max(4, section.durationSeconds / timingSections.reduce((sum, item) => sum + item.durationSeconds, 0) * 100)
+            : 100 / timingSections.length;
+          return `<button type="button" class="timeline-segment" data-tonality-section="${escapeHtml(section.name)}" style="width: ${width.toFixed(2)}%;" title="${escapeHtml(`${section.name} · ${section.durationSeconds.toFixed(1)}s · ${section.measures}m`)}"><span>${index + 1}</span></button>`;
+        }).join("")}</div>
+        <div class="tonality-timeline-list">${timingSections.map((section, index) => {
+          const tonalSection = tonality.sections[index];
+          return `<button type="button" class="timeline-item tonality-timeline-item" data-tonality-section="${escapeHtml(section.name)}">
+            <span class="timeline-item-index">#${index + 1}</span>
+            <span class="timeline-item-name">${escapeHtml(section.name)}${tonalSection ? ` · ${escapeHtml(tonalSection.declaredKey)}` : ""}</span>
+            <span class="timeline-item-time">${section.durationSeconds.toFixed(1)}s (${section.measures}m)</span>
+          </button>`;
+        }).join("")}</div>
+      </div>`
+    : "";
 
   return `<div class="tonality-profile" data-tonality-profile>
     <div class="tonality-profile-header">
@@ -70,6 +93,8 @@ export function renderTonalityProfileHtml(tonality: TMDTonalityProfile, locale: 
     </div>
     <div class="producer-detail-item"><span class="producer-label">${escapeHtml(text(locale, "Musical Character & Mood", "音樂性格與氣質"))}:</span> <span class="producer-value">${escapeHtml(mood)}</span></div>
     <div class="producer-detail-item"><span class="producer-label">${escapeHtml(text(locale, "Modulation Journey", "轉調歷程"))}:</span> <span class="producer-value">${escapeHtml(journey)}</span></div>
+
+    ${timeline}
 
     <div class="tonality-histogram-wrap">
       <div class="stat-label">${escapeHtml(text(locale, "12-Tone Pitch Class Weight Distribution", "十二半音音級權重分佈"))}</div>

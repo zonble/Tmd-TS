@@ -265,6 +265,8 @@ function initEvents() {
       btnCloseInspector: dom.btnCloseInspector,
       inspectorTracks: dom.inspectorTracks,
       inspectorOrders: dom.inspectorOrders,
+      inspectorHarmony: dom.inspectorHarmony,
+      inspectorTonalityViz: dom.inspectorTonalityViz,
       btnJumpOrders: dom.btnJumpOrders,
       inspectorPitchInstSelect: dom.inspectorPitchInstSelect,
       btnInspectorDownloadSvg: dom.btnInspectorDownloadSvg,
