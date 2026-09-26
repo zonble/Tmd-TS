@@ -165,6 +165,19 @@ export interface TMDSectionTonalityProfile {
   nonDiatonicNotes: string[];
 }
 
+export type TMDTonalityMood = "cleanMajor" | "contemporaryMajor" | "modal";
+
+export interface TMDTonalityNarrative {
+  baseKey: string;
+  mood: TMDTonalityMood;
+  transitions: Array<{
+    sectionName: string;
+    declaredKey: string;
+    semitoneDiff: number;
+    fifthsStepDiff: number;
+  }>;
+}
+
 /**
  * Holistic tonality profile across sections and the full song.
  */
@@ -176,6 +189,7 @@ export interface TMDTonalityProfile {
   summaryText: string;
   moodDescription: string;
   modulationStory: string;
+  narrative?: TMDTonalityNarrative;
   locale: TMDLocale;
 }
 
@@ -738,18 +752,19 @@ export class TMDSongInspector {
 
     // Human-friendly producer narrative synthesis
     const diatonicRatio = globalDist.diatonicRatio;
-    let moodKey: string;
+    let mood: TMDTonalityMood;
     if (diatonicRatio >= 0.95) {
-      moodKey = "tonality.mood.cleanMajor";
+      mood = "cleanMajor";
     } else if (diatonicRatio >= 0.80) {
-      moodKey = "tonality.mood.contemporaryMajor";
+      mood = "contemporaryMajor";
     } else {
-      moodKey = "tonality.mood.modal";
+      mood = "modal";
     }
-    const moodDescription = localizer.text(moodKey);
+    const moodDescription = localizer.text(this.moodLocalizationKey(mood));
 
     // Modulation story
     const modTransitions: string[] = [];
+    const modulationTransitions: TMDTonalityNarrative["transitions"] = [];
     let prevKey = baseKey;
     let prevOffset = initialTonicOffset;
     let prevFifths = this.circleOfFifthsStep(prevOffset);
@@ -762,6 +777,12 @@ export class TMDSongInspector {
         if (stepDiff > 6) stepDiff -= 12;
         if (stepDiff < -6) stepDiff += 12;
         const stepStr = stepDiff >= 0 ? `+${stepDiff}` : `${stepDiff}`;
+        modulationTransitions.push({
+          sectionName: sec.sectionName,
+          declaredKey: sec.declaredKey,
+          semitoneDiff: diff,
+          fifthsStepDiff: stepDiff,
+        });
         modTransitions.push(
           localizer.text(TMDLocalizationKey.modulationStep, [
             sec.sectionName,
@@ -808,8 +829,53 @@ export class TMDSongInspector {
       summaryText,
       moodDescription,
       modulationStory,
+      narrative: {
+        baseKey,
+        mood,
+        transitions: modulationTransitions,
+      },
       locale,
     };
+  }
+
+  private static moodLocalizationKey(mood: TMDTonalityMood): TMDLocalizationKey {
+    switch (mood) {
+    case "cleanMajor": return TMDLocalizationKey.moodCleanMajor;
+    case "contemporaryMajor": return TMDLocalizationKey.moodContemporaryMajor;
+    case "modal": return TMDLocalizationKey.moodModal;
+    }
+  }
+
+  public static localizeTonalityNarrative(
+    tonality: TMDTonalityProfile,
+    locale: TMDLocale,
+  ): Pick<TMDTonalityProfile, "summaryText" | "moodDescription" | "modulationStory"> {
+    const localizer = new TMDLocalizer(locale);
+    if (!tonality.narrative) {
+      return {
+        summaryText: tonality.summaryText,
+        moodDescription: tonality.moodDescription,
+        modulationStory: tonality.modulationStory,
+      };
+    }
+    const { baseKey, mood, transitions } = tonality.narrative;
+    const moodDescription = localizer.text(this.moodLocalizationKey(mood));
+    const modulationParts = transitions.map((transition) => localizer.text(TMDLocalizationKey.modulationStep, [
+      transition.sectionName,
+      transition.declaredKey,
+      transition.semitoneDiff >= 0 ? `+${transition.semitoneDiff}` : `${transition.semitoneDiff}`,
+      transition.fifthsStepDiff >= 0 ? `+${transition.fifthsStepDiff}` : `${transition.fifthsStepDiff}`,
+    ]));
+    const modulationStory = transitions.length === 0
+      ? localizer.text(TMDLocalizationKey.modulationNone)
+      : localizer.text(TMDLocalizationKey.modulationStart, [baseKey]) + " ➔ " + modulationParts.join(" ➔ ");
+    const summaryText = transitions.length === 0
+      ? localizer.text(TMDLocalizationKey.summaryStable, [
+        baseKey,
+        localizer.text(mood === "cleanMajor" ? TMDLocalizationKey.summaryClean : TMDLocalizationKey.summaryColor),
+      ])
+      : localizer.text(TMDLocalizationKey.summaryModulating, [baseKey, String(transitions.length)]);
+    return { summaryText, moodDescription, modulationStory };
   }
 
   private static overlapDuration(
@@ -1016,6 +1082,9 @@ export class TMDSongInspector {
   public static generateReport(profile: TMDSongProfile, locale?: TMDLocale): string {
     const activeLocale = locale || profile.locale || "zh-Hant";
     const localizer = new TMDLocalizer(activeLocale);
+    const localizedTonality = profile.tonality
+      ? this.localizeTonalityNarrative(profile.tonality, activeLocale)
+      : undefined;
     const mins = Math.floor(profile.timing.totalDurationSeconds / 60);
     const secs = Math.floor(profile.timing.totalDurationSeconds % 60);
     const timeFormatted = `${mins}:${secs.toString().padStart(2, "0")} (${profile.timing.totalDurationSeconds.toFixed(1)}s)`;
@@ -1062,9 +1131,9 @@ export class TMDSongInspector {
       const diatonicPct = `${(tonality.globalPitchClasses.diatonicRatio * 100.0).toFixed(1)}%`;
       const topPitches = tonality.globalPitchClasses.topPitchClasses.slice(0, 5).join(", ");
 
-      lines.push(`🗝  ${localizer.text(TMDLocalizationKey.tonalityDiagnosis)}       ${tonality.summaryText}`);
-      lines.push(`   - ${localizer.text(TMDLocalizationKey.mood)}:    ${tonality.moodDescription}`);
-      lines.push(`   - ${localizer.text(TMDLocalizationKey.modulationJourney)}:    ${tonality.modulationStory}`);
+      lines.push(`🗝  ${localizer.text(TMDLocalizationKey.tonalityDiagnosis)}       ${localizedTonality?.summaryText ?? tonality.summaryText}`);
+      lines.push(`   - ${localizer.text(TMDLocalizationKey.mood)}:    ${localizedTonality?.moodDescription ?? tonality.moodDescription}`);
+      lines.push(`   - ${localizer.text(TMDLocalizationKey.modulationJourney)}:    ${localizedTonality?.modulationStory ?? tonality.modulationStory}`);
       lines.push(`   - ${localizer.text(TMDLocalizationKey.tonalCore)}:  ${topPitches}`);
       lines.push(
         `   - ${localizer.text(TMDLocalizationKey.tonalMetrics)}:    ${tonality.globalCorrelation.declaredKey} [${localizer.text(TMDLocalizationKey.correlation)}: ${corrStr}, ${localizer.text(TMDLocalizationKey.stability)}: ${stabStr}, ${localizer.text(TMDLocalizationKey.diatonicPurity)}: ${diatonicPct}]`

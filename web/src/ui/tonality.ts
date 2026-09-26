@@ -1,4 +1,4 @@
-import { TMDLocale, TMDSectionTimingProfile, TMDTonalityProfile } from "../../../src/core/inspector.js";
+import { TMDLocale, TMDSectionTimingProfile, TMDTonalityProfile, TMDSongInspector } from "../../../src/core/inspector.js";
 import { escapeHtml } from "../html.js";
 import { en } from "../locales/en.js";
 import { zhTW } from "../locales/zh-TW.js";
@@ -71,11 +71,12 @@ export function renderTonalityProfileHtml(
     </div>`;
   }).join("");
 
-  const summary = tonality.summaryText || tonality.globalCorrelation.declaredKey;
-  const mood = tonality.moodDescription || (tonality.globalPitchClasses.diatonicRatio >= 0.95
+  const narrative = TMDSongInspector.localizeTonalityNarrative(tonality, locale);
+  const summary = narrative.summaryText || tonality.globalCorrelation.declaredKey;
+  const mood = narrative.moodDescription || (tonality.globalPitchClasses.diatonicRatio >= 0.95
     ? label(locale, "tonalityMoodLabel", "Musical Character & Mood")
     : label(locale, "tonalityMoodLabel", "Musical Character & Mood"));
-  const journey = tonality.modulationStory || "";
+  const journey = narrative.modulationStory || "";
   const timeline = timingSections.length > 0
     ? `<div class="tonality-timeline">
         <div class="stat-label">${escapeHtml(label(locale, "tonalityStructureTimeline", "Structure & Conductor Timeline"))}</div>

@@ -60,4 +60,21 @@ A:Piano@|0|{ <4*> 1 3 5 1^ }
     expect(indexHtml).not.toContain('id="inspector-tonality-viz" style="width: 100%; border-radius: 6px; overflow: hidden; background: #0f172a;');
     expect(styles).toContain("var(--bg-tertiary)");
   });
+
+  it("relocalizes stored tonality narratives when the UI locale changes", () => {
+    const sheet = TmdParser.parse(`::SCORE::
+** Narrative Locale Override **
+!= 120
+?= C
+<4/4>
+
+A:Piano@|0|{ <4*> 1 3 5 1^ }
+-> A ->#
+`);
+    const profile = TMDSongInspector.inspect(sheet!, undefined, "zh-Hant");
+    const html = renderTonalityProfileHtml(profile.tonality!, "en", profile.timing.sections);
+
+    expect(html).toContain("no modulation");
+    expect(html).not.toContain("全曲無轉調");
+  });
 });

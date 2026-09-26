@@ -538,5 +538,10 @@ verse:Piano@|0|{
     expect(report).toContain("Analysis scope");
     expect(report).toContain("Major and minor are the recommended first scope");
     expect(report).not.toContain("調性診斷");
+
+    const zhProfile = TMDSongInspector.inspect(sheet!);
+    const overriddenReport = TMDSongInspector.generateReport(zhProfile, "en");
+    expect(overriddenReport).toContain("no modulation");
+    expect(overriddenReport).not.toContain("全曲無轉調");
   });
 });
