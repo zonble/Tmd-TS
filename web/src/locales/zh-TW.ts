@@ -215,6 +215,21 @@ export const zhTW = {
   tonalityViewSvgTitle: "五度圈、音高分佈雷達圖與時間線調性帶",
   tonalityDownloadSvg: "下載 SVG 圖表",
   tonalityOpenHtml: "開啟完整報表",
+  tonalityStabilityHigh: "穩定",
+  tonalityStabilityModerate: "中度穩定",
+  tonalityStabilityAmbiguous: "調性模糊",
+  tonalityMoodLabel: "音樂性格與氣質",
+  tonalityModulationLabel: "轉調歷程",
+  tonalityPitchDistribution: "十二半音音級權重分佈",
+  tonalityStructureTimeline: "結構與指揮時間線",
+  tonalityDetailedAnalysis: "詳細樂理分析",
+  tonalityDeclaredKey: "宣告調性",
+  tonalityCorrelation: "相關度",
+  tonalityDiatonicPurity: "自然音純度",
+  tonalityDiatonicChromatic: "自然音／調外音",
+  tonalityBestFitKeys: "最佳符合調性 (K-S)",
+  tonalityCircleOfFifths: "五度圈游移軌跡",
+  tonalityFindChord: "在樂譜中尋找 {chord}",
   inspectorOrdersTitle: "演奏順序",
   jumpToOrders: "前往編輯",
   jumpToOrdersTitle: "跳轉至編輯區修改演奏順序",
@@ -384,4 +399,3 @@ export const zhTW = {
   aiPreviewProblemsWarning:
     "⚠️ 此生成樂譜仍有 {count} 個問題待修正（點擊展開查看詳情）",
 };
-

@@ -214,7 +214,7 @@ export function renderInspectorView(
     if (inspectorHarmony) {
       if (profile.harmony.distinctChords.length > 0) {
         inspectorHarmony.innerHTML = profile.harmony.distinctChords
-          .map((ch: string) => `<button type="button" class="order-tag harmony-search-tag" data-search-text="${escapeHtml(ch)}" title="${escapeHtml(`Find ${ch} in score`)}">${escapeHtml(ch)}</button>`)
+          .map((ch: string) => `<button type="button" class="order-tag harmony-search-tag" data-search-text="${escapeHtml(ch)}" title="${escapeHtml(t("tonalityFindChord", { chord: ch }))}">${escapeHtml(ch)}</button>`)
           .join(" ");
       } else {
         inspectorHarmony.innerHTML = `<span class="stat-label">${escapeHtml(t("noChords") || "None")}</span>`;

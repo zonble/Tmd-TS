@@ -1,5 +1,7 @@
 import { TMDLocale, TMDSectionTimingProfile, TMDTonalityProfile } from "../../../src/core/inspector.js";
 import { escapeHtml } from "../html.js";
+import { en } from "../locales/en.js";
+import { zhTW } from "../locales/zh-TW.js";
 
 const PITCH_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const KEY_OFFSETS: Record<string, number> = {
@@ -8,15 +10,23 @@ const KEY_OFFSETS: Record<string, number> = {
 };
 const SOLFEGE: Record<number, string> = { 0: "Do", 2: "Re", 4: "Mi", 5: "Fa", 7: "Sol", 9: "La", 11: "Ti" };
 
-function text(locale: TMDLocale, english: string, chinese: string): string {
-  return locale === "zh-Hant" || locale === "zh-TW" ? chinese : english;
+type TonalityLabelKey =
+  | "tonalityStabilityHigh" | "tonalityStabilityModerate" | "tonalityStabilityAmbiguous"
+  | "tonalityMoodLabel" | "tonalityModulationLabel" | "tonalityPitchDistribution"
+  | "tonalityStructureTimeline" | "tonalityDetailedAnalysis" | "tonalityDeclaredKey"
+  | "tonalityCorrelation" | "tonalityDiatonicPurity" | "tonalityDiatonicChromatic"
+  | "tonalityBestFitKeys" | "tonalityCircleOfFifths";
+
+function label(locale: TMDLocale, key: TonalityLabelKey, fallback: string): string {
+  const dictionary = locale === "zh-Hant" || locale === "zh-TW" ? zhTW : en;
+  return dictionary[key] || fallback;
 }
 
 function stabilityLabel(stability: string, locale: TMDLocale): string {
-  if (locale === "zh-Hant" || locale === "zh-TW") {
-    return stability === "high" ? "穩定" : stability === "moderate" ? "中度穩定" : "調性模糊";
-  }
-  return stability.charAt(0).toUpperCase() + stability.slice(1);
+  const key = stability === "high"
+    ? "tonalityStabilityHigh"
+    : stability === "moderate" ? "tonalityStabilityModerate" : "tonalityStabilityAmbiguous";
+  return label(locale, key, stability);
 }
 
 /**
@@ -61,14 +71,14 @@ export function renderTonalityProfileHtml(
     </div>`;
   }).join("");
 
-  const summary = tonality.summaryText || `${tonality.globalCorrelation.declaredKey} ${text(locale, "Major", "大調")}`;
+  const summary = tonality.summaryText || tonality.globalCorrelation.declaredKey;
   const mood = tonality.moodDescription || (tonality.globalPitchClasses.diatonicRatio >= 0.95
-    ? text(locale, "Clean major tonality", "純淨自然大調")
-    : text(locale, "Contemporary major color", "流行色彩大調"));
-  const journey = tonality.modulationStory || text(locale, "No modulation", "未轉調");
+    ? label(locale, "tonalityMoodLabel", "Musical Character & Mood")
+    : label(locale, "tonalityMoodLabel", "Musical Character & Mood"));
+  const journey = tonality.modulationStory || "";
   const timeline = timingSections.length > 0
     ? `<div class="tonality-timeline">
-        <div class="stat-label">${escapeHtml(text(locale, "Structure & Conductor Timeline", "結構與指揮時間線"))}</div>
+        <div class="stat-label">${escapeHtml(label(locale, "tonalityStructureTimeline", "Structure & Conductor Timeline"))}</div>
         <div class="timeline-bar-wrapper tonality-timeline-bar">${timingSections.map((section, index) => {
           const width = timingSections.reduce((sum, item) => sum + item.durationSeconds, 0) > 0
             ? Math.max(4, section.durationSeconds / timingSections.reduce((sum, item) => sum + item.durationSeconds, 0) * 100)
@@ -91,25 +101,25 @@ export function renderTonalityProfileHtml(
       <div class="producer-headline"><span class="producer-icon">🎵</span><span class="producer-title">${escapeHtml(summary)}</span></div>
       <span id="tonality-stability-badge" class="tonality-stability-badge ${stabilityClass}">${escapeHtml(stabilityLabel(stability, locale))}</span>
     </div>
-    <div class="producer-detail-item"><span class="producer-label">${escapeHtml(text(locale, "Musical Character & Mood", "音樂性格與氣質"))}:</span> <span class="producer-value">${escapeHtml(mood)}</span></div>
-    <div class="producer-detail-item"><span class="producer-label">${escapeHtml(text(locale, "Modulation Journey", "轉調歷程"))}:</span> <span class="producer-value">${escapeHtml(journey)}</span></div>
+    <div class="producer-detail-item"><span class="producer-label">${escapeHtml(label(locale, "tonalityMoodLabel", "Musical Character & Mood"))}:</span> <span class="producer-value">${escapeHtml(mood)}</span></div>
+    <div class="producer-detail-item"><span class="producer-label">${escapeHtml(label(locale, "tonalityModulationLabel", "Modulation Journey"))}:</span> <span class="producer-value">${escapeHtml(journey)}</span></div>
 
     ${timeline}
 
     <div class="tonality-histogram-wrap">
-      <div class="stat-label">${escapeHtml(text(locale, "12-Tone Pitch Class Weight Distribution", "十二半音音級權重分佈"))}</div>
+      <div class="stat-label">${escapeHtml(label(locale, "tonalityPitchDistribution", "12-Tone Pitch Class Weight Distribution"))}</div>
       <div class="pitch-bar-chart">${bars}</div>
     </div>
 
     <details class="tonality-advanced-details">
-      <summary class="tonality-advanced-summary">${escapeHtml(text(locale, "Detailed Theoretical Analysis", "詳細樂理分析"))}</summary>
+      <summary class="tonality-advanced-summary">${escapeHtml(label(locale, "tonalityDetailedAnalysis", "Detailed Theoretical Analysis"))}</summary>
       <div class="tonality-details-content">
         <div class="tonality-summary-row">
-          <div class="tonality-stat-box"><span class="stat-label">${escapeHtml(text(locale, "Declared Key", "宣告調性"))}</span><span class="stat-value">${escapeHtml(tonality.globalCorrelation.declaredKey)}</span><span class="stat-sub">${escapeHtml(text(locale, "Correlation", "相關度"))}: ${correlation}</span></div>
-          <div class="tonality-stat-box"><span class="stat-label">${escapeHtml(text(locale, "Diatonic Purity", "自然音純度"))}</span><span class="stat-value">${diatonicPct}%</span><span class="stat-sub">${escapeHtml(text(locale, "Diatonic / Chromatic", "自然音／調外音"))}</span></div>
+          <div class="tonality-stat-box"><span class="stat-label">${escapeHtml(label(locale, "tonalityDeclaredKey", "Declared Key"))}</span><span class="stat-value">${escapeHtml(tonality.globalCorrelation.declaredKey)}</span><span class="stat-sub">${escapeHtml(label(locale, "tonalityCorrelation", "Correlation"))}: ${correlation}</span></div>
+          <div class="tonality-stat-box"><span class="stat-label">${escapeHtml(label(locale, "tonalityDiatonicPurity", "Diatonic Purity"))}</span><span class="stat-value">${diatonicPct}%</span><span class="stat-sub">${escapeHtml(label(locale, "tonalityDiatonicChromatic", "Diatonic / Chromatic"))}</span></div>
         </div>
-        ${candidates ? `<div class="pitch-metric-row"><span class="stat-label">${escapeHtml(text(locale, "Best Fit Keys (K-S)", "最佳符合調性 (K-S)"))}</span><span class="pitch-metric-value">${candidates}</span></div>` : ""}
-        ${fifthsPath ? `<div class="pitch-metric-row"><span class="stat-label">${escapeHtml(text(locale, "Circle of Fifths Trajectory", "五度圈游移軌跡"))}</span><span class="pitch-metric-value mono">${escapeHtml(fifthsPath)}</span></div>` : ""}
+        ${candidates ? `<div class="pitch-metric-row"><span class="stat-label">${escapeHtml(label(locale, "tonalityBestFitKeys", "Best Fit Keys (K-S)"))}</span><span class="pitch-metric-value">${candidates}</span></div>` : ""}
+        ${fifthsPath ? `<div class="pitch-metric-row"><span class="stat-label">${escapeHtml(label(locale, "tonalityCircleOfFifths", "Circle of Fifths Trajectory"))}</span><span class="pitch-metric-value mono">${escapeHtml(fifthsPath)}</span></div>` : ""}
       </div>
     </details>
   </div>`;
