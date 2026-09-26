@@ -12,129 +12,10 @@ import {
 import { SheetInstrumentHelper } from "./instruments.js";
 import { TMDPlaybackRenderer, PlaybackState, PlaybackEvent, PlaybackDirectiveEvent } from "./playback.js";
 import { TMDMacroEvaluator } from "./macro.js";
-
-/**
- * Supported locales for TMD inspector report and analysis narratives.
- */
-export type TMDLocale = "zh-Hant" | "en" | string;
-
-/**
- * Localization strings catalog for song inspection narratives and reports.
- */
-const LOCALIZATION_DICTIONARY: Record<string, Record<string, string>> = {
-  "zh-Hant": {
-    "report.title": "TMD Song Profile",
-    "report.duration": "Duration",
-    "report.measuresTotal": "measures total",
-    "report.keyAndTempo": "Key & Tempo",
-    "report.analysisScope": "分析範圍：      目前以大調分析為主；建議優先支援大調與小調，其他調式列為延伸",
-    "report.structure": "結構",
-    "report.density": "編曲密度",
-    "report.tracksConcurrently": "軌道同時演奏",
-    "report.harmony": "和聲",
-    "report.tonalityDiagnosis": "調性診斷：",
-    "report.mood": "風格氣質",
-    "report.modulationJourney": "轉調歷程",
-    "report.tonalCore": "核心骨幹音",
-    "report.tonalMetrics": "調性數值",
-    "report.correlation": "相關度",
-    "report.stability": "穩定度",
-    "report.diatonicPurity": "自然音純度",
-    "report.candidateKeys": "候選調性 (K-S)",
-    "report.circleOfFifths": "五度圈歷程",
-    "report.sectionDetails": "各段落調性細節",
-    "report.nonDiatonic": "調外音",
-    "report.instrumentRanges": "樂器軌道音域：",
-    "report.notes": "個音符",
-    "report.semitones": "個半音",
-    "report.octaves": "個八度",
-    "key.major": "大調",
-    "tonality.modulation.none": "全曲維持單一調性（未轉調）",
-    "tonality.modulation.start": "{0} 大調起奏",
-    "tonality.modulation.step": "[{0}] 轉至 {1} 大調 ({2} 半音 / 五度圈 {3} 步)",
-    "tonality.summary.stable": "{0} 大調（{1}，全曲無轉調）",
-    "tonality.summary.modulating": "{0} 大調（轉調推進情緒，經歷 {1} 次轉調）",
-    "tonality.summary.clean": "純淨自然大調",
-    "tonality.summary.color": "流行色彩大調",
-    "tonality.mood.cleanMajor": "純淨自然大調（陽光明朗、易唱易記，無明顯調外色彩）",
-    "tonality.mood.contemporaryMajor": "流行大調（略帶和弦色彩音與裝飾副屬和弦）",
-    "tonality.mood.modal": "調式色彩／藍調前衛（調外音豐富，張力強烈）",
-    "visualizer.circleOfFifths": "五度圈游移軌跡",
-    "visualizer.pitchClassDistribution": "十二半音累積音高分佈",
-    "visualizer.timeline": "時間線調性帶",
-    "visualizer.htmlTitle": "TMD 調性報告",
-    "visualizer.htmlSong": "歌曲",
-    "visualizer.htmlTempo": "速度",
-    "visualizer.htmlKey": "調性",
-    "visualizer.htmlDetailedReport": "詳細文字分析",
-  },
-  en: {
-    "report.title": "TMD Song Profile",
-    "report.duration": "Duration",
-    "report.measuresTotal": "measures total",
-    "report.keyAndTempo": "Key & Tempo",
-    "report.analysisScope": "Analysis scope:     Major-key analysis is the current baseline; Major and minor are the recommended first scope, with other modes as future extensions",
-    "report.structure": "Structure",
-    "report.density": "Density",
-    "report.tracksConcurrently": "tracks concurrently",
-    "report.harmony": "Harmony",
-    "report.tonalityDiagnosis": "Tonality diagnosis:",
-    "report.mood": "Mood",
-    "report.modulationJourney": "Modulation journey",
-    "report.tonalCore": "Tonal core",
-    "report.tonalMetrics": "Tonality metrics",
-    "report.correlation": "correlation",
-    "report.stability": "stability",
-    "report.diatonicPurity": "diatonic purity",
-    "report.candidateKeys": "Best-fit keys (K-S)",
-    "report.circleOfFifths": "Circle of fifths trajectory",
-    "report.sectionDetails": "Section tonality details",
-    "report.nonDiatonic": "non-diatonic",
-    "report.instrumentRanges": "Instrument Track Ranges:",
-    "report.notes": "notes",
-    "report.semitones": "semitones",
-    "report.octaves": "octaves",
-    "key.major": "Major",
-    "tonality.modulation.none": "The song stays in one tonality (no modulation)",
-    "tonality.modulation.start": "Starts in {0} Major",
-    "tonality.modulation.step": "[{0}] to {1} Major ({2} semitones / {3} fifths)",
-    "tonality.summary.stable": "{0} Major ({1}, no modulation)",
-    "tonality.summary.modulating": "{0} Major (emotional progression through {1} modulation(s))",
-    "tonality.summary.clean": "clean major tonality",
-    "tonality.summary.color": "contemporary major color",
-    "tonality.mood.cleanMajor": "Clean major tonality (bright, singable, and memorable)",
-    "tonality.mood.contemporaryMajor": "Contemporary major tonality (with chord tones and secondary-dominant color)",
-    "tonality.mood.modal": "Modal or blues-influenced color (rich chromatic tension)",
-    "visualizer.circleOfFifths": "Circle of Fifths Trajectory",
-    "visualizer.pitchClassDistribution": "12-Tone Pitch Class Distribution",
-    "visualizer.timeline": "Timeline Keyscape Ribbon",
-    "visualizer.htmlTitle": "TMD Tonality Report",
-    "visualizer.htmlSong": "Song",
-    "visualizer.htmlTempo": "Tempo",
-    "visualizer.htmlKey": "Key",
-    "visualizer.htmlDetailedReport": "Detailed Text Analysis",
-  },
-};
-
-/**
- * Localizer helper for TMD reports and visualizers.
- */
-export class TMDLocalizer {
-  public readonly locale: TMDLocale;
-  public readonly fallbackLocale: TMDLocale;
-
-  constructor(locale: TMDLocale = "zh-Hant", fallbackLocale: TMDLocale = "en") {
-    this.locale = locale;
-    this.fallbackLocale = fallbackLocale;
-  }
-
-  public text(key: string, args: string[] = []): string {
-    const dict = LOCALIZATION_DICTIONARY[this.locale] || LOCALIZATION_DICTIONARY[this.fallbackLocale] || {};
-    const fallbackDict = LOCALIZATION_DICTIONARY[this.fallbackLocale] || {};
-    const template = dict[key] || fallbackDict[key] || key;
-    return args.reduce((res, val, idx) => res.replace(new RegExp(`\\{${idx}\\}`, "g"), val), template);
-  }
-}
+export { TMDLocalizer, TMDLocalizationKey } from "./localization.js";
+export type { TMDLocale } from "./localization.js";
+import { TMDLocalizationKey, TMDLocalizer } from "./localization.js";
+import type { TMDLocale } from "./localization.js";
 
 /**
  * Pitch descriptor with MIDI note number, canonical note name (e.g. "C4", "A5"), and source section context.
@@ -882,7 +763,7 @@ export class TMDSongInspector {
         if (stepDiff < -6) stepDiff += 12;
         const stepStr = stepDiff >= 0 ? `+${stepDiff}` : `${stepDiff}`;
         modTransitions.push(
-          localizer.text("tonality.modulation.step", [
+          localizer.text(TMDLocalizationKey.modulationStep, [
             sec.sectionName,
             sec.declaredKey,
             semitoneDiff,
@@ -897,10 +778,10 @@ export class TMDSongInspector {
 
     let modulationStory: string;
     if (modTransitions.length === 0) {
-      modulationStory = localizer.text("tonality.modulation.none");
+      modulationStory = localizer.text(TMDLocalizationKey.modulationNone);
     } else {
       modulationStory =
-        localizer.text("tonality.modulation.start", [baseKey]) +
+        localizer.text(TMDLocalizationKey.modulationStart, [baseKey]) +
         " ➔ " +
         modTransitions.join(" ➔ ");
     }
@@ -909,11 +790,11 @@ export class TMDSongInspector {
     if (modTransitions.length === 0) {
       const moodSummary =
         diatonicRatio >= 0.95
-          ? localizer.text("tonality.summary.clean")
-          : localizer.text("tonality.summary.color");
-      summaryText = localizer.text("tonality.summary.stable", [baseKey, moodSummary]);
+          ? localizer.text(TMDLocalizationKey.summaryClean)
+          : localizer.text(TMDLocalizationKey.summaryColor);
+      summaryText = localizer.text(TMDLocalizationKey.summaryStable, [baseKey, moodSummary]);
     } else {
-      summaryText = localizer.text("tonality.summary.modulating", [
+      summaryText = localizer.text(TMDLocalizationKey.summaryModulating, [
         baseKey,
         String(modTransitions.length),
       ]);
@@ -1141,13 +1022,13 @@ export class TMDSongInspector {
 
     const lines: string[] = [];
     lines.push("================================================================================");
-    lines.push(`📊 ${localizer.text("report.title")}: [ ${profile.title} ]`);
+    lines.push(`📊 ${localizer.text(TMDLocalizationKey.reportTitle)}: [ ${profile.title} ]`);
     lines.push("================================================================================");
-    lines.push(`⏱  ${localizer.text("report.duration")}:       ${timeFormatted}, ${profile.timing.totalMeasures} ${localizer.text("report.measuresTotal")}`);
+    lines.push(`⏱  ${localizer.text(TMDLocalizationKey.duration)}:       ${timeFormatted}, ${profile.timing.totalMeasures} ${localizer.text(TMDLocalizationKey.measuresTotal)}`);
     lines.push(
-      `🎼 ${localizer.text("report.keyAndTempo")}:    ${profile.initialKey} ${localizer.text("key.major")}, != ${profile.initialTempo} BPM, <${profile.initialTimeSignature}>`
+      `🎼 ${localizer.text(TMDLocalizationKey.keyAndTempo)}:    ${profile.initialKey} ${localizer.text(TMDLocalizationKey.major)}, != ${profile.initialTempo} BPM, <${profile.initialTimeSignature}>`
     );
-    lines.push(`   - ${localizer.text("report.analysisScope")}`);
+    lines.push(`   - ${localizer.text(TMDLocalizationKey.analysisScope)}`);
 
     if (profile.vocalRange) {
       const vocal = profile.vocalRange;
@@ -1163,15 +1044,15 @@ export class TMDSongInspector {
     }
 
     lines.push(
-      `🏛  ${localizer.text("report.structure")}:      ` +
+      `🏛  ${localizer.text(TMDLocalizationKey.structure)}:      ` +
         profile.timing.sections
           .map((s) => `${s.name} (${s.durationSeconds.toFixed(1)}s)`)
           .join(" -> ")
     );
-    lines.push(`⚡ ${localizer.text("report.density")}:        Peak ${profile.density.maxConcurrentTracks} ${localizer.text("report.tracksConcurrently")}`);
+    lines.push(`⚡ ${localizer.text(TMDLocalizationKey.density)}:        Peak ${profile.density.maxConcurrentTracks} ${localizer.text(TMDLocalizationKey.tracksConcurrently)}`);
 
     if (profile.harmony.distinctChords.length > 0) {
-      lines.push(`🎹 ${localizer.text("report.harmony")}:        ` + profile.harmony.distinctChords.join(" "));
+      lines.push(`🎹 ${localizer.text(TMDLocalizationKey.harmony)}:        ` + profile.harmony.distinctChords.join(" "));
     }
 
     if (profile.tonality) {
@@ -1181,12 +1062,12 @@ export class TMDSongInspector {
       const diatonicPct = `${(tonality.globalPitchClasses.diatonicRatio * 100.0).toFixed(1)}%`;
       const topPitches = tonality.globalPitchClasses.topPitchClasses.slice(0, 5).join(", ");
 
-      lines.push(`🗝  ${localizer.text("report.tonalityDiagnosis")}       ${tonality.summaryText}`);
-      lines.push(`   - ${localizer.text("report.mood")}:    ${tonality.moodDescription}`);
-      lines.push(`   - ${localizer.text("report.modulationJourney")}:    ${tonality.modulationStory}`);
-      lines.push(`   - ${localizer.text("report.tonalCore")}:  ${topPitches}`);
+      lines.push(`🗝  ${localizer.text(TMDLocalizationKey.tonalityDiagnosis)}       ${tonality.summaryText}`);
+      lines.push(`   - ${localizer.text(TMDLocalizationKey.mood)}:    ${tonality.moodDescription}`);
+      lines.push(`   - ${localizer.text(TMDLocalizationKey.modulationJourney)}:    ${tonality.modulationStory}`);
+      lines.push(`   - ${localizer.text(TMDLocalizationKey.tonalCore)}:  ${topPitches}`);
       lines.push(
-        `   - ${localizer.text("report.tonalMetrics")}:    ${tonality.globalCorrelation.declaredKey} [${localizer.text("report.correlation")}: ${corrStr}, ${localizer.text("report.stability")}: ${stabStr}, ${localizer.text("report.diatonicPurity")}: ${diatonicPct}]`
+        `   - ${localizer.text(TMDLocalizationKey.tonalMetrics)}:    ${tonality.globalCorrelation.declaredKey} [${localizer.text(TMDLocalizationKey.correlation)}: ${corrStr}, ${localizer.text(TMDLocalizationKey.stability)}: ${stabStr}, ${localizer.text(TMDLocalizationKey.diatonicPurity)}: ${diatonicPct}]`
       );
 
       const candidateStr = tonality.globalCorrelation.topCandidateKeys
@@ -1194,24 +1075,24 @@ export class TMDSongInspector {
         .map((c) => `${c.keyName} (${c.correlation.toFixed(2)})`)
         .join(", ");
       if (candidateStr.length > 0) {
-        lines.push(`   - ${localizer.text("report.candidateKeys")}: ${candidateStr}`);
+        lines.push(`   - ${localizer.text(TMDLocalizationKey.candidateKeys)}: ${candidateStr}`);
       }
 
       const pathStr = tonality.circleOfFifthsPath
         .map((step) => `${step >= 0 ? "+" : ""}${step}`)
         .join(" -> ");
       if (pathStr.length > 0) {
-        lines.push(`   - ${localizer.text("report.circleOfFifths")}:   ${pathStr}`);
+        lines.push(`   - ${localizer.text(TMDLocalizationKey.circleOfFifths)}:   ${pathStr}`);
       }
 
       if (tonality.sections.length > 0) {
-        lines.push(`   - ${localizer.text("report.sectionDetails")}:`);
+        lines.push(`   - ${localizer.text(TMDLocalizationKey.sectionDetails)}:`);
         for (const sec of tonality.sections) {
           const secCorr = sec.correlation.declaredKeyCorrelation.toFixed(2);
           const secDiatonic = `${(sec.pitchClasses.diatonicRatio * 100.0).toFixed(1)}%`;
-          let secLine = `     • [${sec.sectionName} #${sec.occurrenceIndex}]: ${sec.declaredKey} (r: ${secCorr}, ${localizer.text("report.diatonicPurity")}: ${secDiatonic}`;
+          let secLine = `     • [${sec.sectionName} #${sec.occurrenceIndex}]: ${sec.declaredKey} (r: ${secCorr}, ${localizer.text(TMDLocalizationKey.diatonicPurity)}: ${secDiatonic}`;
           if (sec.nonDiatonicNotes.length > 0) {
-            secLine += `, ${localizer.text("report.nonDiatonic")}: ${sec.nonDiatonicNotes.join(", ")}`;
+            secLine += `, ${localizer.text(TMDLocalizationKey.nonDiatonic)}: ${sec.nonDiatonicNotes.join(", ")}`;
           }
           secLine += ")";
           lines.push(secLine);
@@ -1228,7 +1109,7 @@ export class TMDSongInspector {
     }
 
     lines.push("--------------------------------------------------------------------------------");
-    lines.push(localizer.text("report.instrumentRanges"));
+    lines.push(localizer.text(TMDLocalizationKey.instrumentRanges));
     for (const inst of profile.instrumentRanges) {
       const padded = inst.instrument.padEnd(14, " ");
       const octaves = inst.spanOctaves.toFixed(1);

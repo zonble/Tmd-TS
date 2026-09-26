@@ -1,4 +1,6 @@
-import { TMDSongProfile, TMDTonalityProfile, TMDLocale, TMDLocalizer, TMDSongInspector } from "./inspector.js";
+import { TMDSongProfile, TMDTonalityProfile, TMDSongInspector } from "./inspector.js";
+import { TMDLocalizationKey, TMDLocalizer } from "./localization.js";
+import type { TMDLocale } from "./localization.js";
 
 /**
  * SVG and HTML interactive dashboard visualizer for TMD tonality profiles.
@@ -74,7 +76,7 @@ export class TMDTonalityVisualizer {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${this.xmlEscape(localizer.text("visualizer.htmlTitle"))} - ${this.xmlEscape(profile.title)}</title>
+  <title>${this.xmlEscape(localizer.text(TMDLocalizationKey.htmlTitle))} - ${this.xmlEscape(profile.title)}</title>
   <style>
     :root {
       --bg: #090d16;
@@ -135,8 +137,8 @@ export class TMDTonalityVisualizer {
 <body>
   <div class="container">
     <header>
-      <h1>${this.xmlEscape(localizer.text("visualizer.htmlTitle"))}</h1>
-      <div class="subtitle">${this.xmlEscape(localizer.text("visualizer.htmlSong"))}: <strong>${this.xmlEscape(profile.title)}</strong> | ${this.xmlEscape(localizer.text("visualizer.htmlTempo"))}: ${profile.initialTempo} BPM | ${this.xmlEscape(localizer.text("visualizer.htmlKey"))}: ${profile.initialKey} ${this.xmlEscape(localizer.text("key.major"))}</div>
+      <h1>${this.xmlEscape(localizer.text(TMDLocalizationKey.htmlTitle))}</h1>
+      <div class="subtitle">${this.xmlEscape(localizer.text(TMDLocalizationKey.htmlSong))}: <strong>${this.xmlEscape(profile.title)}</strong> | ${this.xmlEscape(localizer.text(TMDLocalizationKey.htmlTempo))}: ${profile.initialTempo} BPM | ${this.xmlEscape(localizer.text(TMDLocalizationKey.htmlKey))}: ${profile.initialKey} ${this.xmlEscape(localizer.text(TMDLocalizationKey.major))}</div>
     </header>
 
     <div class="card">
@@ -146,7 +148,7 @@ export class TMDTonalityVisualizer {
     </div>
 
     <div class="card" style="padding: 20px;">
-      <h2 style="font-size: 18px; margin-top:0; color:var(--accent);">${this.xmlEscape(localizer.text("visualizer.htmlDetailedReport"))}</h2>
+      <h2 style="font-size: 18px; margin-top:0; color:var(--accent);">${this.xmlEscape(localizer.text(TMDLocalizationKey.htmlDetailedReport))}</h2>
       <pre>${this.xmlEscape(textReport)}</pre>
     </div>
   </div>
@@ -181,7 +183,7 @@ export class TMDTonalityVisualizer {
     const activeSteps = new Set<number>(tonality.sections.map((s) => s.fifthsPosition));
 
     let s = "\n  <!-- Circle of Fifths -->\n";
-    s += `  <text x="${cx}" y="${cy - r - 30}" fill="#e2e8f0" font-size="14" font-weight="600" text-anchor="middle">${this.xmlEscape(localizer.text("visualizer.circleOfFifths"))}</text>\n`;
+    s += `  <text x="${cx}" y="${cy - r - 30}" fill="#e2e8f0" font-size="14" font-weight="600" text-anchor="middle">${this.xmlEscape(localizer.text(TMDLocalizationKey.circleOfFifthsTitle))}</text>\n`;
     s += `  <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#334155" stroke-width="2" stroke-dasharray="4,4"/>\n`;
 
     const coordsByStep: Record<number, { x: number; y: number }> = {};
@@ -239,7 +241,7 @@ export class TMDTonalityVisualizer {
     const maxWeight = Math.max(0.001, ...weights);
 
     let s = "\n  <!-- Pitch Class Radar Chart -->\n";
-    s += `  <text x="${cx}" y="${cy - r - 30}" fill="#e2e8f0" font-size="14" font-weight="600" text-anchor="middle">${this.xmlEscape(localizer.text("visualizer.pitchClassDistribution"))}</text>\n`;
+    s += `  <text x="${cx}" y="${cy - r - 30}" fill="#e2e8f0" font-size="14" font-weight="600" text-anchor="middle">${this.xmlEscape(localizer.text(TMDLocalizationKey.pitchClassDistributionTitle))}</text>\n`;
 
     // Concentric web circles
     for (const step of [0.25, 0.5, 0.75, 1.0]) {
@@ -287,7 +289,7 @@ export class TMDTonalityVisualizer {
     const totalDuration = Math.max(0.001, profile.timing.totalDurationSeconds);
 
     let s = "\n  <!-- Section Keyscape Timeline Ribbon -->\n";
-    s += `  <text x="${x}" y="${y - 12}" fill="#e2e8f0" font-size="14" font-weight="600">${this.xmlEscape(localizer.text("visualizer.timeline"))}</text>\n`;
+    s += `  <text x="${x}" y="${y - 12}" fill="#e2e8f0" font-size="14" font-weight="600">${this.xmlEscape(localizer.text(TMDLocalizationKey.timelineTitle))}</text>\n`;
     s += `  <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="#1e293b" rx="8"/>\n`;
 
     const keyColors = [

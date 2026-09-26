@@ -8,6 +8,7 @@ export * from './measure_check.js';
 export * from './outline.js';
 export * from './instruments.js';
 export * from './inspector.js';
+export * from './localization.js';
 export * from './macro.js';
 export * from './canon_gen.js';
 export * from './tonality_visualizer.js';
