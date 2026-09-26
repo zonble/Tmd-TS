@@ -4,8 +4,7 @@ import * as path from "node:path";
 import { TmdParser } from "../src/core/parser.js";
 import { TMDSongInspector } from "../src/core/inspector.js";
 import { renderTonalityProfileHtml } from "../web/src/ui/tonality.js";
-import fs from "node:fs";
-import path from "node:path";
+
 
 describe("Web Studio tonality visualization", () => {
   it("labels the top score metric as movable-do base, not a declared key", () => {
@@ -84,4 +83,31 @@ A:Piano@|0|{ <4*> 1 3 5 1^ }
     expect(html).toContain("no modulation");
     expect(html).not.toContain("全曲無轉調");
   });
+
+  it("renders declared tonality metric when sheet has declared key", () => {
+    const sheet = TmdParser.parse(`::SCORE::
+** Declared Tonality Score **
+!= 120
+?= D
+key= Bm
+<4/4>
+
+verse:Piano@|0|{
+    <4*>
+    1 3 5 1^
+}
+
+-> verse ->#
+`);
+    const profileEn = TMDSongInspector.inspect(sheet!, undefined, "en");
+    const htmlEn = renderTonalityProfileHtml(profileEn.tonality!, "en", profileEn.timing.sections);
+    expect(htmlEn).toContain("Declared tonality");
+    expect(htmlEn).toContain("Bm");
+
+    const profileZh = TMDSongInspector.inspect(sheet!, undefined, "zh-Hant");
+    const htmlZh = renderTonalityProfileHtml(profileZh.tonality!, "zh-Hant", profileZh.timing.sections);
+    expect(htmlZh).toContain("宣告調性");
+    expect(htmlZh).toContain("Bm");
+  });
 });
+

@@ -17,7 +17,8 @@ type TonalityLabelKey =
   | "tonalityStructureTimeline" | "tonalityDetailedAnalysis"
   | "tonalityCorrelation" | "tonalityDiatonicPurity" | "tonalityDiatonicChromatic"
   | "tonalityBestFitKeys" | "tonalityCircleOfFifths" | "tonalityInferred" | "tonalityConfidence"
-  | "tonalityPlaybackContext" | "tonalityAmbiguous";
+  | "tonalityPlaybackContext" | "tonalityAmbiguous" | "tonalityDeclaredKey";
+
 
 function label(locale: TMDLocale, key: TonalityLabelKey, fallback: string): string {
   const dictionary = locale === "zh-Hant" || locale === "zh-TW" ? zhTW : en;
